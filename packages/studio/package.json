@@ -1,0 +1,38 @@
+{
+  "name": "@democraft/studio",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "tsc --noEmit",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@democraft/compiler": "workspace:*",
+    "@democraft/core": "workspace:*",
+    "@democraft/playwright": "workspace:*",
+    "@democraft/remotion": "workspace:*",
+    "@democraft/schema": "workspace:*",
+    "@democraft/timeline": "workspace:*",
+    "@remotion/player": "4.0.487",
+    "@remotion/renderer": "4.0.487",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.469.0",
+    "next": "^15.5.20",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwind-merge": "^2.6.0",
+    "tsx": "^4.23.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.0",
+    "@types/node": "^22.10.7",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "tailwindcss": "^4.3.2",
+    "typescript": "^5.7.3"
+  }
+}
