@@ -1,0 +1,16 @@
+{
+  "name": "@democraft/example-basic-demo",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "start": "tsx src/run.ts"
+  },
+  "dependencies": {
+    "@democraft/compiler": "workspace:*",
+    "@democraft/core": "workspace:*"
+  }
+}
