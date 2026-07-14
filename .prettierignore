@@ -1,0 +1,7 @@
+node_modules
+dist
+.turbo
+.gitignore
+pnpm-lock.yaml
+docs
+packages/*/dist

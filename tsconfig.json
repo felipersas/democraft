@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./packages/remotion/src/*"],
+      "@/components/*": ["./packages/remotion/src/components/*"],
+      "@/components/ui/*": ["./packages/remotion/src/components/ui/*"],
+      "@/hooks/*": ["./packages/remotion/src/hooks/*"],
+      "@/lib/*": ["./packages/remotion/src/lib/*"],
+      "@/lib/utils": ["./packages/remotion/src/lib/utils"],
+      "components/*": ["./packages/remotion/src/components/*"],
+      "ui/*": ["./packages/remotion/src/components/ui/*"],
+      "hooks/*": ["./packages/remotion/src/hooks/*"],
+      "lib/*": ["./packages/remotion/src/lib/*"],
+      "utils": ["./packages/remotion/src/lib/utils"]
+    }
+  }
+}

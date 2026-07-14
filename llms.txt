@@ -1,0 +1,64 @@
+# Democraft
+
+Democraft turns real product workflows into rendered Remotion videos.
+
+Core packages:
+
+- `@democraft/core`: TypeScript authoring API.
+- `@democraft/compiler`: compiles demos into JSON-compatible IR.
+- `@democraft/playwright`: executes browser workflows and records manifests.
+- `@democraft/timeline`: resolves render timelines from IR and manifests.
+- `@democraft/remotion`: renders videos from timelines.
+- `@democraft/cli`: agent-friendly inspection, validation, capture, preview, and render commands.
+
+Authoring pattern:
+
+```ts
+import { byTestId, defineDemo, defineTargets } from "@democraft/core";
+
+const targets = defineTargets({
+  dashboard: byTestId("dashboard"),
+});
+
+export default defineDemo({
+  id: "create-project",
+  title: "Create Project",
+  source: { baseUrl: "http://localhost:3000" },
+  targets,
+  async run({ demo }) {
+    await demo.scene("intro", async (scene) => {
+      await scene.goto("/dashboard");
+      await scene.expectVisible("dashboard");
+    });
+  },
+});
+```
+
+Agent workflow:
+
+```bash
+democraft targets ./demos/create-project/demo.ts --json
+democraft inspect ./demos/create-project/demo.ts --json
+democraft validate ./demos/create-project/demo.ts --static --json
+democraft capture ./demos/create-project/demo.ts --output-dir .democraft/runs/create-project
+democraft timeline ./demos/create-project/demo.ts --manifest .democraft/runs/create-project/manifest.json --output-file .democraft/timelines/create-project.landscape.json
+democraft preview --manifest .democraft/runs/create-project/manifest.json --timeline .democraft/timelines/create-project.landscape.json --output-file .democraft/previews/create-project.html
+democraft render --manifest .democraft/runs/create-project/manifest.json --timeline .democraft/timelines/create-project.landscape.json --output-file .democraft/renders/create-project.mp4
+```
+
+Remocn integration:
+
+Remocn components are copied into the user's project with shadcn, for example:
+
+```bash
+pnpm dlx shadcn@latest add @remocn/soft-blur-in
+```
+
+The renderer should map semantic renderer IDs to copied Remocn components through a visual registry. Demo source should reference portable IDs such as `renderer: "remocn.soft-blur-in"` instead of importing Remocn components directly.
+
+Guardrails:
+
+- Keep target IDs stable.
+- Prefer literal locators from `defineTargets()`.
+- Run `validate --static --json` before capture.
+- Use structured diagnostics to repair target IDs, locators, durations, and renderer IDs.
