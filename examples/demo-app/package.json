@@ -1,0 +1,25 @@
+{
+  "name": "@democraft/example-demo-app",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "start": "tsx src/server.ts",
+    "inspect": "pnpm --filter @democraft/cli exec tsx src/index.ts inspect ../../examples/demo-app/src/demo.ts",
+    "targets": "pnpm --filter @democraft/cli exec tsx src/index.ts targets ../../examples/demo-app/src/demo.ts --json",
+    "validate": "pnpm --filter @democraft/cli exec tsx src/index.ts validate ../../examples/demo-app/src/demo.ts --static",
+    "capture": "tsx src/run-capture.ts",
+    "timeline": "pnpm --filter @democraft/cli exec tsx src/index.ts timeline ../../examples/demo-app/src/demo.ts --manifest ../../examples/demo-app/.democraft/runs/create-project-live/manifest.json --output-file ../../examples/demo-app/.democraft/timelines/create-project-live.landscape.json",
+    "preview": "pnpm --filter @democraft/cli exec tsx src/index.ts preview --manifest ../../examples/demo-app/.democraft/runs/create-project-live/manifest.json --timeline ../../examples/demo-app/.democraft/timelines/create-project-live.landscape.json --output-file ../../examples/demo-app/.democraft/previews/create-project-live.html",
+    "render": "pnpm --filter @democraft/cli exec tsx src/index.ts render --manifest ../../examples/demo-app/.democraft/runs/create-project-live/manifest.json --timeline ../../examples/demo-app/.democraft/timelines/create-project-live.landscape.json --output-file ../../examples/demo-app/.democraft/renders/create-project-live.mp4"
+  },
+  "dependencies": {
+    "@democraft/compiler": "workspace:*",
+    "@democraft/core": "workspace:*",
+    "@democraft/playwright": "workspace:*",
+    "@democraft/timeline": "workspace:*"
+  }
+}

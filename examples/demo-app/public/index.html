@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Motion Demo Fixture</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        background: #eef2f7;
+        color: #172033;
+      }
+
+      body {
+        margin: 0;
+      }
+
+      .shell {
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: 260px 1fr;
+      }
+
+      aside {
+        background: #172033;
+        color: white;
+        padding: 32px 24px;
+      }
+
+      main {
+        padding: 40px;
+      }
+
+      .topbar,
+      .card,
+      dialog {
+        background: white;
+        border: 1px solid #d8dee8;
+        border-radius: 8px;
+        box-shadow: 0 18px 50px rgb(25 36 60 / 10%);
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 24px;
+        margin-bottom: 24px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 20px;
+      }
+
+      .card {
+        padding: 24px;
+        min-height: 140px;
+      }
+
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+
+      button {
+        border: 0;
+        border-radius: 6px;
+        background: #1c6df2;
+        color: white;
+        padding: 10px 14px;
+        cursor: pointer;
+      }
+
+      label {
+        display: grid;
+        gap: 6px;
+        margin: 16px 0;
+        color: #344054;
+      }
+
+      input,
+      select {
+        border: 1px solid #c9d2df;
+        border-radius: 6px;
+        padding: 10px 12px;
+      }
+
+      dialog {
+        width: min(420px, calc(100vw - 48px));
+        padding: 24px;
+      }
+
+      dialog::backdrop {
+        background: rgb(23 32 51 / 42%);
+      }
+
+      .project-card {
+        border-color: #8ab4ff;
+        background: #f7fbff;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <aside>
+        <h1>Oddworks</h1>
+        <p>Workspace automation</p>
+      </aside>
+
+      <main data-testid="dashboard">
+        <section class="topbar">
+          <div>
+            <h2>Projects</h2>
+            <p>Create a project and invite your team.</p>
+          </div>
+          <button
+            type="button"
+            data-testid="new-project"
+            id="new-project-button"
+          >
+            New project
+          </button>
+        </section>
+
+        <section class="grid" id="project-grid" aria-live="polite">
+          <article class="card">
+            <h3>Launch plan</h3>
+            <p>Draft</p>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <dialog
+      aria-label="Create project"
+      id="create-project-dialog"
+      data-testid="create-project-dialog"
+    >
+      <form method="dialog" id="create-project-form">
+        <h2>Create project</h2>
+        <label>
+          Project name
+          <input
+            name="projectName"
+            data-testid="project-name-input"
+            autocomplete="off"
+          />
+        </label>
+        <label>
+          Template
+          <select name="template" data-testid="project-template">
+            <option>Blank project</option>
+            <option>Product launch</option>
+            <option>Customer onboarding</option>
+          </select>
+        </label>
+        <button type="submit" data-testid="create-project-button">
+          Create
+        </button>
+      </form>
+    </dialog>
+
+    <script>
+      const dialog = document.querySelector("#create-project-dialog");
+      const form = document.querySelector("#create-project-form");
+      const grid = document.querySelector("#project-grid");
+
+      document
+        .querySelector("#new-project-button")
+        .addEventListener("click", () => {
+          dialog.showModal();
+          form.elements.projectName.focus();
+        });
+
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const name = form.elements.projectName.value || "Untitled project";
+        dialog.close();
+        const card = document.createElement("article");
+        card.className = "card project-card";
+        card.dataset.testid = "project-card";
+        card.innerHTML = `<h3>${name}</h3><p>${form.elements.template.value}</p>`;
+        grid.append(card);
+      });
+    </script>
+  </body>
+</html>
