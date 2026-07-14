@@ -1,0 +1,30 @@
+{
+  "name": "@democraft/cli",
+  "version": "0.0.0",
+  "type": "module",
+  "bin": {
+    "democraft": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@democraft/compiler": "workspace:*",
+    "@democraft/core": "workspace:*",
+    "@democraft/playwright": "workspace:*",
+    "@democraft/preview": "workspace:*",
+    "@democraft/remotion": "workspace:*",
+    "@democraft/schema": "workspace:*",
+    "@democraft/timeline": "workspace:*"
+  }
+}
