@@ -1,0 +1,79 @@
+---
+title: Arquitetura
+description: O layout do monorepo, responsabilidades dos pacotes e grafo de dependências.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+O Democraft é um monorepo pnpm + turbo. Esta página mapeia os pacotes, suas responsabilidades e como eles dependem uns dos outros.
+
+## Mapa de pacotes
+
+| Pacote | Responsabilidade |
+|--------|------------------|
+| `@democraft/schema` | Tipos compartilhados + diagnósticos. A folha da qual todos os outros pacotes dependem. |
+| `@democraft/core` | A API de autoria: `defineDemo`, `defineTargets`, fábricas de locator. |
+| `@democraft/compiler` | Compila uma `DemoDefinition` em um `DemoIR`. |
+| `@democraft/playwright` | Conduz o Playwright para capturar o navegador. Produz o manifest + screenshots + gravação. |
+| `@democraft/timeline` | Resolve uma `RenderTimeline` a partir do IR + manifest. |
+| `@democraft/remotion` | Renderiza um MP4 a partir do manifest + timeline via Remotion. |
+| `@democraft/preview` | Escreve uma pré-visualização HTML autônoma (caminho depreciado). |
+| `@democraft/cli` | A CLI `democraft`. Orquestra todos os estágios. |
+| `@democraft/studio` | O Studio Next.js. UI de pré-visualização + renderização. |
+| `@democraft/testing` | Fixtures de teste e helpers. |
+
+## Grafo de dependências
+
+```
+schema  ← (folha, não depende de nada no workspace)
+  ▲
+  ├── core           (depende de schema)
+  ├── compiler       (depende de core + schema)
+  ├── playwright     (depende de schema)
+  ├── timeline       (depende de schema)
+  ├── remotion       (depende de schema)
+  ├── preview        (depende de schema)
+  ├── testing        (depende de core + compiler)
+  │
+  └── cli            (depende de todos os acima — o orquestrador)
+       ▲
+       └── studio    (depende de compiler, playwright, timeline, remotion, schema)
+```
+
+<Callout type="info">
+`schema` é a folha. `core` depende apenas de `schema`. `compiler` depende de `core` + `schema`. Tudo que "faz trabalho" (playwright, timeline, remotion, preview) depende apenas de `schema`. A CLI é o único pacote que depende de todos os outros pacotes do workspace.
+</Callout>
+
+## Propriedades arquiteturais chave
+
+### Isolamento do renderizador
+
+`@democraft/remotion` **não** depende de `compiler` ou `playwright`. Ele consome apenas os formatos JSON de manifest + timeline. Isso mantém o renderizador cacheável e permite que o pipeline de captura evolua independentemente.
+
+### O Studio importa o pipeline
+
+O Studio importa `@democraft/compiler`, `@democraft/playwright`, `@democraft/timeline` e `@democraft/remotion` diretamente. Isso permite que ele re-compile, re-resolva e re-capture in-process — sem round-trip da CLI. O trade-off: o `next.config.ts` do Studio externaliza esses pacotes (mais o Playwright) para que o webpack do Next não tente fazê-los bundle.
+
+### Imports dinâmicos de `.ts`
+
+O Studio lê arquivos `demo.ts` em runtime. Como o Next.js reescreve chamadas `import()` visíveis e o Node não consegue carregar `.ts` nativamente, o Studio usa um truque de `new Function("specifier", "return import(specifier)")` para tornar o import dinâmico invisível ao webpack, pareado com `NODE_OPTIONS=--import tsx` (definido pela CLI ao spawnar o dev server).
+
+### Cache de captura única
+
+O `meta.json` escrito pela CLI (`launchStudio`) é o mapa do Studio: ele aponta para o `demoPath`, `captureDir` e `demoId`. É o que habilita reutilização por padrão e detecção de staleness. Veja [captura única](../pipeline/captura-unica).
+
+## Sistema de build
+
+- **Gerenciador de pacotes:** pnpm workspaces.
+- **Task runner:** turbo. `pnpm build`, `pnpm typecheck`, `pnpm test` rodam pelo grafo, respeitando dependências.
+- **Builds de pacote:** tsup compila cada pacote `@democraft/*` para `dist/` (CJS + ESM + tipos). Consumidores resolvem a partir de `dist/`, então `pnpm build` é obrigatório uma vez após instalar.
+- **Testes:** vitest.
+- **Studio e docs:** apps Next.js, buildados com `next build`.
+
+## Convenções
+
+- **Namespace:** `@democraft/*` para todos os pacotes do workspace.
+- **Binário da CLI:** `democraft`.
+- **Diretório de dados:** `.democraft/` (runs, studio-data).
+- **Variáveis de ambiente:** prefixo `DEMOCRAFT_*`.
+- **Códigos de diagnóstico:** `DC0xx`.

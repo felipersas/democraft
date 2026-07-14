@@ -1,0 +1,88 @@
+---
+title: Remotion integration
+description: How @democraft/remotion turns a RenderTimeline into an MP4.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+import { Steps } from "fumadocs-ui/components/steps";
+
+Remotion is the last stage of the pipeline. It receives a resolved `RenderTimeline` and renders it into an MP4, one frame at a time. Democraft's `@democraft/remotion` package is the bridge.
+
+## Remotion's mental model
+
+You write a React component that receives a `frame` number and returns JSX. Remotion calls it once per frame, captures the resulting DOM as an image, and concatenates the images into a video. Remotion does **not** know about Playwright, manifests, or your demo — it only knows the frame and the React tree.
+
+## What `@democraft/remotion` provides
+
+Three exports:
+
+| Export | Purpose |
+|--------|---------|
+| `renderDemoVideo(options)` | Server-side renderer. Bundles the entry, selects the composition, and calls `renderMedia`. |
+| `compositionId` | The composition id (`"Democraft"`) registered with Remotion. |
+| `ProductDemoVideo` | The React component that renders one frame of a demo. |
+
+## The render flow
+
+<Steps>
+  1. **Bundle.** `renderDemoVideo` bundles `entry.ts` (which registers `<Composition id={compositionId}>`) via `@remotion/bundler`.
+  2. **Select.** It calls `selectComposition` with the composition id and the input props (the timeline, screenshots as data URIs, the recording path).
+  3. **Render.** It calls `renderMedia` to produce each frame and encode the MP4.
+</Steps>
+
+## The `ProductDemoVideo` component
+
+This is the React tree Remotion renders per frame. Given the timeline and a frame number, it composes:
+
+- **Screenshots** — the right image per step, crossfaded during `transition` steps.
+- **Camera** — a transform that pans/zooms based on the resolved camera tracks.
+- **Cursor** — the recorded mouse position, replayed.
+- **Overlays** — captions and callouts, positioned by their frame ranges and rendered by the named `renderer` component.
+
+The component is intentionally pure: same props → same frame. This is what makes render deterministic and cacheable.
+
+## Render options
+
+`renderDemoVideo` accepts:
+
+```ts
+type RenderDemoVideoOptions = {
+  manifest: RecordedDemoManifest;
+  timeline: RenderTimeline;
+  screenshotDataUris: Record<string, string>;
+  recordingFilePath?: string;
+  outputFile: string;
+  // passthrough to renderMedia:
+  onProgress?: (progress: number) => void;
+  cancelSignal?: CancelSignal;
+  frameRange?: [number, number];
+  scale?: number;
+  crf?: number;
+};
+```
+
+- `onProgress` streams a 0–1 progress value (used by the Studio's render queue).
+- `cancelSignal` supports cancelling an in-flight render.
+- `frameRange` renders only a sub-range — used by the Studio's in/out markers.
+
+<Callout type="warn" title="Experimental">
+`frameRange`, `cancelSignal`, and `onProgress` are wired through but the Studio is the primary consumer today. Direct CLI use of these options is supported but less ergonomic.
+</Callout>
+
+## Visual components and remocn
+
+Caption and callout steps accept a `renderer` name (e.g. `"remocn.kinetic-title"`, `"remocn.glass-callout"`). This string is resolved at render time via a **visual registry** — a map from renderer ID to React component. The built-in registry lives in `@democraft/remotion` and ships four renderers (`motion.*` defaults + `remocn.*` components).
+
+**Remocn** (Remotion + shadcn) is the primary component library for Democraft overlays. Components are user-owned — you clone them from the registry or write your own, then register them via a custom entry point.
+
+- See [Components and remocn](../concepts/components) for the conceptual overview and built-in catalog.
+- See [Custom entry point](./custom-entry) to set up your own entry and register components.
+- See [Creating custom components](./create-components) for the `CaptionProps`/`CalloutProps` contract and a full example.
+
+## Why Remotion stays isolated
+
+Remotion only consumes the manifest + timeline JSON shapes. It does **not** depend on `@democraft/compiler` or `@democraft/playwright`. This keeps the renderer:
+
+- **Cacheable** — the bundle is stable across demo edits.
+- **Decoupled** — capture pipeline changes don't ripple into the renderer.
+- **Portable** — render can run anywhere with the captured files, no browser needed.

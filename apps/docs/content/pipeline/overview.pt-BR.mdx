@@ -1,0 +1,72 @@
+---
+title: Visão geral do pipeline
+description: O pipeline de seis estágios de demo.ts a MP4.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+import { Steps } from "fumadocs-ui/components/steps";
+
+O pipeline do Democraft tem seis estágios. Cada um consome a saída do anterior e produz um artefato estável. Entender os estágios — e quais precisam de navegador — é a chave para iteração rápida.
+
+## Os seis estágios
+
+<Steps>
+  1. **Autoria** — Você escreve `demo.ts` com `defineDemo` e o construtor de cenas.
+  2. **Compilação** — `compileDemo` transforma a demo em um `DemoIR` (serializável, com hash de conteúdo).
+  3. **Captura** — `runDemo` conduz o Playwright contra o app ativo, produzindo um `RecordedDemoManifest`, screenshots e uma gravação `.webm`.
+  4. **Resolução** — `resolveTimeline` combina o IR + manifest em uma `RenderTimeline` (câmera, cursor, overlays frame-a-frame).
+  5. **Composição** — `ProductDemoVideo` (um componente React) renderiza um frame dado a timeline + um número de frame.
+  6. **Renderização** — `renderDemoVideo` faz o bundle da composição e chama `renderMedia` do Remotion para produzir o MP4.
+</Steps>
+
+## Quais estágios precisam de quê
+
+| Estágio | Precisa de navegador? | Precisa do app ativo? | Precisa de Playwright? |
+|---------|----------------------|-----------------------|------------------------|
+| Autoria | Não | Não | Não |
+| Compilação | Não | Não | Não |
+| Captura | Sim | Sim | Sim |
+| Resolução | Não | Não | Não |
+| Composição | Não | Não | Não |
+| Renderização | Não | Não | Não |
+
+Apenas a **captura** precisa do app ativo e do Playwright. Tudo à jusante da captura trabalha a partir dos arquivos capturados em disco. Esta é a fundação da [captura única](./captura-unica).
+
+## Os contratos estáveis
+
+Entre os estágios ficam três artefatos estáveis:
+
+1. **`DemoIR`** — produzido por `compileDemo`. Seu `id` é um hash de conteúdo usado para detecção de staleness.
+2. **`RecordedDemoManifest`** — produzido por `runDemo`. Contém a sequência de passos, bounding boxes resolvidas e caminhos de gravação/screenshots.
+3. **`RenderTimeline`** — produzida por `resolveTimeline`. Faixas frame-a-frame de câmera, cursor e overlays.
+
+Estes são as **únicas** coisas que cruzam fronteiras de estágio. Contanto que estes formatos permaneçam estáveis, os estágios podem evoluir independentemente.
+
+## Onde cada estágio vive
+
+| Estágio | Pacote |
+|---------|--------|
+| Autoria | seu `demo.ts` |
+| Compilação | `@democraft/compiler` |
+| Captura | `@democraft/playwright` |
+| Resolução | `@democraft/timeline` |
+| Composição | `@democraft/remotion` (`ProductDemoVideo`) |
+| Renderização | `@democraft/remotion` (`renderDemoVideo`) |
+
+`@democraft/schema` é a folha da qual todos os outros pacotes dependem — ele possui os tipos compartilhados (`DemoIR`, `RecordedDemoManifest`, `RenderTimeline`, `Locator`, diagnósticos).
+
+<Callout type="info">
+A CLI (`@democraft/cli`) é o orquestrador que encadeia esses estágios. O Studio (`@democraft/studio`) reutiliza captura + resolução + renderização in-process, e adiciona pré-visualização e uma fila de renderização.
+</Callout>
+
+## O caminho demo.ts → vídeo
+
+```
+demo.ts
+  → compileDemo → DemoIR
+  → runDemo → RecordedDemoManifest + screenshots + recording.webm
+  → resolveTimeline → RenderTimeline
+  → renderDemoVideo → MP4
+```
+
+Leia [captura única](./captura-unica) para como a detecção de staleness lhe permite pular o caro estágio de captura na maioria das edições.

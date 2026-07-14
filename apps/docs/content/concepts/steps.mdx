@@ -1,0 +1,119 @@
+---
+title: Steps
+description: The fourteen step kinds that compose a scene.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+import { TypeTable } from "fumadocs-ui/components/type-table";
+
+A **step** is the atomic unit of a scene. Democraft has fourteen step kinds, grouped into five families: browser actions, assertions, camera moves, timeline control, and overlays.
+
+## Browser actions
+
+Steps that drive the page and capture a screenshot.
+
+| Method | Kind | Description |
+|--------|------|-------------|
+| `scene.goto(path)` | `browser.goto` | Navigate to a path relative to `source.baseUrl`. |
+| `scene.click(target)` | `browser.click` | Click a target. |
+| `scene.fill(target, value)` | `browser.fill` | Fill an input with text. |
+| `scene.select(target, value)` | `browser.select` | Choose an option from a `<select>`. |
+
+Each browser action captures a screenshot after the action settles. That screenshot becomes the visual frame for the step's duration in the timeline.
+
+## Assertions
+
+Steps that verify state without advancing the visual.
+
+| Method | Kind | Description |
+|--------|------|-------------|
+| `scene.expectVisible(target)` | `assert.visible` | Assert a target is present and visible. |
+| `scene.expectText(target, text)` | `assert.text` | Assert a target contains text. |
+| `scene.expectUrl(path)` | `assert.url` | Assert the current URL path. |
+
+Assertions fail the capture if unmet, producing a diagnostic (`DC0xx`). They do not produce their own screenshot — they validate the state produced by preceding browser actions.
+
+## Camera moves
+
+Steps that control what the rendered camera shows.
+
+| Method | Kind | Description |
+|--------|------|-------------|
+| `scene.establish(target?)` | `camera.establish` | Pull back to show the whole viewport (or a target's context). |
+| `scene.focus(target, opts?)` | `camera.focus` | Zoom/pan to a target. `opts.padding` adds breathing room. |
+
+`focus` accepts `{ padding }`:
+
+```ts
+await scene.focus("project-name-input", { padding: 24 });
+```
+
+Within a scene, an `establish` followed by a `focus` produces a smooth zoom-to-target. See the [timeline](./timeline) page for how these resolve into camera tracks.
+
+## Timeline control
+
+Steps that govern pacing and transitions.
+
+| Method | Kind | Description |
+|--------|------|-------------|
+| `scene.hold(duration)` | `timeline.hold` | Hold the current state for a duration string. |
+| `scene.transition(opts?)` | `timeline.transition` | Cut or crossfade into the next step. |
+
+`hold` accepts duration strings like `"5000ms"`, `"1s"`, `"2s"`:
+
+```ts
+await scene.hold("5000ms");
+await scene.hold("1s");
+```
+
+`transition` accepts `{ type: "cut" | "crossfade", duration }`:
+
+```ts
+await scene.transition({ type: "crossfade", duration: "500ms" });
+```
+
+## Overlays
+
+Steps that add text or annotation layers on top of the captured frames.
+
+| Method | Kind | Description |
+|--------|------|-------------|
+| `scene.caption(text, opts?)` | `overlay.caption` | Full-width or centered caption text. |
+| `scene.callout(target, opts)` | `overlay.callout` | Annotated pointer at a target. |
+
+`callout` requires `{ title }` and accepts `{ description, renderer }`:
+
+```ts
+await scene.callout("project-card", {
+  title: "Your project is ready",
+  description: "The browser journey produced this card.",
+  renderer: "remocn.glass-callout",
+});
+```
+
+`caption` and `callout` accept a `renderer` option — a named visual component. The built-in renderers are `motion.caption` (default), `remocn.kinetic-title`, `motion.callout` (default), and `remocn.glass-callout`. **Remocn** is the primary component library; see [Components and remocn](./components) for the full catalog and how to add your own.
+
+## Cue markers
+
+| Method | Kind | Description |
+|--------|------|-------------|
+| `scene.cue(name)` | `cue` | A named bookmark in the timeline. |
+
+Cues do not render visually. They are reference points that the Studio and future programmatic consumers can use to jump to or annotate specific moments (e.g. "scene highlight at the cue named `result`").
+
+## Step options
+
+Every step accepts an optional `{ id }`:
+
+<TypeTable
+  type={{
+    name: "SceneStepOptions",
+    type: "{ id?: string }",
+  }}
+/>
+
+Explicit step IDs are optional but recommended — they make diagnostics, diffs, and Studio references stable. Without them, Democraft generates IDs from the step's position, which shift when you reorder steps.
+
+<Callout type="info">
+Adding or removing a step is a **structural change** — it changes the IR content hash and triggers a re-capture. Editing a caption's text or a `hold`'s duration is a **content change** — only a re-resolve is needed. See [capture-once](../pipeline/capture-once).
+</Callout>

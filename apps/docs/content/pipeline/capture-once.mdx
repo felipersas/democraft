@@ -1,0 +1,89 @@
+---
+title: Capture-once workflow
+description: Reuse captures by default, re-capture in the Studio, and detect staleness automatically.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+import { Steps } from "fumadocs-ui/components/steps";
+
+Capture is the expensive stage — it needs the live app and Playwright. Democraft makes capture **once per structural version** of a demo, then reuses the captured files for every subsequent edit. This page explains the mechanics.
+
+## The default: reuse
+
+When you launch the Studio (or run capture from the CLI), Democraft checks for an existing capture in `.democraft/runs/<ir.id>/`. If a valid `manifest.json` exists, it is **reused** — no browser, no Playwright, instant startup.
+
+This is the default behavior. The Studio opens instantly on the second run onward.
+
+## What lives on disk
+
+```
+.democraft/
+  studio-data/          # what the Studio reads
+    meta.json           # { demoPath, captureDir, demoId, capturedAt }
+    manifest.json       # copied from the capture run
+    timeline.json       # resolved timeline (rewritten on every edit)
+    screenshots/        # one PNG per captured step
+  runs/
+    <ir.id>/            # the raw capture output
+      manifest.json
+      screenshots/
+      recording.webm
+      trace.zip
+```
+
+`meta.json` is how the Studio knows where everything is. It points at the `demoPath` (for re-compilation) and the `captureDir` (for the raw capture).
+
+## Staleness detection
+
+Every time the Studio loads (or `demo.ts` changes), it re-compiles `demo.ts` and compares the resulting `ir.id` against `manifest.demoId`:
+
+| Comparison | Staleness kind | Meaning | Action |
+|------------|----------------|---------|--------|
+| `ir.id === manifest.demoId` | `fresh` | Nothing structural changed. | Nothing. |
+| `ir.id === manifest.demoId` but `demo.ts` mtime > manifest mtime | `content` | Cosmetic edit (comments, whitespace). | Re-resolve timeline. |
+| `ir.id !== manifest.demoId` | `structural` | Steps/targets changed. | **Re-capture needed.** |
+| manifest contains `chrome-error://` | `failed` | Last capture hit an error page. | Re-capture needed. |
+
+The Studio shows a colored badge reflecting this state.
+
+## Re-resolve (no browser)
+
+For `content` staleness — and even for some `structural` cases where only captions/pacing changed — the Studio re-resolves the timeline from the existing capture:
+
+1. Re-compile `demo.ts` → IR.
+2. `resolveTimeline(ir, existingManifest)` → new timeline.
+3. Rewrite `timeline.json`.
+
+This happens automatically on every `demo.ts` save. No browser involved.
+
+## Re-capture (browser)
+
+For `structural` staleness, a re-capture is required. The Studio can do this in-place:
+
+1. Click the **Re-capture** button in the header.
+2. The Studio re-runs `loadDemo → compileDemo → runDemo` against the target app.
+3. Progress streams via the event bus (`recapture-progress`).
+4. When it finishes, the file-watcher triggers a hot-reload.
+
+<Callout type="warn">
+Re-capture requires the target app to be running at `source.baseUrl`. If it isn't, the capture will fail (or produce `chrome-error://` pages, which show up as `failed` staleness).
+</Callout>
+
+## The `--no-capture` flag
+
+By default, the CLI reuses a capture if one exists and captures if not. The `--no-capture` flag changes this to **forced skip**: reuse if a manifest exists, **fail** if not. Use it in CI to guarantee no browser is spawned.
+
+```bash
+pnpm --filter @democraft/cli exec tsx src/index.ts studio \
+  $(pwd)/examples/demo-app/src/demo.ts --no-capture
+```
+
+## Why this works
+
+<Steps>
+  1. **Render depends only on captured files** — never on the live app. So a stale-but-present capture still renders fine.
+  2. **The IR content hash** distinguishes structural changes (re-capture) from content changes (re-resolve). So you don't re-capture unnecessarily.
+  3. **The Studio imports the compiler + timeline packages directly**, so it can re-compile and re-resolve in-process without a CLI round-trip.
+</Steps>
+
+The result: capture is rare (only on structural change), and iteration on captions, pacing, camera, and overlays is instant.

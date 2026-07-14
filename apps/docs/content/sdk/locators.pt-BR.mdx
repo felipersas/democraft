@@ -1,0 +1,111 @@
+---
+title: Locators
+description: As quatro fábricas de locator e como construir contratos de alvo resilientes.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+import { TypeTable } from "fumadocs-ui/components/type-table";
+
+Locators são como um **alvo** resolve para um elemento do DOM no momento da captura. O Democraft fornece quatro fábricas em `@democraft/core`.
+
+## As quatro fábricas
+
+### `byRole(role, options?)`
+
+O locator mais resiliente. Apoiado em papel ARIA e nome acessível — sobrevive a reescritas de markup que preservam a semântica.
+
+```ts
+import { byRole } from "@democraft/core";
+
+const button = byRole("button", { name: "Create" });
+const dialog = byRole("dialog", { name: "Create project" });
+```
+
+<TypeTable
+  type={{
+    name: "byRole",
+    type: "(role: string, options?: { name?: string }) => Locator",
+  }}
+/>
+
+### `byLabel(text)`
+
+Encontra um controle de formulário pelo texto do `<label>` associado. Resiliente entre refactors de input.
+
+```ts
+import { byLabel } from "@democraft/core";
+
+const input = byLabel("Project name");
+```
+
+### `byTestId(id)`
+
+Encontra um elemento pelo seu atributo `data-testid`. O fallback confiável para elementos sem um nome acessível claro.
+
+```ts
+import { byTestId } from "@democraft/core";
+
+const dashboard = byTestId("dashboard");
+```
+
+### `byText(text, options?)`
+
+Encontra um elemento pelo conteúdo de texto visível. O locator mais frágil — use apenas quando nenhuma outra opção servir.
+
+```ts
+import { byText } from "@democraft/core";
+
+const heading = byText("Welcome back");
+```
+
+## Agrupando alvos: `defineTargets`
+
+A maioria das demos declara todos os alvos em um mapa. `defineTargets` é uma função identidade para inferência de tipos:
+
+```ts title="targets.ts"
+import { byLabel, byRole, byTestId, defineTargets } from "@democraft/core";
+
+export default defineTargets({
+  dashboard: byTestId("dashboard"),
+  "new-project-button": byRole("button", { name: "New project" }),
+  "project-name-input": byLabel("Project name"),
+});
+```
+
+As chaves são os nomes que você passa para `scene.click(...)`, `scene.fill(...)`, etc.
+
+## Cadeias de fallback: `defineTarget`
+
+Quando um alvo tem múltiplos locators plausíveis (ex.: em refactor), declare-os em ordem de prioridade com `defineTarget`:
+
+```ts
+import { byRole, byTestId, defineTarget } from "@democraft/core";
+
+const newProjectButton = defineTarget({
+  id: "new-project-button",
+  locators: [
+    byRole("button", { name: "New project" }),
+    byTestId("new-project"),
+  ],
+});
+```
+
+Durante a captura, o Democraft tenta cada locator em ordem e usa o primeiro que resolver. Se nenhum resolver, a captura falha com um diagnóstico nomeando o alvo.
+
+## Atalho de locator único
+
+Para um alvo com um locator, a própria fábrica basta — não precisa de `defineTarget`:
+
+```ts
+import { byRole, defineTargets } from "@democraft/core";
+
+export default defineTargets({
+  submit: byRole("button", { name: "Submit" }),
+});
+```
+
+`defineTargets` aceita tanto um `Locator` cru (atalho) quanto uma `TargetDefinition` completa de `defineTarget`.
+
+<Callout type="info">
+Prefira `byRole` e `byLabel` — eles codificam **intenção**. Reserve `byTestId` para elementos sem um nome acessível, e `byText` para casos de último recurso onde o texto é estável.
+</Callout>

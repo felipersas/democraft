@@ -1,0 +1,65 @@
+---
+title: Visão geral da SDK
+description: A API de autoria @democraft/core — defineDemo, defineTargets e o construtor de cenas.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+A SDK de autoria do Democraft vive em `@democraft/core`. É deliberadamente pequena: três construtores e quatro fábricas de locator. Todo o resto (captura, resolução, renderização) é conduzido a partir do que estes produzem.
+
+## O que está em `@democraft/core`
+
+```ts
+import {
+  // construtores de demo + config
+  defineDemo,
+  defineConfig,
+  // construtores de alvo
+  defineTarget,
+  defineTargets,
+  // fábricas de locator
+  byRole,
+  byLabel,
+  byTestId,
+  byText,
+} from "@democraft/core";
+```
+
+| Export | Propósito |
+|--------|-----------|
+| `defineDemo(definition)` | Declara uma demo. O export default de um arquivo `demo.ts`. |
+| `defineConfig(config)` | Config opcional de nível de projeto (`fps`, `environment`, `outputs`). |
+| `defineTargets(map)` | Grupo de alvos nomeados. |
+| `defineTarget({ id, locators })` | Um único alvo com locators de fallback. |
+| `byRole`, `byLabel`, `byTestId`, `byText` | Fábricas de locator. |
+
+## O formato de uma demo
+
+Uma `DemoDefinition` é um objeto simples — `defineDemo` é uma função identidade que existe para inferência de tipos e jump-to-definition no editor:
+
+```ts
+{
+  id: string,
+  title: string,
+  source: { baseUrl: string, initialPath?: string },
+  targets: Record<string, TargetDefinition>,
+  run: ({ demo: DemoCapture }) => Promise<void> | void,
+}
+```
+
+## O formato de uma cena
+
+Dentro de `run`, `demo.scene(id, run)` lhe dá um `DemoScene` com catorze métodos async. Cada um anexa um passo à cena. O compilador achata todas as cenas em uma única lista ordenada de passos (o IR), que a captura e a renderização consomem.
+
+Veja:
+- [defineDemo](./define-demo) para a referência completa da definição.
+- [locators](./locators) para as quatro fábricas e cadeias de fallback.
+- [cenas](./cenas) para a referência dos métodos do construtor.
+
+## Uma API única, dois públicos
+
+<Callout type="info">
+A mesma SDK serve humanos escrevendo demos em um editor e agentes de IA gerando demos programaticamente. Não há uma "SDK de agente" separada — um agente emite o TypeScript idêntico ao que um humano escreveria, que é revisável como um PR normal.
+</Callout>
+
+É por isso que a API se mantém pequena e previsível: todo conceito tem exatamente um lugar para viver, e os catorze tipos de passo cobrem o vocabulário de demos sem pontos de extensão que fragmentariam a superfície.

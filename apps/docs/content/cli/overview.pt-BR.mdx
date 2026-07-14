@@ -1,0 +1,113 @@
+---
+title: Visão geral da CLI
+description: Os comandos, flags e uso da CLI democraft.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+import { Tab, Tabs } from "fumadocs-ui/components/tabs";
+
+A CLI `democraft` orquestra o pipeline. Todo comando recebe um `<demo-module>` (um caminho para um arquivo `demo.ts`) como primeiro argumento.
+
+## Comandos
+
+| Comando | Propósito |
+|---------|-----------|
+| `inspect` | Compila uma demo e imprime saída de inspeção legível. |
+| `validate` | Roda diagnósticos de validação estática. |
+| `capture` | Valida, depois executa a captura do navegador. |
+| `targets` | Lista os contratos de alvo usados por uma demo. |
+| `timeline` | Resolve uma timeline de renderização a partir da demo e do manifest de captura. |
+| `studio` | Abre o Democraft Studio (UI Next.js de pré-visualização + renderização). |
+| `render` | Renderiza um MP4 a partir do manifest e da timeline. |
+| `preview` | *(Depreciado)* Escreve uma pré-visualização HTML autônoma. |
+
+## Uso
+
+A partir da raiz do repo, invoque via pnpm filter + tsx:
+
+```bash
+pnpm --filter @democraft/cli exec tsx src/index.ts <command> <demo-module> [flags]
+```
+
+Por exemplo, para abrir o Studio contra o exemplo demo-app:
+
+```bash
+pnpm --filter @democraft/cli exec tsx src/index.ts studio \
+  $(pwd)/examples/demo-app/src/demo.ts
+```
+
+## Flags
+
+### Flags globais
+
+| Flag | Efeito |
+|------|--------|
+| `--json` | Imprime saída JSON (para `inspect`, `validate`, `targets`). |
+| `--static` | Obrigatório para `validate` neste milestone (sem navegador). |
+| `--headed` / `--headless` | Roda o navegador visível ou headless. |
+
+### Flags de captura / studio
+
+| Flag | Efeito |
+|------|--------|
+| `--output-dir <path>` | Diretório de saída da captura. |
+| `--no-capture` | Studio: reutiliza captura existente, falha se não houver. |
+| `--port <number>` | Porta do dev server do Studio (padrão 3000). |
+
+### Flags de timeline / renderização
+
+| Flag | Efeito |
+|------|--------|
+| `--manifest <path>` | Caminho do manifest de captura para `timeline`. |
+| `--timeline <path>` | Caminho da timeline de renderização para `render`. |
+| `--fps <number>` | Frames por segundo da timeline. |
+| `--output-file <path>` | Escreve o artefato gerado em um arquivo (`render`). |
+| `--scale <number>` | Multiplicador de escala de renderização (padrão 1, tente 2 para mais nítido). |
+| `--crf <number>` | CRF h264 (padrão 15, menor = melhor qualidade). |
+
+## Workflows típicos
+
+<Tabs items={["Iteração no Studio", "Renderização headless"]}>
+  <Tab value="Iteração no Studio">
+    ```bash
+    # 1. inicie o app-alvo
+    pnpm --filter @democraft/example-demo-app start
+
+    # 2. abra o Studio (captura na primeira vez, reutiliza depois)
+    pnpm --filter @democraft/cli exec tsx src/index.ts studio \
+      $(pwd)/examples/demo-app/src/demo.ts
+    ```
+  </Tab>
+  <Tab value="Renderização headless">
+    ```bash
+    # capturar (precisa do app rodando)
+    pnpm --filter @democraft/cli exec tsx src/index.ts capture \
+      $(pwd)/examples/demo-app/src/demo.ts
+
+    # resolver timeline (sem app)
+    pnpm --filter @democraft/cli exec tsx src/index.ts timeline \
+      $(pwd)/examples/demo-app/src/demo.ts
+
+    # renderizar (sem app)
+    pnpm --filter @democraft/cli exec tsx src/index.ts render \
+      $(pwd)/examples/demo-app/src/demo.ts \
+      --output-file out.mp4
+    ```
+  </Tab>
+</Tabs>
+
+## Inspeção estática (sem navegador)
+
+`inspect` e `validate --static` nunca tocam em um navegador. Eles compilam a demo para IR e rodam diagnósticos. Use-os em editores e CI para capturar erros antes da captura:
+
+```bash
+pnpm --filter @democraft/cli exec tsx src/index.ts inspect \
+  $(pwd)/examples/demo-app/src/demo.ts --static
+
+pnpm --filter @democraft/cli exec tsx src/index.ts validate \
+  $(pwd)/examples/demo-app/src/demo.ts --static
+```
+
+<Callout type="info">
+A CLI é o orquestrador de referência. O Studio reutiliza as mesmas funções de estágio (compile, capture, resolve, render) in-process — eles compartilham código, então o comportamento é idêntico.
+</Callout>

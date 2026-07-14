@@ -1,0 +1,67 @@
+---
+title: Demo
+description: The top-level unit of work in Democraft — what a demo.ts file contains.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+A **demo** is the top-level unit of work in Democraft. It is a TypeScript module that exports a `DemoDefinition` created with `defineDemo`. One demo produces one video.
+
+## Structure
+
+A demo has four parts:
+
+| Field | Purpose |
+|-------|---------|
+| `id` | Stable identifier. Used for caching, the capture directory, and the IR content hash input. |
+| `title` | Human-readable name. Surfaced in the Studio and diagnostics. |
+| `source` | Where the target app lives: `baseUrl` (required) and `initialPath` (optional). |
+| `targets` | A map of named element contracts. See [targets](./targets). |
+| `run` | An async function that drives the capture via `demo.scene(...)`. |
+
+```ts title="demo.ts"
+import { defineDemo } from "@democraft/core";
+import targets from "./targets";
+
+export default defineDemo({
+  id: "create-project-live",
+  title: "Create a project live",
+  source: {
+    baseUrl: "http://localhost:4173",
+    initialPath: "/dashboard",
+  },
+  targets,
+  async run({ demo }) {
+    await demo.scene("introduction", async (scene) => {
+      await scene.goto("/dashboard");
+      await scene.establish("dashboard");
+      await scene.caption("Create a workspace in seconds.");
+      await scene.hold("5000ms");
+    });
+  },
+});
+```
+
+## The `id` is a contract
+
+The `id` is **stable across edits**. Democraft uses it (combined with the compiled step structure) to compute the IR content hash, which determines whether a re-capture is needed. If you rename the `id`, Democraft treats the demo as brand new and captures from scratch.
+
+<Callout type="warn">
+Pick an `id` once and keep it. Renaming it invalidates the capture cache.
+</Callout>
+
+## The `run` function
+
+`run` receives `{ demo }`. You call `demo.scene(id, run)` (or `demo.scene(id, metadata, run)`) to define scenes in order. The order of `scene(...)` calls is the order of scenes in the video.
+
+Within a scene, you drive a `DemoScene` builder — see [scenes](./scene).
+
+## The `source`
+
+`source.baseUrl` is the origin Democraft navigates to. `source.initialPath` is optional; if omitted, the first scene's `goto` determines the starting path.
+
+The target app at `baseUrl` must be running **only during capture**. After that, the Studio and renderer work from captured files.
+
+## One file, one demo
+
+A `demo.ts` file exports exactly one demo via `export default`. To produce multiple videos, use multiple demo files. The CLI and Studio both take a single demo path as their argument.

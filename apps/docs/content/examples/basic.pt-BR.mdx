@@ -1,0 +1,75 @@
+---
+title: Demo básica
+description: Uma demo mínima de ponta a ponta com uma cena e três passos.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+Esta é a menor demo útil do Democraft: uma cena, um goto, um establish e uma legenda. Ela compila, captura e renderiza de ponta a ponta.
+
+## O arquivo de demo
+
+```ts title="demo.ts"
+import { defineDemo } from "@democraft/core";
+import targets from "./targets";
+
+export default defineDemo({
+  id: "basic-walkthrough",
+  title: "Basic walkthrough",
+  source: {
+    baseUrl: "http://localhost:4173",
+    initialPath: "/",
+  },
+  targets,
+  async run({ demo }) {
+    await demo.scene("landing", async (scene) => {
+      await scene.goto("/");
+      await scene.establish("hero");
+      await scene.caption("Welcome to our product.");
+      await scene.hold("3000ms");
+    });
+  },
+});
+```
+
+## O arquivo de alvos
+
+```ts title="targets.ts"
+import { byTestId, defineTargets } from "@democraft/core";
+
+export default defineTargets({
+  hero: byTestId("hero"),
+});
+```
+
+## O que isso produz
+
+Quando capturada e renderizada, esta demo gera um clipe de aproximadamente 3 segundos:
+
+1. O navegador navega para `/`.
+2. A câmera estabelece no elemento `hero` (viewport inteiro).
+3. Uma legenda "Welcome to our product." aparece.
+4. O estado se mantém por 3 segundos.
+
+<Callout type="info">
+O `hold("3000ms")` mais as alocações de frames padrão para `goto`/`establish`/`caption` determinam a duração total. A 60fps, esta demo tem ~180+ frames.
+</Callout>
+
+## Rodando
+
+```bash
+# inicie seu app em :4173, depois:
+pnpm --filter @democraft/cli exec tsx src/index.ts capture ./demo.ts
+pnpm --filter @democraft/cli exec tsx src/index.ts timeline ./demo.ts
+pnpm --filter @democraft/cli exec tsx src/index.ts render ./demo.ts --output-file out.mp4
+```
+
+Ou itere no Studio:
+
+```bash
+pnpm --filter @democraft/cli exec tsx src/index.ts studio ./demo.ts
+```
+
+## Próximo
+
+Adicione uma segunda cena e um foco de câmera — veja [callouts](./callouts) para um exemplo mais rico.

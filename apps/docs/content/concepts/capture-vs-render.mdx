@@ -1,0 +1,81 @@
+---
+title: Capture vs. render
+description: Why capture and render are separate stages, and what each needs.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+Democraft strictly separates **capture** (driving a real browser with Playwright) from **render** (turning captured frames into an MP4). Understanding this split unlocks the capture-once workflow and explains what each stage needs.
+
+## The two stages
+
+### Capture
+
+<Callout type="warn" title="Needs: target app running + Playwright + Chromium">
+Capture drives a real browser. It navigates, clicks, fills, screenshots, and records. This is the expensive, environment-sensitive stage.
+</Callout>
+
+Inputs:
+- `demo.ts` (compiled to IR)
+- The target app, live at `source.baseUrl`
+
+Outputs (written to `.democraft/runs/<id>/`):
+- `manifest.json` — step sequence, resolved bounding boxes, recording path
+- `screenshots/` — one PNG per captured step
+- `recording.webm` — the raw browser recording (for cursor replay)
+- `trace.zip` — Playwright trace, for debugging
+
+### Render
+
+<Callout type="info" title="Needs: only the captured files + timeline.json">
+Render never touches the browser. It reads the manifest, the screenshots, the recording, and the resolved timeline, then asks Remotion to produce frames.
+</Callout>
+
+Inputs:
+- `manifest.json`
+- `screenshots/`
+- `recording.webm`
+- `timeline.json`
+
+Output:
+- An MP4
+
+## Why split them
+
+1. **Cost.** Capture spins up Chromium and drives a live app — slow and flaky. Render is deterministic frame production — fast and reproducible.
+2. **Editability.** Most edits (captions, pacing, camera moves) only change the timeline, not the capture. Splitting means you re-render cheaply without re-capturing.
+3. **CI.** Render can run on any CI machine with the captured files; it doesn't need the target app or Playwright.
+4. **Caching.** The capture output is content-addressed (by IR id). Render always works against whatever capture is on disk.
+
+## What forces a re-capture
+
+A re-capture is required when the **structure** of the demo changes — anything that alters the set or order of captured steps:
+
+- Adding, removing, or reordering a step
+- Changing a target's locators
+- Changing `source.baseUrl`
+
+These change the IR's content hash (`ir.id`), which Democraft detects as **structural staleness**.
+
+## What does NOT force a re-capture
+
+Content-only edits re-resolve the timeline from the existing capture:
+
+- Changing a caption's text
+- Changing a `hold` duration
+- Changing a `renderer` on a caption or callout
+- Changing camera `padding`
+- Adding or moving a `cue` marker
+
+These keep the same IR id, so Democraft detects them as **content staleness** and only re-resolves.
+
+## The Studio's role
+
+The Studio blurs the line for the user but preserves it internally:
+
+- It **reuses** the existing capture by default (no browser needed).
+- It **detects staleness** and shows a badge: green (fresh), yellow (content changed), red (structural — re-capture needed).
+- It can **re-capture** in-place when you click the button (this is the only time the Studio touches Playwright).
+- It **re-resolves** the timeline automatically on every `demo.ts` save.
+
+See [capture-once](../pipeline/capture-once) for the full mechanics.

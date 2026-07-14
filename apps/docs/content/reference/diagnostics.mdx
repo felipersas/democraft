@@ -1,0 +1,44 @@
+---
+title: Diagnostics
+description: The DC001–DC105 diagnostic codes emitted by validation.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+Democraft's validator emits diagnostics with stable codes in the `DC0xx` range. These run during `validate` (statically, no browser) and during capture (against the live app). An AI agent generating a `demo.ts` should expect to see these and fix them before the demo will capture cleanly.
+
+## How diagnostics surface
+
+- **CLI:** `democraft validate <demo> --static` prints them to stderr. Add `--json` for machine-readable output.
+- **Studio:** the staleness badge and capture progress surface validation failures inline.
+- **Capture:** assertion failures (`assert.visible`, `assert.text`, `assert.url`) and unresolvable targets produce diagnostics that fail the capture.
+
+## Code ranges
+
+| Range | Category |
+|-------|----------|
+| `DC001`–`DC019` | Demo structure (missing/invalid `id`, `title`, `source`, `targets`, `run`). |
+| `DC020`–`DC039` | Targets and locators (unknown target name, empty locator list, unresolvable). |
+| `DC040`–`DC059` | Scene and step structure (empty scene, unknown step kind, missing required fields). |
+| `DC060`–`DC079` | Durations and timing (unparseable duration string, non-positive hold). |
+| `DC080`–`DC099` | Capture-time failures (target not found in DOM, assertion failed, navigation error). |
+| `DC100`–`DC105` | Render-time issues (missing screenshot, invalid frame range). |
+
+## Reading a diagnostic
+
+A diagnostic has:
+
+- **`code`** — the `DC0xx` identifier.
+- **`message`** — human-readable description.
+- **`demoId`** / **`sceneId`** / **`stepId`** — where in the demo the issue is (when applicable).
+- **`target`** — the target name involved (for locator/assertion issues).
+
+## Common codes
+
+<Callout type="info">
+The full code list lives in `packages/schema/src/diagnostics.ts`. Codes are stable across versions — a diagnostic that emits `DC042` today will emit `DC042` after an upgrade. New codes are only appended, never reused.
+</Callout>
+
+## For AI agents
+
+When generating a `demo.ts`, run `democraft validate <demo> --static` and fix every diagnostic before attempting a capture. The static pass catches structural issues (unknown target names, malformed steps, bad durations) without needing the target app — so it is cheap to iterate against.

@@ -1,0 +1,79 @@
+---
+title: Architecture
+description: The monorepo layout, package responsibilities, and dependency graph.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+Democraft is a pnpm + turbo monorepo. This page maps the packages, their responsibilities, and how they depend on each other.
+
+## Package map
+
+| Package | Responsibility |
+|---------|----------------|
+| `@democraft/schema` | Shared types + diagnostics. The leaf every other package depends on. |
+| `@democraft/core` | The authoring API: `defineDemo`, `defineTargets`, locator factories. |
+| `@democraft/compiler` | Compiles a `DemoDefinition` into a `DemoIR`. |
+| `@democraft/playwright` | Drives Playwright to capture the browser. Produces the manifest + screenshots + recording. |
+| `@democraft/timeline` | Resolves a `RenderTimeline` from the IR + manifest. |
+| `@democraft/remotion` | Renders an MP4 from the manifest + timeline via Remotion. |
+| `@democraft/preview` | Writes a standalone HTML preview (deprecated path). |
+| `@democraft/cli` | The `democraft` CLI. Orchestrates all stages. |
+| `@democraft/studio` | The Next.js Studio. Preview + render UI. |
+| `@democraft/testing` | Test fixtures and helpers. |
+
+## Dependency graph
+
+```
+schema  ← (leaf, depends on nothing in the workspace)
+  ▲
+  ├── core           (depends on schema)
+  ├── compiler       (depends on core + schema)
+  ├── playwright     (depends on schema)
+  ├── timeline       (depends on schema)
+  ├── remotion       (depends on schema)
+  ├── preview        (depends on schema)
+  ├── testing        (depends on core + compiler)
+  │
+  └── cli            (depends on all of the above — the orchestrator)
+       ▲
+       └── studio    (depends on compiler, playwright, timeline, remotion, schema)
+```
+
+<Callout type="info">
+`schema` is the leaf. `core` depends only on `schema`. `compiler` depends on `core` + `schema`. Everything that "does work" (playwright, timeline, remotion, preview) depends only on `schema`. The CLI is the only package that depends on every other workspace package.
+</Callout>
+
+## Key architectural properties
+
+### Renderer isolation
+
+`@democraft/remotion` does **not** depend on `compiler` or `playwright`. It consumes only the manifest + timeline JSON shapes. This keeps the renderer cacheable and lets the capture pipeline evolve independently.
+
+### Studio imports the pipeline
+
+The Studio imports `@democraft/compiler`, `@democraft/playwright`, `@democraft/timeline`, and `@democraft/remotion` directly. This lets it re-compile, re-resolve, and re-capture in-process — no CLI round-trip needed. The trade-off: the Studio's `next.config.ts` externalizes these packages (plus Playwright) so Next's webpack doesn't try to bundle them.
+
+### Dynamic `.ts` imports
+
+The Studio reads `demo.ts` files at runtime. Because Next.js rewrites visible `import()` calls and Node can't natively load `.ts`, the Studio uses a `new Function("specifier", "return import(specifier)")` trick to make the dynamic import invisible to webpack, paired with `NODE_OPTIONS=--import tsx` (set by the CLI when spawning the dev server).
+
+### Capture-once caching
+
+The `meta.json` written by the CLI (`launchStudio`) is the Studio's map: it points at the `demoPath`, `captureDir`, and `demoId`. This is what enables reuse-by-default and staleness detection. See [capture-once](../pipeline/capture-once).
+
+## Build system
+
+- **Package manager:** pnpm workspaces.
+- **Task runner:** turbo. `pnpm build`, `pnpm typecheck`, `pnpm test` run across the graph, respecting dependencies.
+- **Package builds:** tsup compiles each `@democraft/*` package to `dist/` (CJS + ESM + types). Consumers resolve from `dist/`, so `pnpm build` is required once after install.
+- **Tests:** vitest.
+- **The Studio and docs:** Next.js apps, built with `next build`.
+
+## Conventions
+
+- **Namespace:** `@democraft/*` for all workspace packages.
+- **CLI binary:** `democraft`.
+- **Data directory:** `.democraft/` (runs, studio-data).
+- **Environment variables:** prefixed `DEMOCRAFT_*`.
+- **Diagnostic codes:** `DC0xx`.

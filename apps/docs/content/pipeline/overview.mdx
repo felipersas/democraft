@@ -1,0 +1,72 @@
+---
+title: Pipeline overview
+description: The six-stage pipeline from demo.ts to MP4.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+import { Steps } from "fumadocs-ui/components/steps";
+
+Democraft's pipeline has six stages. Each consumes the output of the previous one and produces a stable artifact. Understanding the stages — and which ones need a browser — is the key to fast iteration.
+
+## The six stages
+
+<Steps>
+  1. **Author** — You write `demo.ts` with `defineDemo` and the scene builder.
+  2. **Compile** — `compileDemo` turns the demo into a `DemoIR` (serializable, content-hashed).
+  3. **Capture** — `runDemo` drives Playwright against the live app, producing a `RecordedDemoManifest`, screenshots, and a `.webm` recording.
+  4. **Resolve** — `resolveTimeline` combines the IR + manifest into a `RenderTimeline` (frame-accurate camera, cursor, overlays).
+  5. **Compose** — `ProductDemoVideo` (a React component) renders one frame given the timeline + a frame number.
+  6. **Render** — `renderDemoVideo` bundles the composition and calls Remotion's `renderMedia` to produce the MP4.
+</Steps>
+
+## Which stages need what
+
+| Stage | Needs browser? | Needs app running? | Needs Playwright? |
+|-------|----------------|--------------------|--------------------|
+| Author | No | No | No |
+| Compile | No | No | No |
+| Capture | Yes | Yes | Yes |
+| Resolve | No | No | No |
+| Compose | No | No | No |
+| Render | No | No | No |
+
+Only **capture** needs the live app and Playwright. Everything downstream of capture works from the captured files on disk. This is the foundation of [capture-once](./capture-once).
+
+## The stable contracts
+
+Between stages sit three stable artifacts:
+
+1. **`DemoIR`** — produced by `compileDemo`. Its `id` is a content hash used for staleness detection.
+2. **`RecordedDemoManifest`** — produced by `runDemo`. Contains the step sequence, resolved bounding boxes, and recording/screenshot paths.
+3. **`RenderTimeline`** — produced by `resolveTimeline`. Frame-accurate camera, cursor, and overlay tracks.
+
+These are the **only** things that cross stage boundaries. As long as these shapes stay stable, the stages can evolve independently.
+
+## Where each stage lives
+
+| Stage | Package |
+|-------|---------|
+| Author | your `demo.ts` |
+| Compile | `@democraft/compiler` |
+| Capture | `@democraft/playwright` |
+| Resolve | `@democraft/timeline` |
+| Compose | `@democraft/remotion` (`ProductDemoVideo`) |
+| Render | `@democraft/remotion` (`renderDemoVideo`) |
+
+`@democraft/schema` is the leaf every other package depends on — it owns the shared types (`DemoIR`, `RecordedDemoManifest`, `RenderTimeline`, `Locator`, diagnostics).
+
+<Callout type="info">
+The CLI (`@democraft/cli`) is the orchestrator that chains these stages. The Studio (`@democraft/studio`) reuses capture + resolve + render in-process, plus adds preview and a render queue.
+</Callout>
+
+## The demo.ts → video path
+
+```
+demo.ts
+  → compileDemo → DemoIR
+  → runDemo → RecordedDemoManifest + screenshots + recording.webm
+  → resolveTimeline → RenderTimeline
+  → renderDemoVideo → MP4
+```
+
+Read [capture-once](./capture-once) for how staleness detection lets you skip the expensive capture stage on most edits.

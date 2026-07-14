@@ -1,0 +1,88 @@
+---
+title: Integração com Remotion
+description: Como o @democraft/remotion transforma uma RenderTimeline em um MP4.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+import { Steps } from "fumadocs-ui/components/steps";
+
+O Remotion é o último estágio do pipeline. Ele recebe uma `RenderTimeline` resolvida e a renderiza em um MP4, um frame por vez. O pacote `@democraft/remotion` é a ponte.
+
+## Modelo mental do Remotion
+
+Você escreve um componente React que recebe um número de `frame` e retorna JSX. O Remotion o chama uma vez por frame, captura o DOM resultante como uma imagem, e concatena as imagens em um vídeo. O Remotion **não** sabe sobre Playwright, manifests ou sua demo — ele só conhece o frame e a árvore React.
+
+## O que o `@democraft/remotion` fornece
+
+Três exports:
+
+| Export | Propósito |
+|--------|-----------|
+| `renderDemoVideo(options)` | Renderizador server-side. Faz bundle do entry, seleciona a composição e chama `renderMedia`. |
+| `compositionId` | O id da composição (`"Democraft"`) registrado no Remotion. |
+| `ProductDemoVideo` | O componente React que renderiza um frame de uma demo. |
+
+## O fluxo de renderização
+
+<Steps>
+  1. **Bundle.** `renderDemoVideo` faz o bundle de `entry.ts` (que registra `<Composition id={compositionId}>`) via `@remotion/bundler`.
+  2. **Select.** Ele chama `selectComposition` com o id da composição e as input props (timeline, screenshots como data URIs, caminho da gravação).
+  3. **Render.** Ele chama `renderMedia` para produzir cada frame e codificar o MP4.
+</Steps>
+
+## O componente `ProductDemoVideo`
+
+Esta é a árvore React que o Remotion renderiza por frame. Dada a timeline e um número de frame, ele compõe:
+
+- **Screenshots** — a imagem certa por passo, com crossfade durante passos de `transition`.
+- **Câmera** — um transform que pan/zoom baseado nas faixas de câmera resolvidas.
+- **Cursor** — a posição gravada do mouse, reproduzida.
+- **Overlays** — legendas e callouts, posicionados por seus intervalos de frames e renderizados pelo componente `renderer` nomeado.
+
+O componente é intencionalmente puro: mesmas props → mesmo frame. É o que torna a renderização determinística e cacheável.
+
+## Opções de renderização
+
+`renderDemoVideo` aceita:
+
+```ts
+type RenderDemoVideoOptions = {
+  manifest: RecordedDemoManifest;
+  timeline: RenderTimeline;
+  screenshotDataUris: Record<string, string>;
+  recordingFilePath?: string;
+  outputFile: string;
+  // repassados para renderMedia:
+  onProgress?: (progress: number) => void;
+  cancelSignal?: CancelSignal;
+  frameRange?: [number, number];
+  scale?: number;
+  crf?: number;
+};
+```
+
+- `onProgress` transmite um valor de progresso 0–1 (usado pela fila de renderização do Studio).
+- `cancelSignal` suporta cancelar uma renderização em andamento.
+- `frameRange` renderiza apenas um sub-intervalo — usado pelos marcadores in/out do Studio.
+
+<Callout type="warn" title="Experimental">
+`frameRange`, `cancelSignal` e `onProgress` estão conectados, mas o Studio é o principal consumidor hoje. Uso direto via CLI dessas opções é suportado, mas menos ergonômico.
+</Callout>
+
+## Componentes visuais e remocn
+
+Passos de caption e callout aceitam um nome de `renderer` (ex.: `"remocn.kinetic-title"`, `"remocn.glass-callout"`). Esta string é resolvida no momento da renderização via um **registry visual** — um mapa de renderer ID para componente React. O registry built-in vive em `@democraft/remotion` e traz quatro renderers (defaults `motion.*` + componentes `remocn.*`).
+
+**Remocn** (Remotion + shadcn) é a biblioteca primária de componentes para overlays do Democraft. Componentes são do usuário — você clona do registry ou escreve os seus, depois registra via um entry point customizado.
+
+- Veja [Componentes e remocn](../concepts/components) para a visão conceitual e o catálogo built-in.
+- Veja [Entry point customizado](./custom-entry) para configurar seu próprio entry e registrar componentes.
+- Veja [Criando componentes customizados](./create-components) para o contrato `CaptionProps`/`CalloutProps` e um exemplo completo.
+
+## Por que o Remotion fica isolado
+
+O Remotion consome apenas os formatos JSON de manifest + timeline. Ele **não** depende de `@democraft/compiler` ou `@democraft/playwright`. Isso mantém o renderizador:
+
+- **Cacheável** — o bundle é estável entre edições de demo.
+- **Desacoplado** — mudanças no pipeline de captura não vazam para o renderizador.
+- **Portátil** — a renderização pode rodar em qualquer lugar com os arquivos capturados, sem navegador.

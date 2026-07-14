@@ -1,0 +1,76 @@
+---
+title: Installation
+description: Prerequisites and setup for the Democraft monorepo.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+import { Tab, Tabs } from "fumadocs-ui/components/tabs";
+
+Democraft is a pnpm monorepo. You'll need the toolchain, the workspace packages built once, and the Playwright browser binary.
+
+## Prerequisites
+
+- **Node.js** ≥ 20
+- **pnpm** ≥ 9
+- **Playwright browsers** (Chromium, installed once)
+
+<Tabs items={["pnpm (recommended)", "corepack"]}>
+  <Tab value="pnpm (recommended)">
+    ```bash
+    npm install -g pnpm@9
+    ```
+  </Tab>
+  <Tab value="corepack">
+    ```bash
+    corepack enable
+    corepack prepare pnpm@9 --activate
+    ```
+  </Tab>
+</Tabs>
+
+## Clone and install
+
+```bash
+git clone <repo-url> democraft
+cd democraft
+pnpm install
+```
+
+## Build the workspace packages
+
+Workspace packages (`@democraft/schema`, `@democraft/core`, `@democraft/compiler`, `@democraft/playwright`, `@democraft/timeline`, `@democraft/remotion`, `@democraft/cli`) resolve from their compiled `dist/` directories. Build them once after install:
+
+```bash
+pnpm build
+```
+
+<Callout type="info">
+`pnpm build` runs through `turbo`, which tracks the dependency graph. After editing a package's source, re-running `pnpm build` (or `pnpm typecheck`) rebuilds only what changed — and its downstream consumers.
+</Callout>
+
+## Install the Playwright browser
+
+```bash
+pnpm exec playwright install chromium
+```
+
+This downloads the headless Chromium binary that `@democraft/playwright` drives during capture. It is only needed for **capture**, not for preview or render.
+
+## Verify the install
+
+```bash
+pnpm typecheck   # typecheck every package
+pnpm test        # run the test suite
+```
+
+If both pass, the workspace is ready. Head to the [quickstart](./quickstart) to render your first video.
+
+## Troubleshooting
+
+<Callout type="warn" title="Workspace packages not found">
+If you see `Cannot find module '@democraft/...'`, you skipped `pnpm build`. Workspace packages are consumed from `dist/`, which does not exist until the first build. Re-run `pnpm build`.
+</Callout>
+
+<Callout type="warn" title="Playwright browser missing">
+If capture fails with `Executable doesn't exist`, run `pnpm exec playwright install chromium`. Preview and render do not need this — only capture.
+</Callout>

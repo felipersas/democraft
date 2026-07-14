@@ -1,0 +1,76 @@
+---
+title: Instalação
+description: Pré-requisitos e configuração do monorepo Democraft.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+import { Tab, Tabs } from "fumadocs-ui/components/tabs";
+
+O Democraft é um monorepo pnpm. Você precisará da toolchain, dos pacotes do workspace compilados uma vez, e do binário do navegador do Playwright.
+
+## Pré-requisitos
+
+- **Node.js** ≥ 20
+- **pnpm** ≥ 9
+- **Navegadores do Playwright** (Chromium, instalado uma vez)
+
+<Tabs items={["pnpm (recomendado)", "corepack"]}>
+  <Tab value="pnpm (recomendado)">
+    ```bash
+    npm install -g pnpm@9
+    ```
+  </Tab>
+  <Tab value="corepack">
+    ```bash
+    corepack enable
+    corepack prepare pnpm@9 --activate
+    ```
+  </Tab>
+</Tabs>
+
+## Clonar e instalar
+
+```bash
+git clone <repo-url> democraft
+cd democraft
+pnpm install
+```
+
+## Compilar os pacotes do workspace
+
+Os pacotes do workspace (`@democraft/schema`, `@democraft/core`, `@democraft/compiler`, `@democraft/playwright`, `@democraft/timeline`, `@democraft/remotion`, `@democraft/cli`) resolvem a partir de seus diretórios `dist/` compilados. Compile-os uma vez após a instalação:
+
+```bash
+pnpm build
+```
+
+<Callout type="info">
+O `pnpm build` roda através do `turbo`, que rastreia o grafo de dependências. Após editar o código-fonte de um pacote, rodar `pnpm build` (ou `pnpm typecheck`) recompila apenas o que mudou — e seus consumidores à jusante.
+</Callout>
+
+## Instalar o navegador do Playwright
+
+```bash
+pnpm exec playwright install chromium
+```
+
+Isso baixa o binário Chromium headless que o `@democraft/playwright` controla durante a captura. Ele só é necessário para a **captura**, não para pré-visualização ou renderização.
+
+## Verificar a instalação
+
+```bash
+pnpm typecheck   # typecheck de todos os pacotes
+pnpm test        # roda a suíte de testes
+```
+
+Se ambos passarem, o workspace está pronto. Vá para o [início rápido](./inicio-rapido) para renderizar seu primeiro vídeo.
+
+## Resolução de problemas
+
+<Callout type="warn" title="Pacotes do workspace não encontrados">
+Se você ver `Cannot find module '@democraft/...'`, você pulou o `pnpm build`. Os pacotes do workspace são consumidos a partir de `dist/`, que não existe até o primeiro build. Rode `pnpm build` novamente.
+</Callout>
+
+<Callout type="warn" title="Navegador do Playwright ausente">
+Se a captura falhar com `Executable doesn't exist`, rode `pnpm exec playwright install chromium`. Pré-visualização e renderização não precisam disso — apenas a captura.
+</Callout>

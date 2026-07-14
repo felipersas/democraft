@@ -1,0 +1,87 @@
+---
+title: Alvos
+description: Contratos nomeados de elementos apoiados em locators resilientes.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+import { Steps } from "fumadocs-ui/components/steps";
+
+Um **alvo** (target) é um contrato nomeado para um elemento no seu app. As demos referenciam alvos por nome (`"new-project-button"`, `"project-name-input"`); o Democraft resolve cada nome para um elemento real do DOM no momento da captura usando um ou mais **locators**.
+
+Essa indireção é a chave para a durabilidade da demo: a demo diz *com o que* interagir, não *como encontrá-lo no DOM*.
+
+## Definindo alvos
+
+Os alvos vivem em um módulo separado e são agrupados com `defineTargets`:
+
+```ts title="targets.ts"
+import {
+  byLabel,
+  byRole,
+  byTestId,
+  defineTargets,
+} from "@democraft/core";
+
+export default defineTargets({
+  dashboard: byTestId("dashboard"),
+  "new-project-button": byRole("button", { name: "New project" }),
+  "project-name-input": byLabel("Project name"),
+  "create-project-button": byRole("button", { name: "Create" }),
+});
+```
+
+As chaves se tornam os nomes que você passa para `scene.click(...)`, `scene.fill(...)`, `scene.focus(...)`, e assim por diante.
+
+## Os quatro construtores de locator
+
+| Construtor | Apoiado em | Exemplo |
+|---------|-----------|---------|
+| `byRole(role, opts?)` | Papel ARIA + nome acessível | `byRole("button", { name: "Create" })` |
+| `byLabel(text)` | Texto de `<label>` associado | `byLabel("Project name")` |
+| `byTestId(id)` | Atributo `data-testid` | `byTestId("dashboard")` |
+| `byText(text, opts?)` | Conteúdo de texto visível | `byText("Welcome back")` |
+
+`byRole` e `byLabel` são os mais resilientes — sobrevivem a reescritas de markup que preservam a semântica. `byTestId` é o fallback para elementos sem um nome acessível claro. `byText` é frágil e deve ser o último recurso.
+
+## Cadeias de fallback
+
+Um único alvo pode declarar múltiplos locators. O Democraft tenta cada um em ordem durante a captura e usa o primeiro que resolver:
+
+```ts
+import { byRole, byTestId, defineTarget } from "@democraft/core";
+
+const newProjectButton = defineTarget({
+  id: "new-project-button",
+  locators: [
+    byRole("button", { name: "New project" }),
+    byTestId("new-project"),
+  ],
+});
+```
+
+<Steps>
+  1. Tente `byRole("button", { name: "New project" })` primeiro.
+  2. Se não resolver, tente `byTestId("new-project")`.
+  3. Se nenhum resolver, a captura falha com um diagnóstico apontando o nome do alvo.
+</Steps>
+
+Use cadeias de fallback quando sua UI estiver em refactor: liderando com o locator semântico, caindo para o test-id, e removendo o fallback quando o refactor terminar.
+
+## Por que não seletores CSS?
+
+<Callout type="info">
+Seletores CSS acoplam a demo a detalhes de implementação (nomes de classe, estrutura do DOM). Um redesenho que muda o markup mas mantém o nome acessível quebra uma demo baseada em seletores, mas deixa intacta uma demo baseada em papéis.
+</Callout>
+
+Alvos codificam **intenção**, que é muito mais estável que **estrutura**.
+
+## Inspecionando alvos
+
+O comando `targets` da CLI lista os contratos que uma demo usa:
+
+```bash
+pnpm --filter @democraft/cli exec tsx src/index.ts targets \
+  $(pwd)/examples/demo-app/src/demo.ts
+```
+
+Isso é útil para auditar de quais alvos uma demo depende antes de uma captura.

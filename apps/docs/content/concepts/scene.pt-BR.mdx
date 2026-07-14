@@ -1,0 +1,78 @@
+---
+title: Cena
+description: Uma cena é uma sequência nomeada de passos — a unidade de continuidade de câmera e legendas.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+Uma **cena** é uma sequência nomeada de passos. Cenas são a unidade de continuidade de câmera e fluxo de legendas: dentro de uma cena, a câmera e os overlays se comportam de forma coerente; entre cenas, você pode cortar ou fazer crossfade.
+
+## Definindo uma cena
+
+Dentro de `demo.run`, chame `demo.scene(...)` para cada cena:
+
+```ts
+await demo.scene("introduction", async (scene) => {
+  await scene.goto("/dashboard");
+  await scene.establish("dashboard");
+  await scene.caption("Create a workspace in seconds.");
+  await scene.hold("5000ms");
+});
+
+await demo.scene("configure-project", async (scene) => {
+  await scene.click("new-project-button");
+  await scene.focus("create-project-dialog");
+  await scene.fill("project-name-input", "Oddworks");
+});
+```
+
+O primeiro argumento é o `id` da cena (estável, usado em diagnósticos e na timeline). O segundo é um callback async que recebe um construtor `DemoScene`. Você também pode passar metadados de cena como segundo argumento:
+
+```ts
+await demo.scene(
+  "configure-project",
+  { title: "Configure the project" },
+  async (scene) => { /* ... */ },
+);
+```
+
+## O construtor `DemoScene`
+
+O construtor tem catorze métodos — um por tipo de passo. Cada um é `async` e retorna `Promise<void>`:
+
+| Método | Tipo de passo | Captura? |
+|--------|---------------|----------|
+| `goto(path)` | `browser.goto` | Sim |
+| `click(target)` | `browser.click` | Sim |
+| `fill(target, value)` | `browser.fill` | Sim |
+| `select(target, value)` | `browser.select` | Sim |
+| `expectVisible(target)` | `assert.visible` | Asserção |
+| `expectText(target, text)` | `assert.text` | Asserção |
+| `expectUrl(path)` | `assert.url` | Asserção |
+| `establish(target?)` | `camera.establish` | Câmera |
+| `focus(target, opts?)` | `camera.focus` | Câmera |
+| `hold(duration)` | `timeline.hold` | Tempo |
+| `transition(opts?)` | `timeline.transition` | Tempo |
+| `caption(text, opts?)` | `overlay.caption` | Overlay |
+| `callout(target, opts)` | `overlay.callout` | Overlay |
+| `cue(name)` | `cue` | Marcador |
+
+Veja [passos](./passos) para a semântica de cada um.
+
+## Ordenação de cenas
+
+A ordem das chamadas `demo.scene(...)` **é** a ordem das cenas no vídeo final. Não há um campo de ordenação separado.
+
+## `id` opcional nos passos
+
+Todo método de passo aceita um `{ id }` opcional em suas opções. Esse `id` é estável entre edições e é como o Studio e os diagnósticos se referem a um passo específico. Se você omiti-lo, o Democraft gera um — mas IDs explícitos tornam diffs e diagnósticos muito mais fáceis de ler.
+
+```ts
+await scene.click("new-project-button", { id: "open-dialog" });
+```
+
+## Continuidade de câmera
+
+Dentro de uma cena, movimentos `establish` e `focus` se compõem: um `focus` após um `establish` anima do enquadramento estabelecido para o alvo focado. Entre cenas, a câmera reseta a menos que você faça a ponte com uma `transition`.
+
+Veja [captura vs renderização](./captura-vs-renderizacao) para como o estado da câmera é resolvido na timeline.

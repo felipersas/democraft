@@ -1,0 +1,216 @@
+---
+title: Creating custom components
+description: Build your own caption and callout components with the CaptionProps and CalloutProps contract.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+import { Steps, Step } from "fumadocs-ui/components/steps";
+import { TypeTable } from "fumadocs-ui/components/type-table";
+
+A custom component is a React component that receives a standard set of props from the renderer and returns JSX. This page walks through the contract and a complete example.
+
+## The contract
+
+Every overlay component receives props from the `OverlayLayer`. There are two contracts — one for captions, one for callouts.
+
+### CaptionProps
+
+<TypeTable
+  type={{
+    name: "CaptionProps",
+    type: `{
+  overlay: {
+    id: string;
+    stepId: string;
+    sceneId: string;
+    kind: "caption";
+    text: string;
+    fromFrame: number;
+    durationInFrames: number;
+    renderer?: string;
+  };
+  opacity: number;
+}`,
+  }}
+/>
+
+| Prop | Description |
+|------|-------------|
+| `overlay.text` | The caption text the author wrote in `demo.ts`. |
+| `opacity` | A 0–1 fade computed from `fromFrame`/`durationInFrames`. The layer ramps in over 12 frames and out over 12 frames. Use this to fade your component. |
+| `overlay.fromFrame` | The frame this caption appears. |
+| `overlay.durationInFrames` | How many frames the caption stays visible. |
+
+### CalloutProps
+
+<TypeTable
+  type={{
+    name: "CalloutProps",
+    type: `{
+  overlay: {
+    id: string;
+    stepId: string;
+    sceneId: string;
+    kind: "callout";
+    targetId: string;
+    title: string;
+    description?: string;
+    fromFrame: number;
+    durationInFrames: number;
+    boundingBox?: BoundingBox;
+    renderer?: string;
+  };
+  opacity: number;
+  box: BoundingBox;
+}`,
+  }}
+/>
+
+| Prop | Description |
+|------|-------------|
+| `overlay.title` | Required callout title. |
+| `overlay.description` | Optional description text. |
+| `opacity` | Same 0–1 fade as captions. |
+| `box` | The target's on-screen bounding box, **already transformed by the camera**. Position your callout relative to this. `BoundingBox = { x, y, width, height }` in stage coordinates. |
+
+## Rules for a good component
+
+<Steps>
+  <Step title="Use `useCurrentFrame()` for animation">
+    Every component runs inside a Remotion composition. Import
+    `useCurrentFrame` from `"remotion"` and derive animation from the frame
+    number. Never use `setTimeout`, `requestAnimationFrame`, or side effects —
+    Remotion requires pure, frame-deterministic rendering.
+
+    ```tsx
+    import { useCurrentFrame, interpolate } from "remotion";
+    ```
+  </Step>
+
+  <Step title="Clamp interpolation">
+    Always pass `{ extrapolateLeft: "clamp", extrapolateRight: "clamp" }` to
+    `interpolate` so values don't overshoot outside the input range:
+
+    ```tsx
+    const opacity = interpolate(frame, [0, 20], [0, 1], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    });
+    ```
+  </Step>
+
+  <Step title="Honor the `opacity` prop">
+    The layer computes a fade-in/fade-out for you. Multiply your own opacity
+    by the `opacity` prop so the overlay ramps correctly:
+
+    ```tsx
+    style={{ opacity: myAnimationOpacity * props.opacity }}
+    ```
+  </Step>
+</Steps>
+
+## Complete example: `remocn.pulse-callout`
+
+A callout that pulses (scales up and down) while visible.
+
+### 1. Create the component file
+
+```tsx title="./components/pulse-callout.tsx"
+"use client";
+
+import { interpolate, useCurrentFrame } from "remotion";
+import type { CalloutProps } from "@democraft/remotion";
+
+export function PulseCallout({ overlay, opacity, box }: CalloutProps) {
+  const frame = useCurrentFrame();
+
+  // Pulse: scale oscillates between 0.97 and 1.03 every 30 frames
+  const pulse = interpolate(
+    frame % 30,
+    [0, 15, 30],
+    [0.97, 1.03, 0.97],
+  );
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: Math.min(box.x + box.width + 24, 1920 - 360),
+        top: Math.max(42, box.y),
+        width: 320,
+        padding: 20,
+        borderRadius: 12,
+        backgroundColor: "rgba(99, 102, 241, 0.92)",
+        color: "white",
+        boxShadow: "0 16px 50px rgba(0,0,0,.3)",
+        transform: `scale(${pulse})`,
+        opacity,
+      }}
+    >
+      <strong style={{ display: "block", fontSize: 24 }}>
+        {overlay.title}
+      </strong>
+      {overlay.description ? (
+        <p style={{ margin: "8px 0 0", fontSize: 18, lineHeight: 1.4 }}>
+          {overlay.description}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+```
+
+### 2. Register it in your entry
+
+```ts title="./remotion-entry.ts"
+import { defineVisualRegistry } from "@democraft/remotion";
+import { PulseCallout } from "./components/pulse-callout";
+
+const registry = defineVisualRegistry(
+  { kind: "callout", id: "local.pulse-callout", component: PulseCallout },
+);
+```
+
+### 3. Use it in a demo
+
+```ts title="demo.ts"
+await demo.scene("result", async (scene) => {
+  await scene.expectVisible("project-card");
+  await scene.focus("project-card");
+  await scene.callout("project-card", {
+    title: "Done!",
+    description: "Your project is ready.",
+    renderer: "local.pulse-callout",
+  });
+  await scene.hold("2s");
+});
+```
+
+### 4. Render
+
+```bash
+democraft render demo.ts --entry ./remotion-entry.ts --output-file out.mp4
+```
+
+## What's exported from `@democraft/remotion`
+
+For building components, the package exports:
+
+| Export | Purpose |
+|--------|---------|
+| `CaptionProps`, `CalloutProps` | The prop contracts. |
+| `VisualRegistry` | The registry type. |
+| `defineVisualRegistry(...entries)` | Build a custom registry extending defaults. |
+| `defaultVisualRegistry` | The built-in registry (all `motion.*` + `remocn.*`). |
+| `Caption`, `Callout`, `KineticCaption`, `GlassCallout` | The built-in components (to extend or reference). |
+| `ProductDemoVideo`, `defaultProductDemoProps` | The composition component and its default props. |
+| `remocnAdapter(options?)` | The remocn adapter factory. |
+
+<Callout type="warn" title="Experimental">
+Component schemas (zod-based prop validation) and theme presets are planned but not yet implemented. Today, the `renderer` string is opaque — the pipeline doesn't validate whether a renderer ID exists until render time. This means a typo in the renderer name silently falls back to the default with no error.
+</Callout>
+
+## Next steps
+
+- **[Custom entry](../custom-entry)** — the full entry point setup.
+- **[Components overview](../concepts/components)** — the namespace convention and built-in catalog.

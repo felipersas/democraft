@@ -1,0 +1,65 @@
+---
+title: SDK overview
+description: The @democraft/core authoring API — defineDemo, defineTargets, and the scene builder.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+The Democraft authoring SDK lives in `@democraft/core`. It is deliberately small: three builders and four locator factories. Everything else (capture, resolution, render) is driven from what these produce.
+
+## What's in `@democraft/core`
+
+```ts
+import {
+  // demo + config builders
+  defineDemo,
+  defineConfig,
+  // target builders
+  defineTarget,
+  defineTargets,
+  // locator factories
+  byRole,
+  byLabel,
+  byTestId,
+  byText,
+} from "@democraft/core";
+```
+
+| Export | Purpose |
+|--------|---------|
+| `defineDemo(definition)` | Declare a demo. The default export of a `demo.ts` file. |
+| `defineConfig(config)` | Optional project-level config (`fps`, `environment`, `outputs`). |
+| `defineTargets(map)` | Group of named targets. |
+| `defineTarget({ id, locators })` | A single target with fallback locators. |
+| `byRole`, `byLabel`, `byTestId`, `byText` | Locator factories. |
+
+## The shape of a demo
+
+A `DemoDefinition` is a plain object — `defineDemo` is an identity function that exists for type inference and editor jump-to-definition:
+
+```ts
+{
+  id: string,
+  title: string,
+  source: { baseUrl: string, initialPath?: string },
+  targets: Record<string, TargetDefinition>,
+  run: ({ demo: DemoCapture }) => Promise<void> | void,
+}
+```
+
+## The shape of a scene
+
+Inside `run`, `demo.scene(id, run)` gives you a `DemoScene` with fourteen async methods. Each appends one step to the scene. The compiler flattens all scenes into a single ordered step list (the IR), which capture and render consume.
+
+See:
+- [defineDemo](./define-demo) for the full definition reference.
+- [locators](./locators) for the four factories and fallback chains.
+- [scenes](./scenes) for the builder method reference.
+
+## A single API, two audiences
+
+<Callout type="info">
+The same SDK serves humans writing demos in an editor and AI agents generating demos programmatically. There is no separate "agent SDK" — an agent emits the identical TypeScript a human would write, which is reviewable as a normal PR.
+</Callout>
+
+This is why the API stays small and predictable: every concept has exactly one place to live, and the fourteen step kinds cover the demo vocabulary without extension points that would fragment the surface.

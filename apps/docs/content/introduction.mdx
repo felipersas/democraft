@@ -1,0 +1,98 @@
+---
+title: Introduction
+description: What Democraft is, the problem it solves, and when to use it.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+import { Steps } from "fumadocs-ui/components/steps";
+import { Tab, Tabs } from "fumadocs-ui/components/tabs";
+
+Democraft turns software demos into **code**. You describe what a user does in your app — click a button, fill a form, open a dialog — and Democraft captures the browser with Playwright, then renders a polished MP4 video with Remotion. One authoring API serves both developers writing demos by hand and AI agents generating them programmatically.
+
+## The problem
+
+Screen-recorded demos are fragile:
+
+- A **re-recording** is needed every time the UI changes, even cosmetically.
+- **Editing** a 90-second clip to fix one typo means re-doing the whole take.
+- **Reproducing** a demo on a different machine or CI is unreliable.
+- **AI agents** can't reliably produce video; they produce text.
+
+Democraft replaces the recording with a **deterministic, reviewable program**. Change the UI, re-run the capture, and the video regenerates. Tweak a caption or a camera move and the edit is a one-line diff.
+
+## What you write
+
+A demo is a TypeScript module that calls `defineDemo` and drives a `DemoScene` builder:
+
+```ts title="demo.ts"
+import { defineDemo } from "@democraft/core";
+import targets from "./targets";
+
+export default defineDemo({
+  id: "create-project-live",
+  title: "Create a project live",
+  source: {
+    baseUrl: "http://localhost:4173",
+    initialPath: "/dashboard",
+  },
+  targets,
+  async run({ demo }) {
+    await demo.scene("introduction", async (scene) => {
+      await scene.goto("/dashboard");
+      await scene.establish("dashboard");
+      await scene.caption("Create a workspace in seconds.");
+      await scene.hold("5000ms");
+    });
+  },
+});
+```
+
+Each `scene.*` call is one of fourteen **step kinds** — browser actions (`goto`, `click`, `fill`, `select`), assertions (`visible`, `text`, `url`), camera moves (`establish`, `focus`), timeline control (`hold`, `transition`), overlays (`caption`, `callout`), and `cue` markers. Democraft compiles these into an intermediate representation, captures the browser, resolves a render timeline, and renders the video.
+
+## What it produces
+
+<Steps>
+  1. **`manifest.json`** — what Playwright actually did: one screenshot per step, the recorded `.webm`, and resolved locator bounding boxes.
+  2. **`timeline.json`** — the resolved render timeline: which screenshot shows on which frame, where the camera points, what captions and callouts appear.
+  3. **`MP4`** — the final video, rendered by Remotion from the manifest + timeline.
+</Steps>
+
+The manifest and timeline are the **stable contract** between capture and render. You can capture once, then edit captions, pacing, and camera moves forever without touching the browser again.
+
+## When to use Democraft
+
+<Callout type="info">
+Use Democraft when you want demos that are **reproducible**, **editable as code**, and **generatable by AI agents**.
+</Callout>
+
+Good fits:
+
+- **Product marketing videos** that must stay in sync with a changing UI.
+- **Onboarding walkthroughs** generated from real product flows.
+- **Regression-friendly demos** that live next to your code and update in CI.
+- **AI-authored demos** where an agent emits a `demo.ts` from a natural-language description.
+
+## When not to use it
+
+- You need **live, unscripted** screen capture (use a screen recorder).
+- Your target app is **not accessible in a browser** (Democraft drives Playwright/Chromium).
+- You need **real user input timing** — Democraft replays actions deterministically, not as typed.
+
+## Current maturity
+
+<Callout type="warn" title="Experimental">
+Democraft is pre-1.0. The authoring API (`defineDemo`, `DemoScene`) is stable in shape but may gain new step kinds and options. The internal pipeline (IR → manifest → timeline → render) is stable. Treat anything marked **experimental** in these docs as subject to change.
+</Callout>
+
+What works today:
+
+- Full capture → timeline → render pipeline.
+- The Studio (Next.js) for previewing and rendering without a full CLI round-trip.
+- Capture-once caching with staleness detection and in-studio re-capture.
+- Fourteen step kinds covering the common demo vocabulary.
+
+## Next steps
+
+- Read the [project philosophy](./philosophy) to understand the design decisions.
+- Follow the [quickstart](./quickstart) to render your first video.
+- Browse the [concepts](./concepts/demo) to go deeper on scenes, targets, and timelines.

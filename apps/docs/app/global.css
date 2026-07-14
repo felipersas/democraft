@@ -1,0 +1,19 @@
+@import "tailwindcss";
+@import "fumadocs-ui/style.css";
+
+@source "../content";
+
+:root {
+  --fd-background: #ffffff;
+  --fd-foreground: #0a0a0a;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Better code block typography */
+pre,
+code {
+  font-feature-settings: "calt" 0;
+}

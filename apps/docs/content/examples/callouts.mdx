@@ -1,0 +1,111 @@
+---
+title: Captions and callouts
+description: A multi-scene demo with captions, callouts, and camera focus moves.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+This example mirrors the bundled `demo-app` example. It uses multiple scenes, camera focus moves, captions, and a callout to produce a polished walkthrough.
+
+## The demo file
+
+```ts title="demo.ts"
+import { defineDemo } from "@democraft/core";
+import targets from "./targets";
+
+export default defineDemo({
+  id: "create-project-live",
+  title: "Create a project live",
+  source: {
+    baseUrl: "http://localhost:4173",
+    initialPath: "/dashboard",
+  },
+  targets,
+  async run({ demo }) {
+    await demo.scene("introduction", async (scene) => {
+      await scene.goto("/dashboard");
+      await scene.expectVisible("dashboard");
+      await scene.establish("dashboard");
+      await scene.caption("Create a workspace in seconds.", {
+        renderer: "remocn.kinetic-title",
+      });
+      await scene.hold("5000ms");
+    });
+
+    await demo.scene("configure-project", async (scene) => {
+      await scene.click("new-project-button");
+      await scene.expectVisible("create-project-dialog");
+      await scene.focus("create-project-dialog");
+      await scene.fill("project-name-input", "Oddworks");
+      await scene.select("project-template", "Product launch");
+      await scene.click("create-project-button");
+    });
+
+    await demo.scene("project-created", async (scene) => {
+      await scene.expectVisible("project-card");
+      await scene.focus("project-card");
+      await scene.callout("project-card", {
+        title: "Your project is ready",
+        description: "The browser journey produced this card.",
+        renderer: "remocn.glass-callout",
+      });
+      await scene.hold("1s");
+    });
+  },
+});
+```
+
+## The targets file
+
+```ts title="targets.ts"
+import {
+  byLabel,
+  byRole,
+  byTestId,
+  defineTarget,
+  defineTargets,
+} from "@democraft/core";
+
+export default defineTargets({
+  dashboard: byTestId("dashboard"),
+  "new-project-button": defineTarget({
+    id: "new-project-button",
+    locators: [
+      byRole("button", { name: "New project" }),
+      byTestId("new-project"),
+    ],
+  }),
+  "create-project-dialog": byRole("dialog", { name: "Create project" }),
+  "project-name-input": byLabel("Project name"),
+  "project-template": byLabel("Template"),
+  "create-project-button": byRole("button", { name: "Create" }),
+  "project-card": byTestId("project-card"),
+});
+```
+
+## What each scene does
+
+### `introduction`
+Establishes the dashboard with a kinetic-title caption, then holds for 5 seconds. The `expectVisible("dashboard")` assertion guards against the page not loading.
+
+### `configure-project`
+Clicks the new-project button, focuses the dialog that appears, fills the project name, selects a template, and submits. The camera `focus` on the dialog zooms in as it appears.
+
+### `project-created`
+Waits for the project card, focuses it, and displays a glass callout pointing at it. Then holds for 1 second on the result.
+
+## Renderers
+
+<Callout type="info">
+The `renderer` option on `caption` and `callout` names a visual component for the overlay treatment. `"remocn.kinetic-title"` and `"remocn.glass-callout"` are built-in remocn renderers. To use your own components, see [Components and remocn](../concepts/components) and [Creating custom components](../remotion/create-components).
+</Callout>
+
+## Running it
+
+```bash
+pnpm --filter @democraft/example-demo-app start   # terminal 1
+pnpm --filter @democraft/cli exec tsx src/index.ts studio \
+  $(pwd)/examples/demo-app/src/demo.ts              # terminal 2
+```
+
+The first run captures; subsequent runs reuse. Edit captions in the Studio inspector without re-capturing.

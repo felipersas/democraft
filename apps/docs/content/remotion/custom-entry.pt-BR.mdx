@@ -1,0 +1,166 @@
+---
+title: Entry point customizado
+description: Registre seus próprios componentes visuais criando um entry point Remotion customizado.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+import { Steps, Step } from "fumadocs-ui/components/steps";
+
+Por padrão, o Democraft renderiza com um entry point built-in que conhece os quatro renderers padrão (`motion.*` + `remocn.*`). Para usar **seus próprios componentes** — seja clonados do registry remocn ou escritos do zero — você cria um **entry point customizado** que os registra.
+
+## Por que um entry custom?
+
+O entry point do Remotion é o arquivo que chama `registerRoot(Root)`. Ele define qual `<Composition>` renderiza seu vídeo e quais props ela recebe. Ao tomar controle dele, você pode:
+
+- Registrar componentes visuais customizados (renderers `local.*`).
+- Sobrescrever renderers built-in com suas próprias implementações.
+- Misturar componentes do registry remocn com os seus.
+
+## Criando o arquivo de entry
+
+<Steps>
+  <Step title="Crie o arquivo">
+    Na raiz do seu projeto (ao lado de `demo.ts`), crie `remotion-entry.ts`:
+
+    ```ts title="remotion-entry.ts"
+    import React from "react";
+    import { Composition, registerRoot } from "remotion";
+    import {
+      ProductDemoVideo,
+      compositionId,
+      defaultProductDemoProps,
+      defineVisualRegistry,
+    } from "@democraft/remotion";
+
+    // Importe seus componentes customizados aqui
+    // import { MyCaption } from "./components/my-caption";
+
+    const registry = defineVisualRegistry(
+      // { kind: "caption", id: "local.my-caption", component: MyCaption },
+    );
+
+    function Root() {
+      return React.createElement(Composition, {
+        id: compositionId,
+        component: ProductDemoVideo,
+        width: 1920,
+        height: 1080,
+        fps: 60,
+        durationInFrames: 1,
+        defaultProps: { ...defaultProductDemoProps, registry },
+        calculateMetadata: ({ props }) => ({
+          durationInFrames: props.timeline.durationInFrames,
+          fps: props.timeline.fps,
+          width: props.width,
+          height: props.height,
+        }),
+      });
+    }
+
+    registerRoot(Root);
+    ```
+  </Step>
+
+  <Step title="Registre seus componentes">
+    Importe seus componentes e adicione-os ao `defineVisualRegistry()`:
+
+    ```ts title="remotion-entry.ts"
+    import { MyCaption } from "./components/my-caption";
+    import { PulseCallout } from "./components/pulse-callout";
+
+    const registry = defineVisualRegistry(
+      { kind: "caption", id: "local.my-caption", component: MyCaption },
+      { kind: "callout", id: "local.pulse-callout", component: PulseCallout },
+    );
+    ```
+
+    `defineVisualRegistry` **estende** os defaults built-in — você só lista
+    suas adições. Entradas com o mesmo ID de um renderer built-in sobrescrevem
+    o default.
+  </Step>
+
+  <Step title="Use o entry">
+    Passe `--entry` para a CLI ao renderizar:
+
+    ```bash
+    democraft render demo.ts --entry ./remotion-entry.ts \
+      --output-file out.mp4
+    ```
+  </Step>
+</Steps>
+
+## Instalando componentes remocn do registry
+
+Componentes remocn são distribuídos via um registry compatível com shadcn. O registry já está configurado em `components.json`:
+
+```bash
+# Clona um componente para o seu projeto
+pnpm dlx shadcn@latest add @remocn/soft-blur-in
+```
+
+Isso copia o código-fonte do componente para o seu projeto (tipicamente `components/remocn/`). Você então importa no seu entry e registra:
+
+```ts title="remotion-entry.ts"
+import { SoftBlurIn } from "./components/remocn/soft-blur-in";
+import type { CaptionProps } from "@democraft/remotion";
+
+// Adapta o componente remocn ao contrato CaptionProps
+function MyBlurCaption({ overlay, opacity }: CaptionProps) {
+  return React.createElement(SoftBlurIn, {
+    text: overlay.text,
+    color: "white",
+    fontSize: 42,
+  });
+}
+
+const registry = defineVisualRegistry(
+  { kind: "caption", id: "local.blur-caption", component: MyBlurCaption },
+);
+```
+
+<Callout type="info">
+Você é dono do código clonado. Edite o arquivo `.tsx` diretamente para mudar cores, timing, curvas de animação — qualquer coisa. O componente é seu.
+</Callout>
+
+## A API `defineVisualRegistry`
+
+```ts
+import { defineVisualRegistry } from "@democraft/remotion";
+
+const registry = defineVisualRegistry(
+  { kind: "caption", id: "<renderer-id>", component: MyCaption },
+  { kind: "callout", id: "<renderer-id>", component: MyCallout },
+);
+```
+
+Cada entrada tem:
+- `kind` — `"caption"` ou `"callout"` (determina qual tipo de overlay usa).
+- `id` — a string renderer que autores escrevem em `demo.ts`.
+- `component` — um componente React que aceita `CaptionProps` ou `CalloutProps`.
+
+O registry retornado inclui todos os renderers built-in mais suas adições.
+
+<Callout type="warn" title="Experimental">
+A API `defineVisualRegistry` é estável em formato, mas o adapter model mais amplo (`remocnAdapter()`, `defineConfig({ adapters })`) ainda está sendo integrado ao pipeline. Hoje, registre componentes via o entry custom como mostrado acima. O campo `adapters` do config existe mas ainda não é consumido no momento da renderização.
+</Callout>
+
+## Usando o entry com o Studio
+
+A fila de renderização do Studio aceita um `entryPath` na requisição de enqueue. Quando definido, a renderização usa seu entry custom em vez do built-in.
+
+Do UI do Studio, este campo aparece no painel de renderização. Programaticamente:
+
+```ts
+// O payload da requisição de enqueue
+{
+  entryPath: "./remotion-entry.ts",
+  // ... outras opções de renderização
+}
+```
+
+Quando `entryPath` é omitido, o Studio cai para `@democraft/remotion/dist/entry.js` (o entry built-in).
+
+## Próximos passos
+
+- **[Criando componentes](../create-components)** — o contrato `CaptionProps` / `CalloutProps` e um exemplo completo.
+- **[Visão geral de componentes](../concepts/components)** — o que é remocn e a convenção de namespace.

@@ -1,0 +1,107 @@
+---
+title: Início rápido
+description: Capture uma demo e renderize seu primeiro MP4 em cinco minutos.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+import { Steps } from "fumadocs-ui/components/steps";
+import { Tab, Tabs } from "fumadocs-ui/components/tabs";
+
+Este guia leva você de um checkout limpo a um MP4 renderizado usando o exemplo `demo-app` incluído. Você vai iniciar o app-alvo, capturá-lo e renderizar um vídeo.
+
+## O que você precisa
+
+- O workspace instalado e compilado — veja [instalação](./instalacao).
+- Dois terminais.
+
+## Iniciar o app-alvo
+
+O exemplo `demo-app` é um pequeno servidor HTTP que o Playwright captura. Ele precisa estar rodando **durante a captura** (mas não para pré-visualização/edição depois).
+
+```bash title="Terminal 1"
+pnpm --filter @democraft/example-demo-app start
+```
+
+Você deve ver `Demo app listening on http://localhost:4173`.
+
+<Callout type="info">
+O app-alvo só é necessário na **primeira** vez, para a captura. Depois disso, o Democraft reutiliza os arquivos capturados de `.democraft/` e o app não precisa rodar. Veja [captura única](../pipeline/captura-unica).
+</Callout>
+
+## Abrir o Studio
+
+O Studio é um app Next.js que pré-visualiza, edita e renderiza. Ele é aberto pela CLI, que grava um `meta.json` para que o Studio saiba onde estão a demo e suas capturas.
+
+```bash title="Terminal 2"
+pnpm --filter @democraft/cli exec tsx src/index.ts studio \
+  $(pwd)/examples/demo-app/src/demo.ts
+```
+
+O primeiro lançamento roda o Playwright contra `:4173` e captura. Ao terminar, o Studio abre em `http://localhost:3000` mostrando a timeline capturada.
+
+<Steps>
+  1. **Navegue pela timeline.** O painel inferior mostra as faixas de câmera, overlay e cursor. O playhead e os controles de transporte ficam acima dela.
+  2. **Pré-visualize.** Pressione <kbd>Espaço</kbd> para reproduzir. Use <kbd>←</kbd> / <kbd>→</kbd> para avançar frame a frame, <kbd>Home</kbd> / <kbd>End</kbd> para ir aos extremos.
+  3. **Edite legendas.** Selecione um clipe de legenda na timeline para editar seu texto no inspetor — sem necessidade de re-captura.
+  4. **Renderize.** Clique em **Render** no inspetor para produzir um MP4. O progresso é transmitido na fila de renderização.
+</Steps>
+
+## Renderizar pela CLI
+
+Para renderizar sem o Studio, use o comando `render` da CLI. Ele lê um manifest capturado e uma timeline resolvida:
+
+```bash
+pnpm --filter @democraft/cli exec tsx src/index.ts capture \
+  $(pwd)/examples/demo-app/src/demo.ts
+
+pnpm --filter @democraft/cli exec tsx src/index.ts timeline \
+  $(pwd)/examples/demo-app/src/demo.ts
+
+pnpm --filter @democraft/cli exec tsx src/index.ts render \
+  $(pwd)/examples/demo-app/src/demo.ts \
+  --output-file out.mp4
+```
+
+<Tabs items={["Flags comuns", "Qualidade"]}>
+  <Tab value="Flags comuns">
+    ```bash
+    --output-file <path>   # onde escrever o MP4
+    --fps <number>         # frames por segundo (timeline)
+    --scale <number>       # escala de renderização (tente 2 para saída mais nítida)
+    --crf <number>         # qualidade h264 (padrão 15, menor = melhor)
+    --port <number>        # porta do studio (padrão 3000)
+    --no-capture           # studio: reutiliza captura existente, falha se não houver
+    ```
+  </Tab>
+  <Tab value="Qualidade">
+    Para um vídeo mais nítido, aumente a escala de renderização e diminua o CRF:
+
+    ```bash
+    pnpm --filter @democraft/cli exec tsx src/index.ts render \
+      $(pwd)/examples/demo-app/src/demo.ts \
+      --output-file out.mp4 \
+      --scale 2 \
+      --crf 12
+    ```
+  </Tab>
+</Tabs>
+
+## Inspecionar e validar
+
+Antes de capturar, você pode inspecionar ou validar estaticamente uma demo sem navegador:
+
+```bash
+pnpm --filter @democraft/cli exec tsx src/index.ts inspect \
+  $(pwd)/examples/demo-app/src/demo.ts --static
+
+pnpm --filter @democraft/cli exec tsx src/index.ts validate \
+  $(pwd)/examples/demo-app/src/demo.ts --static
+```
+
+`inspect` imprime um resumo legível do IR compilado. `validate` roda os diagnósticos (`DC001`–`DC105`) e relata quaisquer problemas.
+
+## Próximos passos
+
+- Leia os [conceitos](./conceitos/demo) para entender demos, cenas e alvos.
+- Aprenda a [SDK](./sdk/visao-geral) para a API de autoria completa.
+- Entenda o modelo de [captura única](../pipeline/captura-unica) para iteração rápida.

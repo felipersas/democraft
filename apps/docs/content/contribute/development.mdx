@@ -1,0 +1,97 @@
+---
+title: Development
+description: How to build, test, and contribute to Democraft.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+This page covers the day-to-day commands and conventions for working on Democraft itself.
+
+## Prerequisites
+
+- **Node.js** ≥ 20
+- **pnpm** ≥ 9 (`corepack enable && corepack prepare pnpm@9 --activate`)
+- **Playwright browsers** (first time): `pnpm exec playwright install chromium`
+
+## First-time setup
+
+```bash
+pnpm install
+pnpm build          # builds all workspace packages to dist/
+```
+
+`pnpm build` is required once after install because workspace packages resolve from `dist/`. After that, turbo rebuilds upstream changes automatically when you run `pnpm typecheck` or `pnpm build`.
+
+## Day-to-day commands
+
+All commands run from the repo root.
+
+```bash
+pnpm build          # build all packages (turbo)
+pnpm typecheck      # typecheck all packages
+pnpm test           # run all tests (vitest)
+pnpm lint           # eslint
+pnpm format         # prettier --check (use --write to fix)
+```
+
+Target a single package with the pnpm filter:
+
+```bash
+pnpm --filter @democraft/studio typecheck
+pnpm --filter @democraft/cli test
+pnpm --filter @democraft/remotion build
+```
+
+### Rebuilding a single package
+
+If you edit source under `packages/*/src/`, rebuild that package for consumers to pick up the change:
+
+```bash
+pnpm --filter @democraft/remotion build      # most common (studio consumes it)
+pnpm --filter @democraft/schema build
+pnpm --filter @democraft/compiler build
+```
+
+## Running the Studio
+
+The Studio is launched via the CLI against a demo file. See the [quickstart](../quickstart) for the full flow with the demo-app example.
+
+```bash
+pnpm --filter @democraft/example-demo-app start   # terminal 1 (target app)
+pnpm --filter @democraft/cli exec tsx src/index.ts studio \
+  $(pwd)/examples/demo-app/src/demo.ts              # terminal 2
+```
+
+## Running the docs
+
+The documentation site is a Next.js app under `apps/docs/`.
+
+```bash
+pnpm --filter @democraft/docs dev      # http://localhost:3001 (or next free port)
+pnpm --filter @democraft/docs build
+```
+
+<Callout type="info">
+The docs are bilingual (pt-BR + en). When you add a page, add it in **both** `content/en/` and `content/pt-BR/` and update **both** `meta.json` files. The two trees must have structural parity — same slugs (modulo translation), same headings.
+</Callout>
+
+## Conventions
+
+- **Namespace:** `@democraft/*`. CLI binary: `democraft`. Data dir: `.democraft/`. Env vars: `DEMOCRAFT_*`. Diagnostic codes: `DC0xx`.
+- **Authoring API:** lives in `@democraft/core`. Keep the surface small — every new step kind or option is a contract.
+- **Types:** shared types live in `@democraft/schema`. Don't duplicate type definitions across packages.
+- **Tests:** vitest, colocated (`*.test.ts`). The `@democraft/testing` package holds shared fixtures.
+- **Builds:** tsup for packages, `next build` for the Studio and docs.
+
+## Documentation parity
+
+Both locales must stay in sync. When editing docs:
+
+1. Make the same change in both `content/en/` and `content/pt-BR/`.
+2. Keep code snippets identical across locales (only the prose changes).
+3. Do not translate API names, package names, CLI flags, or diagnostic codes.
+4. Update both `meta.json` files when adding or reordering pages.
+
+## Reporting issues
+
+Capture failures should include the `trace.zip` from `.democraft/runs/<id>/` — it lets others reproduce the exact Playwright session. Run `inspect --static` and `validate --static` first to rule out structural demo errors.

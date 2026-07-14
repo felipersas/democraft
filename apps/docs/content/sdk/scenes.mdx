@@ -1,0 +1,166 @@
+---
+title: Scenes
+description: The DemoScene builder method reference — all fourteen step kinds.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+import { TypeTable } from "fumadocs-ui/components/type-table";
+
+The `DemoScene` builder is what you drive inside `demo.scene(id, run)`. It has fourteen async methods — one per step kind. This page is the method-by-method reference.
+
+## Browser actions
+
+### `goto(path)`
+
+```ts
+await scene.goto(path: string, options?: { id?: string }): Promise<void>
+```
+
+Navigate to `path` (relative to `source.baseUrl`). Produces a `browser.goto` step and captures a screenshot.
+
+### `click(target)`
+
+```ts
+await scene.click(target: string, options?: { id?: string }): Promise<void>
+```
+
+Click the named target. Captures a screenshot after the click settles.
+
+### `fill(target, value)`
+
+```ts
+await scene.fill(target: string, value: string, options?: { id?: string }): Promise<void>
+```
+
+Fill an input identified by `target` with `value`. Captures after the input settles.
+
+### `select(target, value)`
+
+```ts
+await scene.select(target: string, value: string, options?: { id?: string }): Promise<void>
+```
+
+Choose `value` from a `<select>` identified by `target`.
+
+## Assertions
+
+### `expectVisible(target)`
+
+```ts
+await scene.expectVisible(target: string, options?: { id?: string }): Promise<void>
+```
+
+Assert the target is present and visible. Produces an `assert.visible` step. Fails capture if unmet.
+
+### `expectText(target, text)`
+
+```ts
+await scene.expectText(target: string, text: string, options?: { id?: string }): Promise<void>
+```
+
+Assert the target contains `text`. Fails capture if unmet.
+
+### `expectUrl(path)`
+
+```ts
+await scene.expectUrl(path: string, options?: { id?: string }): Promise<void>
+```
+
+Assert the current URL path equals `path`.
+
+## Camera
+
+### `establish(target?)`
+
+```ts
+await scene.establish(target?: string, options?: { id?: string }): Promise<void>
+```
+
+Pull the camera back to show the whole viewport, or the context around `target` if given. Produces a `camera.establish` step.
+
+### `focus(target, options?)`
+
+```ts
+await scene.focus(
+  target: string,
+  options?: { id?: string; padding?: number },
+): Promise<void>
+```
+
+<TypeTable
+  type={{
+    name: "FocusOptions",
+    type: "{ id?: string; padding?: number }",
+    description: "padding adds pixels of breathing room around the focused target's bounding box.",
+  }}
+/>
+
+Zoom/pan the camera to `target`. Within a scene, `establish` → `focus` interpolates smoothly.
+
+## Timeline
+
+### `hold(duration)`
+
+```ts
+await scene.hold(duration: string, options?: { id?: string }): Promise<void>
+```
+
+Hold the current state for `duration`. Accepts strings like `"5000ms"`, `"1s"`, `"2s"`.
+
+### `transition(options?)`
+
+```ts
+await scene.transition(options?: {
+  id?: string;
+  type?: "cut" | "crossfade";
+  duration?: string;
+}): Promise<void>
+```
+
+Cut or crossfade into the next step. `duration` accepts the same format as `hold`.
+
+## Overlays
+
+### `caption(text, options?)`
+
+```ts
+await scene.caption(
+  text: string,
+  options?: { id?: string; renderer?: string },
+): Promise<void>
+```
+
+<TypeTable
+  type={{
+    name: "CaptionOptions",
+    type: "{ id?: string; renderer?: string }",
+    description: "renderer names a visual component. Built-in: 'motion.caption' (default), 'remocn.kinetic-title'. See Components and remocn.",
+  }}
+/>
+
+Display a caption. `renderer` selects a visual component from the registry. Built-in renderers: `motion.caption` (default), `remocn.kinetic-title`. See [Components and remocn](../concepts/components) for the full catalog and custom components.
+
+### `callout(target, options)`
+
+```ts
+await scene.callout(
+  target: string,
+  options: { title: string; description?: string; renderer?: string; id?: string },
+): Promise<void>
+```
+
+Display an annotated callout pointing at `target`. `title` is required.
+
+## Cue
+
+### `cue(name)`
+
+```ts
+await scene.cue(name: string, options?: { id?: string }): Promise<void>
+```
+
+Drop a named bookmark in the timeline. Cues do not render visually — they are reference points for the Studio and programmatic consumers.
+
+<Callout type="info">
+Adding, removing, or reordering any step is a **structural change** that triggers a re-capture. Editing text/durations/renderers on an existing step is a **content change** that only re-resolves the timeline. See [capture-once](../pipeline/capture-once).
+</Callout>

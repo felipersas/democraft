@@ -1,0 +1,88 @@
+---
+title: Timeline
+description: The resolved render timeline — how captured steps become frames.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+The **timeline** is the bridge between capture and render. After Playwright captures the browser, Democraft **resolves** the demo's steps into a `RenderTimeline` — a frame-accurate description of what every layer shows on every frame. Remotion then renders that timeline into an MP4.
+
+## The resolution pipeline
+
+```
+demo.ts
+  │
+  │  compileDemo
+  ▼
+DemoIR  ───────────────┐
+  │                    │
+  │  runDemo           │
+  ▼                    │
+RecordedDemoManifest   │
+  │                    │
+  └────────────────────┤
+                       │
+                  resolveTimeline
+                       │
+                       ▼
+                RenderTimeline
+                       │
+                  renderDemoVideo
+                       │
+                       ▼
+                     MP4
+```
+
+The IR and the manifest are the inputs. The timeline is the output. `resolveTimeline` decides which screenshot shows when, where the camera points, and which overlays appear.
+
+## What the timeline contains
+
+A `RenderTimeline` has four track types:
+
+| Track | Contents |
+|-------|----------|
+| `scenes` | Scene boundaries (for cuts/transitions). |
+| `camera` | Camera moves: `establish` and `focus` tracks with target bounding boxes. |
+| `cursor` | The recorded cursor position, replayed frame-by-frame. |
+| `overlays` | Captions and callouts, each with a frame range. |
+
+Each track entry has `fromFrame`, `durationInFrames`, and a `kind`. The renderer samples these per frame.
+
+## Frame math
+
+Every step gets a frame range based on its kind and any explicit durations:
+
+- Browser actions and assertions have a default frame allocation.
+- `hold("5000ms")` allocates `5000ms * fps` frames (e.g. 300 frames at 60fps).
+- `transition({ duration: "500ms" })` allocates the crossfade window.
+
+The compiler sequences steps back-to-back, so the timeline's total `durationInFrames` is the sum of all step durations. The default `fps` is 60 unless overridden in `defineConfig`.
+
+## Camera tracks in detail
+
+A `camera.establish` step produces a track covering the whole viewport (no zoom). A `camera.focus` step produces a track pointing at a target's resolved bounding box. Between them, the renderer **interpolates** the camera position so the move is smooth.
+
+The bounding boxes come from the manifest — Playwright measured them during capture. So the camera always points exactly where the element actually was, not where the demo guesses.
+
+## Overlays in detail
+
+A caption appears for its step's frame range, rendered as an overlay layer. A callout does the same but with a pointer anchored to its target's bounding box. Both accept a `renderer` name that maps to a Remotion component for the visual treatment.
+
+## Editing the timeline without re-capturing
+
+<Callout type="info">
+The timeline is **re-resolvable** from the IR + manifest alone. When you change a caption's text, a `hold` duration, or a `renderer`, Democraft re-runs `resolveTimeline` against the existing capture and rewrites `timeline.json`. No browser involved.
+</Callout>
+
+This is the foundation of the [capture-once](../pipeline/capture-once) workflow: capture is expensive and rare; timeline resolution is cheap and happens on every edit.
+
+## Inspecting the timeline
+
+The CLI's `timeline` command resolves and writes `timeline.json`:
+
+```bash
+pnpm --filter @democraft/cli exec tsx src/index.ts timeline \
+  $(pwd)/examples/demo-app/src/demo.ts
+```
+
+The Studio resolves the timeline on every `demo.ts` change and live-updates the preview.

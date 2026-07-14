@@ -1,0 +1,106 @@
+---
+title: defineDemo
+description: Referência para o formato DemoDefinition e o construtor defineDemo.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+import { TypeTable } from "fumadocs-ui/components/type-table";
+
+`defineDemo` declara uma demo. É uma função identidade — seu único trabalho é lhe dar type-checking e suporte do editor para o formato `DemoDefinition`.
+
+## Assinatura
+
+```ts
+function defineDemo(definition: DemoDefinition): DemoDefinition;
+```
+
+## DemoDefinition
+
+<TypeTable
+  type={{
+    name: "DemoDefinition",
+    type: `{
+  id: string;
+  title: string;
+  source: { baseUrl: string; initialPath?: string };
+  targets: Record<string, TargetDefinition>;
+  run: (args: { demo: DemoCapture }) => Promise<void> | void;
+}`,
+    description: "O formato de topo da demo.",
+  }}
+/>
+
+| Campo | Tipo | Obrigatório | Descrição |
+|-------|------|-------------|-----------|
+| `id` | `string` | Sim | Identificador estável. Renomear invalida o cache de captura. |
+| `title` | `string` | Sim | Nome legível por humanos. |
+| `source.baseUrl` | `string` | Sim | Origem do app-alvo. Precisa estar ativo durante a captura. |
+| `source.initialPath` | `string` | Não | Caminho inicial. Padrão: o `goto` da primeira cena. |
+| `targets` | `Record<string, TargetDefinition>` | Sim | Contratos de elementos nomeados. Veja [locators](../locators). |
+| `run` | `({ demo }) => Promise<void> \| void` | Sim | Conduz a captura via `demo.scene(...)`. |
+
+## Exemplo mínimo
+
+```ts title="demo.ts"
+import { defineDemo } from "@democraft/core";
+import targets from "./targets";
+
+export default defineDemo({
+  id: "create-project-live",
+  title: "Create a project live",
+  source: {
+    baseUrl: "http://localhost:4173",
+    initialPath: "/dashboard",
+  },
+  targets,
+  async run({ demo }) {
+    await demo.scene("intro", async (scene) => {
+      await scene.goto("/dashboard");
+      await scene.establish("dashboard");
+      await scene.caption("Create a workspace in seconds.");
+      await scene.hold("5000ms");
+    });
+  },
+});
+```
+
+## DemoCapture
+
+O argumento `demo` para `run` é um `DemoCapture`. Ele tem um único método sobrecarregado:
+
+<TypeTable
+  type={{
+    name: "DemoCapture.scene",
+    type: `(id: string, run: (scene) => void) => Promise<void>`,
+    description: "Define uma cena. Opcionalmente passe metadados como segundo argumento.",
+  }}
+/>
+
+```ts
+// sem metadados
+await demo.scene("intro", async (scene) => { /* ... */ });
+
+// com metadados
+await demo.scene("intro", { title: "Introduction" }, async (scene) => { /* ... */ });
+```
+
+## defineConfig (opcional)
+
+Para configurações de nível de projeto que se aplicam entre demos:
+
+<TypeTable
+  type={{
+    name: "DemoConfig",
+    type: `{
+  fps?: number;
+  environment?: Record<string, unknown>;
+  outputs?: Record<string, unknown>;
+  adapters?: unknown[];
+}`,
+    description: "Config de projeto opcional. Atualmente, apenas fps é consumido pelo resolvedor de timeline.",
+  }}
+/>
+
+<Callout type="warn" title="Experimental">
+`environment`, `outputs` e `adapters` estão reservados para uso futuro e ainda não são consumidos pelo pipeline. Apenas `fps` está conectado hoje.
+</Callout>

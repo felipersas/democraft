@@ -1,0 +1,89 @@
+---
+title: Workflow de captura única
+description: Reutilize capturas por padrão, re-capture no Studio e detecte staleness automaticamente.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+import { Steps } from "fumadocs-ui/components/steps";
+
+A captura é o estágio caro — ela precisa do app ativo e do Playwright. O Democraft faz a captura **uma vez por versão estrutural** da demo, depois reutiliza os arquivos capturados para cada edição subsequente. Esta página explica a mecânica.
+
+## O padrão: reutilizar
+
+Quando você abre o Studio (ou roda a captura pela CLI), o Democraft checa por uma captura existente em `.democraft/runs/<ir.id>/`. Se existe um `manifest.json` válido, ele é **reutilizado** — sem navegador, sem Playwright, inicialização instantânea.
+
+Este é o comportamento padrão. O Studio abre instantaneamente a partir da segunda execução.
+
+## O que vive em disco
+
+```
+.democraft/
+  studio-data/          # o que o Studio lê
+    meta.json           # { demoPath, captureDir, demoId, capturedAt }
+    manifest.json       # copiado da execução de captura
+    timeline.json       # timeline resolvida (reescrita a cada edição)
+    screenshots/        # uma PNG por passo capturado
+  runs/
+    <ir.id>/            # a saída bruta da captura
+      manifest.json
+      screenshots/
+      recording.webm
+      trace.zip
+```
+
+`meta.json` é como o Studio sabe onde está tudo. Ele aponta para o `demoPath` (para re-compilação) e o `captureDir` (para a captura bruta).
+
+## Detecção de staleness
+
+Toda vez que o Studio carrega (ou `demo.ts` muda), ele re-compila `demo.ts` e compara o `ir.id` resultante contra `manifest.demoId`:
+
+| Comparação | Tipo de staleness | Significado | Ação |
+|------------|-------------------|-------------|------|
+| `ir.id === manifest.demoId` | `fresh` | Nada mudou estruturalmente. | Nada. |
+| `ir.id === manifest.demoId` mas mtime do `demo.ts` > mtime do manifest | `content` | Edição cosmética (comentários, whitespace). | Re-resolver timeline. |
+| `ir.id !== manifest.demoId` | `structural` | Passos/alvos mudaram. | **Re-captura necessária.** |
+| manifest contém `chrome-error://` | `failed` | A última captura bateu em uma página de erro. | Re-captura necessária. |
+
+O Studio mostra um badge colorido refletindo este estado.
+
+## Re-resolver (sem navegador)
+
+Para staleness `content` — e mesmo para alguns casos `structural` onde apenas legendas/pacing mudaram — o Studio re-resolve a timeline a partir da captura existente:
+
+1. Re-compilar `demo.ts` → IR.
+2. `resolveTimeline(ir, existingManifest)` → nova timeline.
+3. Reescrever `timeline.json`.
+
+Isso acontece automaticamente a cada salvamento de `demo.ts`. Nenhum navegador envolvido.
+
+## Re-capturar (navegador)
+
+Para staleness `structural`, uma re-captura é necessária. O Studio pode fazer isso in-place:
+
+1. Clique no botão **Re-capture** no header.
+2. O Studio re-roda `loadDemo → compileDemo → runDemo` contra o app-alvo.
+3. O progresso é transmitido via event bus (`recapture-progress`).
+4. Ao terminar, o file-watcher dispara um hot-reload.
+
+<Callout type="warn">
+A re-captura exige que o app-alvo esteja rodando em `source.baseUrl`. Se não estiver, a captura falhará (ou produzirá páginas `chrome-error://`, que aparecem como staleness `failed`).
+</Callout>
+
+## A flag `--no-capture`
+
+Por padrão, a CLI reutiliza uma captura se existir e captura se não. A flag `--no-capture` muda isso para **skip forçado**: reutilizar se um manifest existir, **falhar** se não. Use em CI para garantir que nenhum navegador seja spawnado.
+
+```bash
+pnpm --filter @democraft/cli exec tsx src/index.ts studio \
+  $(pwd)/examples/demo-app/src/demo.ts --no-capture
+```
+
+## Por que isso funciona
+
+<Steps>
+  1. **A renderização depende apenas dos arquivos capturados** — nunca do app ativo. Então uma captura antiga-mas-presente ainda renderiza bem.
+  2. **O hash de conteúdo do IR** distingue mudanças estruturais (re-captura) de mudanças de conteúdo (re-resolve). Assim você não re-captura desnecessariamente.
+  3. **O Studio importa os pacotes compiler + timeline diretamente**, então ele pode re-compilar e re-resolver in-process sem um round-trip da CLI.
+</Steps>
+
+O resultado: captura é rara (apenas em mudança estrutural), e iteração em legendas, pacing, câmera e overlays é instantânea.

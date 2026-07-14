@@ -1,0 +1,75 @@
+---
+title: Basic demo
+description: A minimal end-to-end demo with one scene and three steps.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+This is the smallest useful Democraft demo: one scene, a goto, an establish, and a caption. It compiles, captures, and renders end-to-end.
+
+## The demo file
+
+```ts title="demo.ts"
+import { defineDemo } from "@democraft/core";
+import targets from "./targets";
+
+export default defineDemo({
+  id: "basic-walkthrough",
+  title: "Basic walkthrough",
+  source: {
+    baseUrl: "http://localhost:4173",
+    initialPath: "/",
+  },
+  targets,
+  async run({ demo }) {
+    await demo.scene("landing", async (scene) => {
+      await scene.goto("/");
+      await scene.establish("hero");
+      await scene.caption("Welcome to our product.");
+      await scene.hold("3000ms");
+    });
+  },
+});
+```
+
+## The targets file
+
+```ts title="targets.ts"
+import { byTestId, defineTargets } from "@democraft/core";
+
+export default defineTargets({
+  hero: byTestId("hero"),
+});
+```
+
+## What this produces
+
+When captured and rendered, this demo yields a roughly 3-second clip:
+
+1. Browser navigates to `/`.
+2. Camera establishes on the `hero` element (whole viewport).
+3. A caption "Welcome to our product." appears.
+4. The state holds for 3 seconds.
+
+<Callout type="info">
+The `hold("3000ms")` plus the default frame allocations for `goto`/`establish`/`caption` determine the total duration. At 60fps, this demo is ~180+ frames.
+</Callout>
+
+## Running it
+
+```bash
+# start your app at :4173, then:
+pnpm --filter @democraft/cli exec tsx src/index.ts capture ./demo.ts
+pnpm --filter @democraft/cli exec tsx src/index.ts timeline ./demo.ts
+pnpm --filter @democraft/cli exec tsx src/index.ts render ./demo.ts --output-file out.mp4
+```
+
+Or iterate in the Studio:
+
+```bash
+pnpm --filter @democraft/cli exec tsx src/index.ts studio ./demo.ts
+```
+
+## Next
+
+Add a second scene and a camera focus — see [callouts](./callouts) for a richer example.

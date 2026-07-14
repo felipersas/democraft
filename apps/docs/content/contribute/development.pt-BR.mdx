@@ -1,0 +1,97 @@
+---
+title: Desenvolvimento
+description: Como buildar, testar e contribuir para o Democraft.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+Esta página cobre os comandos e convenções do dia a dia para trabalhar no próprio Democraft.
+
+## Pré-requisitos
+
+- **Node.js** ≥ 20
+- **pnpm** ≥ 9 (`corepack enable && corepack prepare pnpm@9 --activate`)
+- **Navegadores do Playwright** (primeira vez): `pnpm exec playwright install chromium`
+
+## Configuração inicial
+
+```bash
+pnpm install
+pnpm build          # compila todos os pacotes do workspace para dist/
+```
+
+`pnpm build` é obrigatório uma vez após instalar porque os pacotes do workspace resolvem a partir de `dist/`. Depois disso, o turbo recompila mudanças à montante automaticamente quando você roda `pnpm typecheck` ou `pnpm build`.
+
+## Comandos do dia a dia
+
+Todos os comandos rodam a partir da raiz do repo.
+
+```bash
+pnpm build          # buildar todos os pacotes (turbo)
+pnpm typecheck      # typecheck de todos os pacotes
+pnpm test           # rodar todos os testes (vitest)
+pnpm lint           # eslint
+pnpm format         # prettier --check (use --write para corrigir)
+```
+
+Direcione um único pacote com o pnpm filter:
+
+```bash
+pnpm --filter @democraft/studio typecheck
+pnpm --filter @democraft/cli test
+pnpm --filter @democraft/remotion build
+```
+
+### Recompilando um único pacote
+
+Se você editar código-fonte sob `packages/*/src/`, recompile esse pacote para que os consumidores peguem a mudança:
+
+```bash
+pnpm --filter @democraft/remotion build      # mais comum (studio o consome)
+pnpm --filter @democraft/schema build
+pnpm --filter @democraft/compiler build
+```
+
+## Rodando o Studio
+
+O Studio é aberto via CLI contra um arquivo de demo. Veja o [início rápido](../inicio-rapido) para o fluxo completo com o exemplo demo-app.
+
+```bash
+pnpm --filter @democraft/example-demo-app start   # terminal 1 (app-alvo)
+pnpm --filter @democraft/cli exec tsx src/index.ts studio \
+  $(pwd)/examples/demo-app/src/demo.ts              # terminal 2
+```
+
+## Rodando a documentação
+
+O site de documentação é um app Next.js sob `apps/docs/`.
+
+```bash
+pnpm --filter @democraft/docs dev      # http://localhost:3001 (ou próxima porta livre)
+pnpm --filter @democraft/docs build
+```
+
+<Callout type="info">
+A documentação é bilíngue (pt-BR + en). Quando você adicionar uma página, adicione-a em **ambos** `content/en/` e `content/pt-BR/` e atualize **ambos** os arquivos `meta.json`. As duas árvores devem ter paridade estrutural — mesmos slugs (exceto tradução), mesmos headings.
+</Callout>
+
+## Convenções
+
+- **Namespace:** `@democraft/*`. Binário da CLI: `democraft`. Diretório de dados: `.democraft/`. Variáveis de ambiente: `DEMOCRAFT_*`. Códigos de diagnóstico: `DC0xx`.
+- **API de autoria:** vive em `@democraft/core`. Mantenha a superfície pequena — todo novo tipo de passo ou opção é um contrato.
+- **Tipos:** tipos compartilhados vivem em `@democraft/schema`. Não duplique definições de tipos entre pacotes.
+- **Testes:** vitest, colocados (`*.test.ts`). O pacote `@democraft/testing` guarda fixtures compartilhadas.
+- **Builds:** tsup para pacotes, `next build` para Studio e docs.
+
+## Paridade da documentação
+
+Ambos os locales devem permanecer sincronizados. Ao editar a documentação:
+
+1. Faça a mesma mudança em ambos `content/en/` e `content/pt-BR/`.
+2. Mantenha snippets de código idênticos entre locales (apenas a prosa muda).
+3. Não traduza nomes de APIs, nomes de pacotes, flags da CLI ou códigos de diagnóstico.
+4. Atualize ambos os arquivos `meta.json` ao adicionar ou reordenar páginas.
+
+## Reportando problemas
+
+Falhas de captura devem incluir o `trace.zip` de `.democraft/runs/<id>/` — ele permite que outros reproduzam a sessão exata do Playwright. Rode `inspect --static` e `validate --static` primeiro para descartar erros estruturais da demo.

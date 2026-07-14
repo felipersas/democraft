@@ -1,0 +1,65 @@
+---
+title: Filosofia
+description: Os princípios de design por trás do Democraft — demos como código, captura única, API única.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+O Democraft é construído sobre um pequeno conjunto de princípios. Eles explicam por que a API tem o formato que tem e quais trade-offs foram feitos.
+
+## 1. Demos são código, não artefatos
+
+Uma demo é um programa TypeScript, revisado em um diff, versionado e regenerado sob demanda. Esta é a decisão fundamental. Todo o resto deriva dela.
+
+O corolário: **você nunca deve editar manualmente um artefato capturado**. Se o vídeo precisa mudar, altere o `demo.ts` e rode novamente. O manifest e o JSON da timeline são saídas de build, não código-fonte.
+
+## 2. Captura e renderização são estágios separados
+
+Gravar uma sessão de navegador (que precisa do Playwright + um app rodando) é caro e frágil. Renderizar frames a partir de capturas de tela (que precisa apenas dos arquivos capturados) é barato e determinístico. O Democraft mantém esses estágios estritamente separados:
+
+- A **captura** produz `manifest.json` + capturas de tela + uma gravação `.webm`.
+- A **renderização** consome esses arquivos mais a `timeline.json` e nunca toca no navegador.
+
+É por isso que o Studio consegue pré-visualizar e renderizar sem o app-alvo rodando — ele trabalha puramente a partir dos arquivos capturados em disco.
+
+## 3. Capture uma vez, edite para sempre
+
+Como a renderização depende apenas dos arquivos capturados, você pode **capturar uma vez e depois iterar em todo o resto** — legendas, movimentos de câmera, transições, pacing, overlays — sem precisar rodar o navegador novamente. O Democraft detecta quando `demo.ts` muda de formas que exigem re-captura (mudanças estruturais: novos passos, locators diferentes) versus mudanças que só precisam de um re-resolve (pacing, legendas, overlays).
+
+Veja [captura única](../pipeline/captura-unica) para os detalhes.
+
+## 4. Uma API para humanos e agentes
+
+A superfície de autoria — `defineDemo`, `defineTargets`, o construtor `DemoScene`, os catorze tipos de passo — é idêntica, seja um humano escrevendo uma demo manualmente ou um agente de IA gerando uma. Não há uma "SDK de agente" separada ou um formato apenas JSON.
+
+Isso significa que:
+
+- **Agentes emitem o mesmo código que você escreveria.** A saída é revisável como um PR normal.
+- **A validação é compartilhada.** Os diagnósticos (`DC001`–`DC105`) rodam em qualquer demo, independentemente do autor.
+- **Exemplos se transferem.** Um tutorial para um humano é um padrão de prompt para um agente.
+
+## 5. O IR é o contrato
+
+Entre a autoria e a captura fica o **Demo IR** (`DemoIR`) — uma representação intermediária serializável produzida pelo compilador. Seu `ir.id` é um hash de conteúdo. O Democraft usa esse hash para detectar staleness: se `demo.ts` muda mas o IR é idêntico, a mudança é cosmética e uma re-captura é desnecessária.
+
+O IR desacopla a API de autoria (que pode evoluir) dos estágios do pipeline que a consomem (que precisam permanecer estáveis).
+
+## 6. O Remotion é um renderizador de frames, nada mais
+
+O Remotion não sabe sobre Playwright, manifests ou sua demo. Ele recebe um número de `frame` e retorna JSX. O pacote `@democraft/remotion` traduz a timeline em uma árvore de componentes React (`ProductDemoVideo`) que o Remotion renderiza frame a frame.
+
+Esse isolamento mantém o renderizador cacheável e permite que o pipeline de captura evolua independentemente.
+
+## 7. Locators são contratos, não seletores
+
+Um **alvo** (target) é um contrato nomeado (`"new-project-button"`) apoiado por um ou mais **locators** (`byRole`, `byLabel`, `byTestId`, `byText`). O Democraft tenta cada locator em ordem durante a captura. Isso desacopla a intenção da demo ("clicar no botão de novo projeto") de seletores CSS frágeis, de modo que um redesenho da UI que mude o markup mas mantenha a semântica não quebra a demo.
+
+## Trade-offs que aceitamos
+
+<Callout type="warn">
+Esses princípios vêm com custos. O Democraft **não** é um gravador de tela genérico, **não** é uma ferramenta em tempo real e **não** substitui design de movimento feito à mão. É um pipeline determinístico para demos programáticas.
+</Callout>
+
+- **Determinismo acima de fidelidade.** As reproduções são roteirizadas, então o tempo reflete o script, não uma mão humana.
+- **Playwright acima de nativo.** Só é capturável o que o Chromium consegue controlar.
+- **Código acima de configuração.** Demos são TypeScript, não YAML — você ganha tipos e tooling, mas também precisa de um runtime TypeScript para a autoria.

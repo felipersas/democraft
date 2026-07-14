@@ -1,0 +1,65 @@
+---
+title: Philosophy
+description: The design principles behind Democraft — demos as code, capture-once, single API.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+Democraft is built on a small set of principles. They explain why the API looks the way it does and what trade-offs were made.
+
+## 1. Demos are code, not artifacts
+
+A demo is a TypeScript program, reviewed in a diff, version-controlled, and regenerated on demand. This is the foundational decision. Everything else follows from it.
+
+The corollary: **you should never hand-edit a captured artifact**. If the video needs to change, change `demo.ts` and re-run. The manifest and timeline JSON are build outputs, not source.
+
+## 2. Capture and render are separate stages
+
+Recording a browser session (which needs Playwright + a running app) is expensive and flaky. Rendering frames from screenshots (which needs only the captured files) is cheap and deterministic. Democraft keeps these stages strictly separate:
+
+- **Capture** produces `manifest.json` + screenshots + a `.webm` recording.
+- **Render** consumes those files plus `timeline.json` and never touches the browser.
+
+This is why the Studio can preview and render without the target app running — it works purely from the captured files on disk.
+
+## 3. Capture once, edit forever
+
+Because render depends only on captured files, you can **capture once and then iterate on everything else** — captions, camera moves, transitions, pacing, overlays — without re-running the browser. Democraft detects when `demo.ts` changes in ways that require a re-capture (structural changes: new steps, different locators) versus changes that only need a re-resolve (pacing, captions, overlays).
+
+See [capture-once](../pipeline/capture-once) for the details.
+
+## 4. One API for humans and agents
+
+The authoring surface — `defineDemo`, `defineTargets`, the `DemoScene` builder, the fourteen step kinds — is identical whether a human writes a demo by hand or an AI agent generates one. There is no separate "agent SDK" or JSON-only format.
+
+This means:
+
+- **Agents emit the same code you would write.** The output is reviewable as a normal PR.
+- **Validation is shared.** The diagnostics (`DC001`–`DC105`) run on any demo, regardless of author.
+- **Examples transfer.** A tutorial for a human is a prompt pattern for an agent.
+
+## 5. The IR is the contract
+
+Between authoring and capture sits the **Demo IR** (`DemoIR`) — a serializable intermediate representation produced by the compiler. Its `ir.id` is a content hash. Democraft uses this hash to detect staleness: if `demo.ts` changes but the IR is identical, the change is cosmetic and a re-capture is unnecessary.
+
+The IR decouples the authoring API (which can evolve) from the pipeline stages that consume it (which must stay stable).
+
+## 6. Remotion is a frame renderer, nothing more
+
+Remotion does not know about Playwright, manifests, or your demo. It receives a `frame` number and returns JSX. Democraft's `@democraft/remotion` package translates the timeline into a React component tree (`ProductDemoVideo`) that Remotion renders frame-by-frame.
+
+This isolation keeps the renderer cacheable and lets the capture pipeline evolve independently.
+
+## 7. Locators are contracts, not selectors
+
+A **target** is a named contract (`"new-project-button"`) backed by one or more **locators** (`byRole`, `byLabel`, `byTestId`, `byText`). Democraft tries each locator in order during capture. This decouples the demo's intent ("click the new-project button") from brittle CSS selectors, so a UI redesign that changes markup but keeps semantics does not break the demo.
+
+## Trade-offs we accept
+
+<Callout type="warn">
+These principles come with costs. Democraft is **not** a general screen recorder, **not** a real-time tool, and **not** a substitute for hand-crafted motion design. It is a deterministic pipeline for programmatic demos.
+</Callout>
+
+- **Determinism over fidelity.** Replays are scripted, so timing reflects the script, not a human hand.
+- **Playwright over native.** Only what Chromium can drive is capturable.
+- **Code over configuration.** Demos are TypeScript, not YAML — you get types and tooling, but you also need a TypeScript runtime to author.

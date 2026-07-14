@@ -1,0 +1,111 @@
+---
+title: Locators
+description: The four locator factories and how to build resilient target contracts.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+import { TypeTable } from "fumadocs-ui/components/type-table";
+
+Locators are how a **target** resolves to a DOM element at capture time. Democraft provides four factories in `@democraft/core`.
+
+## The four factories
+
+### `byRole(role, options?)`
+
+The most resilient locator. Backed by ARIA role and accessible name — survives markup rewrites that preserve semantics.
+
+```ts
+import { byRole } from "@democraft/core";
+
+const button = byRole("button", { name: "Create" });
+const dialog = byRole("dialog", { name: "Create project" });
+```
+
+<TypeTable
+  type={{
+    name: "byRole",
+    type: "(role: string, options?: { name?: string }) => Locator",
+  }}
+/>
+
+### `byLabel(text)`
+
+Finds a form control by its associated `<label>` text. Resilient across input refactors.
+
+```ts
+import { byLabel } from "@democraft/core";
+
+const input = byLabel("Project name");
+```
+
+### `byTestId(id)`
+
+Finds an element by its `data-testid` attribute. The reliable fallback for elements without a clear accessible name.
+
+```ts
+import { byTestId } from "@democraft/core";
+
+const dashboard = byTestId("dashboard");
+```
+
+### `byText(text, options?)`
+
+Finds an element by visible text content. The most fragile locator — use only when no other option fits.
+
+```ts
+import { byText } from "@democraft/core";
+
+const heading = byText("Welcome back");
+```
+
+## Grouping targets: `defineTargets`
+
+Most demos declare all targets in one map. `defineTargets` is an identity function for type inference:
+
+```ts title="targets.ts"
+import { byLabel, byRole, byTestId, defineTargets } from "@democraft/core";
+
+export default defineTargets({
+  dashboard: byTestId("dashboard"),
+  "new-project-button": byRole("button", { name: "New project" }),
+  "project-name-input": byLabel("Project name"),
+});
+```
+
+The keys are the names you pass to `scene.click(...)`, `scene.fill(...)`, etc.
+
+## Fallback chains: `defineTarget`
+
+When a target has multiple plausible locators (e.g. mid-refactor), declare them in priority order with `defineTarget`:
+
+```ts
+import { byRole, byTestId, defineTarget } from "@democraft/core";
+
+const newProjectButton = defineTarget({
+  id: "new-project-button",
+  locators: [
+    byRole("button", { name: "New project" }),
+    byTestId("new-project"),
+  ],
+});
+```
+
+During capture, Democraft tries each locator in order and uses the first that resolves. If none resolve, the capture fails with a diagnostic naming the target.
+
+## Single locator shorthand
+
+For a target with one locator, the factory itself is enough — no need for `defineTarget`:
+
+```ts
+import { byRole, defineTargets } from "@democraft/core";
+
+export default defineTargets({
+  submit: byRole("button", { name: "Submit" }),
+});
+```
+
+`defineTargets` accepts either a raw `Locator` (shorthand) or a full `TargetDefinition` from `defineTarget`.
+
+<Callout type="info">
+Prefer `byRole` and `byLabel` — they encode **intent**. Reserve `byTestId` for elements without an accessible name, and `byText` for last-resort cases where the text is stable.
+</Callout>

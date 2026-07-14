@@ -1,0 +1,81 @@
+---
+title: Captura vs. renderização
+description: Por que captura e renderização são estágios separados, e o que cada um precisa.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+O Democraft separa estritamente **captura** (conduzir um navegador real com Playwright) de **renderização** (transformar frames capturados em um MP4). Entender essa divisão desbloqueia o workflow de captura única e explica o que cada estágio precisa.
+
+## Os dois estágios
+
+### Captura
+
+<Callout type="warn" title="Precisa de: app-alvo rodando + Playwright + Chromium">
+A captura conduz um navegador real. Ela navega, clica, preenche, tira screenshots e grava. Este é o estágio caro e sensível ao ambiente.
+</Callout>
+
+Entradas:
+- `demo.ts` (compilado para IR)
+- O app-alvo, ativo em `source.baseUrl`
+
+Saídas (escritas em `.democraft/runs/<id>/`):
+- `manifest.json` — sequência de passos, bounding boxes resolvidas, caminho da gravação
+- `screenshots/` — uma PNG por passo capturado
+- `recording.webm` — a gravação bruta do navegador (para reprodução do cursor)
+- `trace.zip` — trace do Playwright, para debug
+
+### Renderização
+
+<Callout type="info" title="Precisa de: apenas os arquivos capturados + timeline.json">
+A renderização nunca toca no navegador. Ela lê o manifest, as screenshots, a gravação e a timeline resolvida, depois pede ao Remotion que produza os frames.
+</Callout>
+
+Entradas:
+- `manifest.json`
+- `screenshots/`
+- `recording.webm`
+- `timeline.json`
+
+Saída:
+- Um MP4
+
+## Por que separar
+
+1. **Custo.** A captura sobe o Chromium e conduz um app ativo — lento e frágil. A renderização é produção determinística de frames — rápida e reproduzível.
+2. **Editabilidade.** A maioria das edições (legendas, pacing, movimentos de câmera) só muda a timeline, não a captura. Separar significa que você re-renderiza barato sem re-capturar.
+3. **CI.** A renderização pode rodar em qualquer máquina de CI com os arquivos capturados; não precisa do app-alvo nem do Playwright.
+4. **Cache.** A saída da captura é endereçada por conteúdo (pelo id do IR). A renderização sempre trabalha contra qualquer captura que estiver em disco.
+
+## O que força uma re-captura
+
+Uma re-captura é necessária quando a **estrutura** da demo muda — qualquer coisa que altere o conjunto ou a ordem dos passos capturados:
+
+- Adicionar, remover ou reordenar um passo
+- Mudar os locators de um alvo
+- Mudar `source.baseUrl`
+
+Essas mudanças alteram o hash de conteúdo do IR (`ir.id`), que o Democraft detecta como **staleness estrutural**.
+
+## O que NÃO força uma re-captura
+
+Edições apenas de conteúdo re-resolvem a timeline a partir da captura existente:
+
+- Mudar o texto de uma legenda
+- Mudar a duração de um `hold`
+- Mudar um `renderer` em uma legenda ou callout
+- Mudar o `padding` da câmera
+- Adicionar ou mover um marcador `cue`
+
+Essas mantêm o mesmo id de IR, então o Democraft as detecta como **staleness de conteúdo** e apenas re-resolve.
+
+## O papel do Studio
+
+O Studio desfoca a linha para o usuário, mas a preserva internamente:
+
+- Ele **reutiliza** a captura existente por padrão (sem navegador).
+- Ele **detecta staleness** e mostra um badge: verde (fresh), amarelo (conteúdo mudou), vermelho (estrutural — re-captura necessária).
+- Ele pode **re-capturar** in-place quando você clica no botão (esta é a única vez que o Studio toca no Playwright).
+- Ele **re-resolve** a timeline automaticamente a cada salvamento do `demo.ts`.
+
+Veja [captura única](../pipeline/captura-unica) para a mecânica completa.

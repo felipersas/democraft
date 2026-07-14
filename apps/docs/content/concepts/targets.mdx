@@ -1,0 +1,87 @@
+---
+title: Targets
+description: Named element contracts backed by resilient locators.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+import { Steps } from "fumadocs-ui/components/steps";
+
+A **target** is a named contract for an element in your app. Demos reference targets by name (`"new-project-button"`, `"project-name-input"`); Democraft resolves each name to a real DOM element at capture time using one or more **locators**.
+
+This indirection is the key to demo durability: the demo says *what* to interact with, not *how to find it in the DOM*.
+
+## Defining targets
+
+Targets live in a separate module and are grouped with `defineTargets`:
+
+```ts title="targets.ts"
+import {
+  byLabel,
+  byRole,
+  byTestId,
+  defineTargets,
+} from "@democraft/core";
+
+export default defineTargets({
+  dashboard: byTestId("dashboard"),
+  "new-project-button": byRole("button", { name: "New project" }),
+  "project-name-input": byLabel("Project name"),
+  "create-project-button": byRole("button", { name: "Create" }),
+});
+```
+
+The keys become the names you pass to `scene.click(...)`, `scene.fill(...)`, `scene.focus(...)`, and so on.
+
+## The four locator builders
+
+| Builder | Backed by | Example |
+|---------|-----------|---------|
+| `byRole(role, opts?)` | ARIA role + accessible name | `byRole("button", { name: "Create" })` |
+| `byLabel(text)` | Associated `<label>` text | `byLabel("Project name")` |
+| `byTestId(id)` | `data-testid` attribute | `byTestId("dashboard")` |
+| `byText(text, opts?)` | Visible text content | `byText("Welcome back")` |
+
+`byRole` and `byLabel` are the most resilient — they survive markup rewrites that preserve semantics. `byTestId` is the fallback for elements without a clear accessible name. `byText` is fragile and should be a last resort.
+
+## Fallback chains
+
+A single target can declare multiple locators. Democraft tries them in order during capture and uses the first that resolves:
+
+```ts
+import { byRole, byTestId, defineTarget } from "@democraft/core";
+
+const newProjectButton = defineTarget({
+  id: "new-project-button",
+  locators: [
+    byRole("button", { name: "New project" }),
+    byTestId("new-project"),
+  ],
+});
+```
+
+<Steps>
+  1. Try `byRole("button", { name: "New project" })` first.
+  2. If it doesn't resolve, try `byTestId("new-project")`.
+  3. If none resolve, the capture fails with a diagnostic pointing at the target name.
+</Steps>
+
+Use fallback chains when your UI is mid-refactor: lead with the semantic locator, fall back to the test-id, and drop the fallback once the refactor lands.
+
+## Why not CSS selectors?
+
+<Callout type="info">
+CSS selectors couple the demo to implementation details (class names, DOM structure). A redesign that changes markup but keeps the accessible name breaks a selector-based demo but leaves a role-based demo intact.
+</Callout>
+
+Targets encode **intent**, which is far more stable than **structure**.
+
+## Inspecting targets
+
+The CLI's `targets` command lists the contracts a demo uses:
+
+```bash
+pnpm --filter @democraft/cli exec tsx src/index.ts targets \
+  $(pwd)/examples/demo-app/src/demo.ts
+```
+
+This is useful for auditing which targets a demo depends on before a capture.

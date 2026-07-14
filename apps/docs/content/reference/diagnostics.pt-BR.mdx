@@ -1,0 +1,44 @@
+---
+title: Diagnósticos
+description: Os códigos de diagnóstico DC001–DC105 emitidos pela validação.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+O validador do Democraft emite diagnósticos com códigos estáveis na faixa `DC0xx`. Eles rodam durante `validate` (estaticamente, sem navegador) e durante a captura (contra o app ativo). Um agente de IA gerando um `demo.ts` deve esperar vê-los e corrigi-los antes que a demo capture de forma limpa.
+
+## Como os diagnósticos aparecem
+
+- **CLI:** `democraft validate <demo> --static` os imprime no stderr. Adicione `--json` para saída legível por máquina.
+- **Studio:** o badge de staleness e o progresso de captura mostram falhas de validação inline.
+- **Captura:** falhas de asserção (`assert.visible`, `assert.text`, `assert.url`) e alvos não resolvidos produzem diagnósticos que falham a captura.
+
+## Faixas de códigos
+
+| Faixa | Categoria |
+|-------|-----------|
+| `DC001`–`DC019` | Estrutura da demo (`id`, `title`, `source`, `targets`, `run` ausentes/inválidos). |
+| `DC020`–`DC039` | Alvos e locators (nome de alvo desconhecido, lista de locators vazia, não resolvível). |
+| `DC040`–`DC059` | Estrutura de cena e passo (cena vazia, tipo de passo desconhecido, campos obrigatórios ausentes). |
+| `DC060`–`DC079` | Durações e tempo (string de duração não parseável, hold não positivo). |
+| `DC080`–`DC099` | Falhas em tempo de captura (alvo não encontrado no DOM, asserção falhou, erro de navegação). |
+| `DC100`–`DC105` | Problemas em tempo de renderização (screenshot ausente, intervalo de frames inválido). |
+
+## Lendo um diagnóstico
+
+Um diagnóstico tem:
+
+- **`code`** — o identificador `DC0xx`.
+- **`message`** — descrição legível por humanos.
+- **`demoId`** / **`sceneId`** / **`stepId`** — onde na demo está o problema (quando aplicável).
+- **`target`** — o nome do alvo envolvido (para problemas de locator/asserção).
+
+## Códigos comuns
+
+<Callout type="info">
+A lista completa de códigos vive em `packages/schema/src/diagnostics.ts`. Códigos são estáveis entre versões — um diagnóstico que emite `DC042` hoje emitirá `DC042` após um upgrade. Novos códigos são apenas adicionados, nunca reutilizados.
+</Callout>
+
+## Para agentes de IA
+
+Ao gerar um `demo.ts`, rode `democraft validate <demo> --static` e corrija cada diagnóstico antes de tentar uma captura. O passe estático captura problemas estruturais (nomes de alvo desconhecidos, passos malformados, durações ruins) sem precisar do app-alvo — então é barato iterar contra ele.

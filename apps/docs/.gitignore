@@ -1,0 +1,7 @@
+/.next/
+/out/
+/build/
+/.source/
+*.tsbuildinfo
+next-env.d.ts
+.env*.local

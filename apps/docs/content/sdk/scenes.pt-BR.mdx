@@ -1,0 +1,166 @@
+---
+title: Cenas
+description: A referência dos métodos do construtor DemoScene — todos os catorze tipos de passo.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+import { TypeTable } from "fumadocs-ui/components/type-table";
+
+O construtor `DemoScene` é o que você conduz dentro de `demo.scene(id, run)`. Ele tem catorze métodos async — um por tipo de passo. Esta página é a referência método a método.
+
+## Ações de navegador
+
+### `goto(path)`
+
+```ts
+await scene.goto(path: string, options?: { id?: string }): Promise<void>
+```
+
+Navega para `path` (relativo a `source.baseUrl`). Produz um passo `browser.goto` e captura uma screenshot.
+
+### `click(target)`
+
+```ts
+await scene.click(target: string, options?: { id?: string }): Promise<void>
+```
+
+Clica no alvo nomeado. Captura uma screenshot depois que o clique assenta.
+
+### `fill(target, value)`
+
+```ts
+await scene.fill(target: string, value: string, options?: { id?: string }): Promise<void>
+```
+
+Preenche um input identificado por `target` com `value`. Captura depois que o input assenta.
+
+### `select(target, value)`
+
+```ts
+await scene.select(target: string, value: string, options?: { id?: string }): Promise<void>
+```
+
+Escolhe `value` em um `<select>` identificado por `target`.
+
+## Asserções
+
+### `expectVisible(target)`
+
+```ts
+await scene.expectVisible(target: string, options?: { id?: string }): Promise<void>
+```
+
+Assere que o alvo está presente e visível. Produz um passo `assert.visible`. Falha a captura se não atendido.
+
+### `expectText(target, text)`
+
+```ts
+await scene.expectText(target: string, text: string, options?: { id?: string }): Promise<void>
+```
+
+Assere que o alvo contém `text`. Falha a captura se não atendido.
+
+### `expectUrl(path)`
+
+```ts
+await scene.expectUrl(path: string, options?: { id?: string }): Promise<void>
+```
+
+Assere que o caminho de URL atual é igual a `path`.
+
+## Câmera
+
+### `establish(target?)`
+
+```ts
+await scene.establish(target?: string, options?: { id?: string }): Promise<void>
+```
+
+Afasta a câmera para mostrar todo o viewport, ou o contexto ao redor de `target` se fornecido. Produz um passo `camera.establish`.
+
+### `focus(target, options?)`
+
+```ts
+await scene.focus(
+  target: string,
+  options?: { id?: string; padding?: number },
+): Promise<void>
+```
+
+<TypeTable
+  type={{
+    name: "FocusOptions",
+    type: "{ id?: string; padding?: number }",
+    description: "padding adiciona pixels de respiro ao redor da bounding box do alvo focado.",
+  }}
+/>
+
+Zoom/pan da câmera para `target`. Dentro de uma cena, `establish` → `focus` interpola suavemente.
+
+## Timeline
+
+### `hold(duration)`
+
+```ts
+await scene.hold(duration: string, options?: { id?: string }): Promise<void>
+```
+
+Mantém o estado atual por `duration`. Aceita strings como `"5000ms"`, `"1s"`, `"2s"`.
+
+### `transition(options?)`
+
+```ts
+await scene.transition(options?: {
+  id?: string;
+  type?: "cut" | "crossfade";
+  duration?: string;
+}): Promise<void>
+```
+
+Corte ou crossfade para o próximo passo. `duration` aceita o mesmo formato de `hold`.
+
+## Overlays
+
+### `caption(text, options?)`
+
+```ts
+await scene.caption(
+  text: string,
+  options?: { id?: string; renderer?: string },
+): Promise<void>
+```
+
+<TypeTable
+  type={{
+    name: "CaptionOptions",
+    type: "{ id?: string; renderer?: string }",
+    description: "renderer nomeia um componente visual. Built-in: 'motion.caption' (default), 'remocn.kinetic-title'. Veja Componentes e remocn.",
+  }}
+/>
+
+Exibe uma legenda. `renderer` seleciona um componente visual do registry. Renderers built-in: `motion.caption` (default), `remocn.kinetic-title`. Veja [Componentes e remocn](../concepts/components) para o catálogo completo e componentes customizados.
+
+### `callout(target, options)`
+
+```ts
+await scene.callout(
+  target: string,
+  options: { title: string; description?: string; renderer?: string; id?: string },
+): Promise<void>
+```
+
+Exibe um callout anotado apontando para `target`. `title` é obrigatório.
+
+## Cue
+
+### `cue(name)`
+
+```ts
+await scene.cue(name: string, options?: { id?: string }): Promise<void>
+```
+
+Solta um marcador nomeado na timeline. Cues não renderizam visualmente — são pontos de referência para o Studio e consumidores programáticos.
+
+<Callout type="info">
+Adicionar, remover ou reordenar qualquer passo é uma **mudança estrutural** que dispara uma re-captura. Editar textos/durações/renderers em um passo existente é uma **mudança de conteúdo** que apenas re-resolve a timeline. Veja [captura única](../pipeline/captura-unica).
+</Callout>

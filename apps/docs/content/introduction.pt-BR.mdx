@@ -1,0 +1,97 @@
+---
+title: Introdução
+description: O que é o Democraft, o problema que resolve e quando utilizá-lo.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+import { Steps } from "fumadocs-ui/components/steps";
+
+O Democraft transforma demos de software em **código**. Você descreve o que um usuário faz no seu app — clica em um botão, preenche um formulário, abre um diálogo — e o Democraft captura o navegador com o Playwright, depois renderiza um vídeo MP4 polido com o Remotion. Uma única API de autoria serve tanto para desenvolvedores escrevendo demos manualmente quanto para agentes de IA gerando-as programaticamente.
+
+## O problema
+
+Demos gravadas em tela são frágeis:
+
+- Toda mudança na UI, mesmo cosmética, exige uma **regravação**.
+- **Editar** um clipe de 90 segundos para corrigir um erro de digitação significa refazer toda a tomada.
+- **Reproduzir** uma demo em outra máquina ou em CI é pouco confiável.
+- **Agentes de IA** não conseguem produzir vídeo de forma confiável; eles produzem texto.
+
+O Democraft substitui a gravação por um **programa determinístico e revisável**. Mude a UI, rode a captura novamente e o vídeo é regenerado. Ajuste uma legenda ou um movimento de câmera e a edição vira um diff de uma linha.
+
+## O que você escreve
+
+Uma demo é um módulo TypeScript que chama `defineDemo` e conduz um construtor `DemoScene`:
+
+```ts title="demo.ts"
+import { defineDemo } from "@democraft/core";
+import targets from "./targets";
+
+export default defineDemo({
+  id: "create-project-live",
+  title: "Create a project live",
+  source: {
+    baseUrl: "http://localhost:4173",
+    initialPath: "/dashboard",
+  },
+  targets,
+  async run({ demo }) {
+    await demo.scene("introduction", async (scene) => {
+      await scene.goto("/dashboard");
+      await scene.establish("dashboard");
+      await scene.caption("Create a workspace in seconds.");
+      await scene.hold("5000ms");
+    });
+  },
+});
+```
+
+Cada chamada `scene.*` é um dos catorze **tipos de passo** — ações de navegador (`goto`, `click`, `fill`, `select`), asserções (`visible`, `text`, `url`), movimentos de câmera (`establish`, `focus`), controle de timeline (`hold`, `transition`), overlays (`caption`, `callout`) e marcadores `cue`. O Democraft compila esses passos em uma representação intermediária, captura o navegador, resolve uma timeline de renderização e renderiza o vídeo.
+
+## O que ele produz
+
+<Steps>
+  1. **`manifest.json`** — o que o Playwright realmente fez: uma captura de tela por passo, a gravação `.webm` e as bounding boxes dos locators resolvidos.
+  2. **`timeline.json`** — a timeline de renderização resolvida: qual captura aparece em qual frame, para onde a câmera aponta, quais legendas e callouts aparecem.
+  3. **`MP4`** — o vídeo final, renderizado pelo Remotion a partir do manifest + timeline.
+</Steps>
+
+O manifest e a timeline são o **contrato estável** entre captura e renderização. Você pode capturar uma vez e depois editar legendas, pacing e movimentos de câmera para sempre, sem precisar abrir o navegador novamente.
+
+## Quando usar o Democraft
+
+<Callout type="info">
+Use o Democraft quando quiser demos **reproduzíveis**, **editáveis como código** e **geráveis por agentes de IA**.
+</Callout>
+
+Bons usos:
+
+- **Vídeos de marketing de produto** que precisam ficar sincronizados com uma UI em constante mudança.
+- **Walkthroughs de onboarding** gerados a partir de fluxos reais do produto.
+- **Demos amigáveis a regressão** que vivem ao lado do seu código e são atualizadas em CI.
+- **Demos autoriais por IA**, onde um agente emite um `demo.ts` a partir de uma descrição em linguagem natural.
+
+## Quando não usar
+
+- Você precisa de captura de tela **ao vivo e não roteirizada** (use um gravador de tela).
+- Seu app-alvo **não é acessível em um navegador** (o Democraft controla o Playwright/Chromium).
+- Você precisa do **tempo real de digitação do usuário** — o Democraft reproduz as ações de forma determinística, não como foram digitadas.
+
+## Maturidade atual
+
+<Callout type="warn" title="Experimental">
+O Democraft está em pré-1.0. A API de autoria (`defineDemo`, `DemoScene`) é estável em formato, mas pode ganhar novos tipos de passo e opções. O pipeline interno (IR → manifest → timeline → render) é estável. Trate qualquer item marcado como **experimental** nesta documentação como sujeito a mudanças.
+</Callout>
+
+O que funciona hoje:
+
+- Pipeline completo de captura → timeline → render.
+- O Studio (Next.js) para pré-visualização e renderização sem um round-trip completo pela CLI.
+- Cache de captura única com detecção de staleness e re-captura dentro do studio.
+- Catorze tipos de passo cobrindo o vocabulário comum de demos.
+
+## Próximos passos
+
+- Leia a [filosofia do projeto](./filosofia) para entender as decisões de design.
+- Siga o [início rápido](./inicio-rapido) para renderizar seu primeiro vídeo.
+- Navegue pelos [conceitos](./conceitos/demo) para aprofundar em cenas, alvos e timelines.

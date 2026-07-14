@@ -1,0 +1,116 @@
+---
+title: Components and remocn
+description: How visual components work in Democraft, and why remocn is the primary component library.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+import { Steps, Step } from "fumadocs-ui/components/steps";
+
+When you write `scene.caption("Hello", { renderer: "remocn.kinetic-title" })`, the `renderer` string selects which **visual component** renders that overlay. This page explains the component model, the remocn library, and how to use components in your scenes.
+
+## What is remocn?
+
+**Remocn** = **Remo**tion + shad**cn**. It is Democraft's primary component library for visual overlays — captions, callouts, titles, and other cinematic elements. Like shadcn, remocn components are **copy-paste**: you clone them into your project and you own the source.
+
+<Callout type="info">
+Remocn is the **recommended and primary source** of components for Democraft overlays. The framework ships with built-in defaults, but for anything beyond plain text, remocn is where you turn.
+</Callout>
+
+## Components are user-owned
+
+Components do **not** live inside the `@democraft/remotion` package. They live in **your project**. You can:
+
+- **Clone from the remocn registry** (shadcn-style):
+  ```bash
+  pnpm dlx shadcn@latest add @remocn/soft-blur-in
+  ```
+  This copies the component source into your project. You read it, you modify it, you own it.
+
+- **Write your own** from scratch. Any React component that accepts the right props works.
+
+In both cases, you register the component in a **custom entry point** so the renderer knows about it. See [custom entry](../remotion/custom-entry) for the full guide.
+
+## The renderer string
+
+Every caption and callout step accepts a `renderer` option — a string that names the visual component:
+
+```ts
+// Uses the default caption component (plain text pill)
+await scene.caption("Welcome.");
+
+// Uses the remocn kinetic-title component (animated blur-in)
+await scene.caption("Create a workspace in seconds.", {
+  renderer: "remocn.kinetic-title",
+});
+
+// Uses the remocn glass-callout component (frosted glass panel)
+await scene.callout("project-card", {
+  title: "Your project is ready",
+  renderer: "remocn.glass-callout",
+});
+```
+
+This string flows through the entire pipeline — authoring, compilation, capture, timeline resolution — **untouched**. Only at render time does the Remotion layer look up the string in a **visual registry** to find the matching React component.
+
+## Namespace convention
+
+Renderer IDs follow `<namespace>.<component>`:
+
+| Namespace | Meaning | Example |
+|-----------|---------|---------|
+| `motion.*` | Framework defaults (used when `renderer` is omitted) | `motion.caption`, `motion.callout` |
+| `remocn.*` | Components from the remocn library | `remocn.kinetic-title`, `remocn.glass-callout` |
+| `local.*` | Your own project components | `local.my-caption`, `local.pulse-callout` |
+
+<Callout type="warn">
+If you pass a `renderer` string that isn't registered, the overlay silently falls back to the default (`motion.caption` or `motion.callout`). There is no error — the render succeeds with plain styling. Always check the renderer ID matches what you registered.
+</Callout>
+
+## Built-in renderers
+
+These ship with `@democraft/remotion` and are available without any custom entry:
+
+### Captions
+
+| Renderer | Component | Visual |
+|----------|-----------|--------|
+| `motion.caption` | `Caption` | Dark pill, bottom-centered, plain text. The default. |
+| `remocn.kinetic-title` | `KineticCaption` | Larger bold text with per-character blur-in animation (via `SoftBlurIn`). |
+
+### Callouts
+
+| Renderer | Component | Visual |
+|----------|-----------|--------|
+| `motion.callout` | `Callout` | Dark box next to target, teal title. The default. |
+| `remocn.glass-callout` | `GlassCallout` | Light frosted-glass box, blue title. |
+
+## Using components in a scene
+
+<Steps>
+  <Step title="Write the step">
+    Add a `caption` or `callout` step to your scene with a `renderer` option:
+
+    ```ts
+    await demo.scene("intro", async (scene) => {
+      await scene.goto("/dashboard");
+      await scene.establish("dashboard");
+      await scene.caption("Create a workspace in seconds.", {
+        renderer: "remocn.kinetic-title",
+      });
+      await scene.hold("5000ms");
+    });
+    ```
+  </Step>
+
+  <Step title="Render">
+    The built-in renderers work out of the box. To use custom renderers
+    (`local.*`, or remocn components you cloned), set up a
+    [custom entry](../remotion/custom-entry).
+  </Step>
+</Steps>
+
+## Next steps
+
+- **[Custom entry](../remotion/custom-entry)** — set up your own entry point to register custom components.
+- **[Creating components](../remotion/create-components)** — build a component from scratch with the `CaptionProps` / `CalloutProps` contract.
+- **[Remotion integration](../remotion/integration)** — how the renderer resolves renderer IDs to components.

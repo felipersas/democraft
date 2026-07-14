@@ -1,0 +1,107 @@
+---
+title: Quickstart
+description: Capture a demo and render your first MP4 in five minutes.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+import { Steps } from "fumadocs-ui/components/steps";
+import { Tab, Tabs } from "fumadocs-ui/components/tabs";
+
+This guide takes you from a fresh checkout to a rendered MP4 using the bundled `demo-app` example. You'll start the target app, capture it, and render a video.
+
+## What you need
+
+- The workspace installed and built — see [installation](./installation).
+- Two terminals.
+
+## Start the target app
+
+The `demo-app` example is a small HTTP server that Playwright captures against. It must be running **during capture** (but not for preview/editing afterwards).
+
+```bash title="Terminal 1"
+pnpm --filter @democraft/example-demo-app start
+```
+
+You should see `Demo app listening on http://localhost:4173`.
+
+<Callout type="info">
+The target app is only needed the **first** time, for capture. After that, Democraft reuses the captured files from `.democraft/` and the app does not need to run. See [capture-once](../pipeline/capture-once).
+</Callout>
+
+## Launch the Studio
+
+The Studio is a Next.js app that previews, edits, and renders. It is launched through the CLI, which writes a `meta.json` so the Studio knows where the demo and its captures live.
+
+```bash title="Terminal 2"
+pnpm --filter @democraft/cli exec tsx src/index.ts studio \
+  $(pwd)/examples/demo-app/src/demo.ts
+```
+
+The first launch runs Playwright against `:4173` and captures. When it finishes, the Studio opens at `http://localhost:3000` showing the captured timeline.
+
+<Steps>
+  1. **Browse the timeline.** The bottom panel shows camera, overlay, and cursor tracks. The playhead and transport controls sit above it.
+  2. **Preview.** Press <kbd>Space</kbd> to play. Use <kbd>←</kbd> / <kbd>→</kbd> to step frames, <kbd>Home</kbd> / <kbd>End</kbd> to jump to the ends.
+  3. **Edit captions.** Select a caption clip in the timeline to edit its text in the inspector — no re-capture needed.
+  4. **Render.** Click **Render** in the inspector to produce an MP4. Progress streams in the render queue.
+</Steps>
+
+## Render from the CLI
+
+To render without the Studio, use the CLI's `render` command. It reads a captured manifest and a resolved timeline:
+
+```bash
+pnpm --filter @democraft/cli exec tsx src/index.ts capture \
+  $(pwd)/examples/demo-app/src/demo.ts
+
+pnpm --filter @democraft/cli exec tsx src/index.ts timeline \
+  $(pwd)/examples/demo-app/src/demo.ts
+
+pnpm --filter @democraft/cli exec tsx src/index.ts render \
+  $(pwd)/examples/demo-app/src/demo.ts \
+  --output-file out.mp4
+```
+
+<Tabs items={["Common flags", "Quality"]}>
+  <Tab value="Common flags">
+    ```bash
+    --output-file <path>   # where to write the MP4
+    --fps <number>         # frames per second (timeline)
+    --scale <number>       # render scale (try 2 for sharper output)
+    --crf <number>         # h264 quality (default 15, lower = better)
+    --port <number>        # studio port (default 3000)
+    --no-capture           # studio: reuse existing capture, fail if none
+    ```
+  </Tab>
+  <Tab value="Quality">
+    For a crisper video, increase the render scale and lower the CRF:
+
+    ```bash
+    pnpm --filter @democraft/cli exec tsx src/index.ts render \
+      $(pwd)/examples/demo-app/src/demo.ts \
+      --output-file out.mp4 \
+      --scale 2 \
+      --crf 12
+    ```
+  </Tab>
+</Tabs>
+
+## Inspect and validate
+
+Before capturing, you can statically inspect or validate a demo without a browser:
+
+```bash
+pnpm --filter @democraft/cli exec tsx src/index.ts inspect \
+  $(pwd)/examples/demo-app/src/demo.ts --static
+
+pnpm --filter @democraft/cli exec tsx src/index.ts validate \
+  $(pwd)/examples/demo-app/src/demo.ts --static
+```
+
+`inspect` prints a readable summary of the compiled IR. `validate` runs the diagnostics (`DC001`–`DC105`) and reports any issues.
+
+## Next steps
+
+- Read the [concepts](./concepts/demo) to understand demos, scenes, and targets.
+- Learn the [SDK](./sdk/overview) for the full authoring API.
+- Understand the [capture-once](../pipeline/capture-once) model for fast iteration.

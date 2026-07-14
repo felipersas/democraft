@@ -1,0 +1,119 @@
+---
+title: Passos
+description: Os catorze tipos de passo que compõem uma cena.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+import { TypeTable } from "fumadocs-ui/components/type-table";
+
+Um **passo** é a unidade atômica de uma cena. O Democraft tem catorze tipos de passo, agrupados em cinco famílias: ações de navegador, asserções, movimentos de câmera, controle de timeline e overlays.
+
+## Ações de navegador
+
+Passos que conduzem a página e capturam uma screenshot.
+
+| Método | Tipo | Descrição |
+|--------|------|-----------|
+| `scene.goto(path)` | `browser.goto` | Navega para um caminho relativo a `source.baseUrl`. |
+| `scene.click(target)` | `browser.click` | Clica em um alvo. |
+| `scene.fill(target, value)` | `browser.fill` | Preenche um input com texto. |
+| `scene.select(target, value)` | `browser.select` | Escolhe uma opção em um `<select>`. |
+
+Cada ação de navegador captura uma screenshot depois que a ação assenta. Essa screenshot vira o frame visual para a duração do passo na timeline.
+
+## Asserções
+
+Passos que verificam estado sem avançar o visual.
+
+| Método | Tipo | Descrição |
+|--------|------|-----------|
+| `scene.expectVisible(target)` | `assert.visible` | Asserção de que um alvo está presente e visível. |
+| `scene.expectText(target, text)` | `assert.text` | Asserção de que um alvo contém texto. |
+| `scene.expectUrl(path)` | `assert.url` | Asserção do caminho de URL atual. |
+
+As asserções falham a captura se não atendidas, produzindo um diagnóstico (`DC0xx`). Elas não produzem sua própria screenshot — apenas validam o estado produzido pelas ações de navegador precedentes.
+
+## Movimentos de câmera
+
+Passos que controlam o que a câmera renderizada mostra.
+
+| Método | Tipo | Descrição |
+|--------|------|-----------|
+| `scene.establish(target?)` | `camera.establish` | Afasta para mostrar todo o viewport (ou o contexto de um alvo). |
+| `scene.focus(target, opts?)` | `camera.focus` | Zoom/pan para um alvo. `opts.padding` adiciona respiro. |
+
+`focus` aceita `{ padding }`:
+
+```ts
+await scene.focus("project-name-input", { padding: 24 });
+```
+
+Dentro de uma cena, um `establish` seguido de um `focus` produz um zoom suave até o alvo. Veja a página de [timeline](./timeline) para como estes se resolvem em faixas de câmera.
+
+## Controle de timeline
+
+Passos que governam pacing e transições.
+
+| Método | Tipo | Descrição |
+|--------|------|-----------|
+| `scene.hold(duration)` | `timeline.hold` | Mantém o estado atual por uma string de duração. |
+| `scene.transition(opts?)` | `timeline.transition` | Corte ou crossfade para o próximo passo. |
+
+`hold` aceita strings de duração como `"5000ms"`, `"1s"`, `"2s"`:
+
+```ts
+await scene.hold("5000ms");
+await scene.hold("1s");
+```
+
+`transition` aceita `{ type: "cut" | "crossfade", duration }`:
+
+```ts
+await scene.transition({ type: "crossfade", duration: "500ms" });
+```
+
+## Overlays
+
+Passos que adicionam camadas de texto ou anotação sobre os frames capturados.
+
+| Método | Tipo | Descrição |
+|--------|------|-----------|
+| `scene.caption(text, opts?)` | `overlay.caption` | Texto de legenda em largura total ou centralizado. |
+| `scene.callout(target, opts)` | `overlay.callout` | Ponteiro anotado em um alvo. |
+
+`callout` exige `{ title }` e aceita `{ description, renderer }`:
+
+```ts
+await scene.callout("project-card", {
+  title: "Your project is ready",
+  description: "The browser journey produced this card.",
+  renderer: "remocn.glass-callout",
+});
+```
+
+`caption` e `callout` aceitam uma opção `renderer` — um componente visual nomeado. Os renderers built-in são `motion.caption` (default), `remocn.kinetic-title`, `motion.callout` (default) e `remocn.glass-callout`. **Remocn** é a biblioteca primária de componentes; veja [Componentes e remocn](./components) para o catálogo completo e como adicionar os seus.
+
+## Marcadores cue
+
+| Método | Tipo | Descrição |
+|--------|------|-----------|
+| `scene.cue(name)` | `cue` | Um marcador nomeado na timeline. |
+
+Cues não renderizam visualmente. São pontos de referência que o Studio e consumidores programáticos futuros podem usar para pular para ou anotar momentos específicos (ex.: "destaque de cena no cue chamado `result`").
+
+## Opções de passo
+
+Todo passo aceita um `{ id }` opcional:
+
+<TypeTable
+  type={{
+    name: "SceneStepOptions",
+    type: "{ id?: string }",
+  }}
+/>
+
+IDs explícitos de passo são opcionais, mas recomendados — tornam diagnósticos, diffs e referências do Studio estáveis. Sem eles, o Democraft gera IDs a partir da posição do passo, que se deslocam quando você reordena passos.
+
+<Callout type="info">
+Adicionar ou remover um passo é uma **mudança estrutural** — muda o hash de conteúdo do IR e dispara uma re-captura. Editar o texto de uma legenda ou a duração de um `hold` é uma **mudança de conteúdo** — apenas um re-resolve é necessário. Veja [captura única](../pipeline/captura-unica).
+</Callout>

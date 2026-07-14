@@ -1,0 +1,113 @@
+---
+title: CLI overview
+description: The democraft CLI commands, flags, and usage.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+import { Tab, Tabs } from "fumadocs-ui/components/tabs";
+
+The `democraft` CLI orchestrates the pipeline. Every command takes a `<demo-module>` (a path to a `demo.ts` file) as its first argument.
+
+## Commands
+
+| Command | Purpose |
+|---------|---------|
+| `inspect` | Compile a demo and print readable inspection output. |
+| `validate` | Run static validation diagnostics. |
+| `capture` | Validate, then execute the browser capture. |
+| `targets` | List target contracts used by a demo. |
+| `timeline` | Resolve a render timeline from a demo and capture manifest. |
+| `studio` | Launch the Democraft Studio (Next.js preview + render UI). |
+| `render` | Render an MP4 from manifest and timeline. |
+| `preview` | *(Deprecated)* Write a standalone HTML preview. |
+
+## Usage
+
+From the repo root, invoke via pnpm filter + tsx:
+
+```bash
+pnpm --filter @democraft/cli exec tsx src/index.ts <command> <demo-module> [flags]
+```
+
+For example, to launch the Studio against the demo-app example:
+
+```bash
+pnpm --filter @democraft/cli exec tsx src/index.ts studio \
+  $(pwd)/examples/demo-app/src/demo.ts
+```
+
+## Flags
+
+### Global flags
+
+| Flag | Effect |
+|------|--------|
+| `--json` | Print JSON output (for `inspect`, `validate`, `targets`). |
+| `--static` | Required for `validate` in this milestone (no browser). |
+| `--headed` / `--headless` | Run the browser headed or headless. |
+
+### Capture / studio flags
+
+| Flag | Effect |
+|------|--------|
+| `--output-dir <path>` | Capture output directory. |
+| `--no-capture` | Studio: reuse existing capture, fail if none. |
+| `--port <number>` | Studio dev server port (default 3000). |
+
+### Timeline / render flags
+
+| Flag | Effect |
+|------|--------|
+| `--manifest <path>` | Capture manifest path for `timeline`. |
+| `--timeline <path>` | Render timeline path for `render`. |
+| `--fps <number>` | Timeline frames per second. |
+| `--output-file <path>` | Write the generated artifact to a file (`render`). |
+| `--scale <number>` | Render scale multiplier (default 1, try 2 for sharper). |
+| `--crf <number>` | h264 CRF (default 15, lower = better quality). |
+
+## Typical workflows
+
+<Tabs items={["Studio iteration", "Headless render"]}>
+  <Tab value="Studio iteration">
+    ```bash
+    # 1. start the target app
+    pnpm --filter @democraft/example-demo-app start
+
+    # 2. launch the Studio (captures the first time, reuses after)
+    pnpm --filter @democraft/cli exec tsx src/index.ts studio \
+      $(pwd)/examples/demo-app/src/demo.ts
+    ```
+  </Tab>
+  <Tab value="Headless render">
+    ```bash
+    # capture (needs the app running)
+    pnpm --filter @democraft/cli exec tsx src/index.ts capture \
+      $(pwd)/examples/demo-app/src/demo.ts
+
+    # resolve timeline (no app needed)
+    pnpm --filter @democraft/cli exec tsx src/index.ts timeline \
+      $(pwd)/examples/demo-app/src/demo.ts
+
+    # render (no app needed)
+    pnpm --filter @democraft/cli exec tsx src/index.ts render \
+      $(pwd)/examples/demo-app/src/demo.ts \
+      --output-file out.mp4
+    ```
+  </Tab>
+</Tabs>
+
+## Static inspection (no browser)
+
+`inspect` and `validate --static` never touch a browser. They compile the demo to IR and run diagnostics. Use them in editors and CI to catch errors before capture:
+
+```bash
+pnpm --filter @democraft/cli exec tsx src/index.ts inspect \
+  $(pwd)/examples/demo-app/src/demo.ts --static
+
+pnpm --filter @democraft/cli exec tsx src/index.ts validate \
+  $(pwd)/examples/demo-app/src/demo.ts --static
+```
+
+<Callout type="info">
+The CLI is the reference orchestrator. The Studio reuses the same stage functions (compile, capture, resolve, render) in-process — they share code, so behavior is identical.
+</Callout>
