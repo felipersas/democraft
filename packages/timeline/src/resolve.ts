@@ -1,0 +1,191 @@
+import {
+  type BoundingBox,
+  type DemoIR,
+  type DemoStep,
+  type RecordedDemoManifest,
+  type RecordedStep,
+  type RenderStep,
+  type RenderTimeline,
+  schemaVersion,
+} from "@democraft/schema";
+import type { ResolveTimelineOptions } from "./types";
+
+export function resolveTimeline(
+  ir: DemoIR,
+  manifest: RecordedDemoManifest,
+  options: ResolveTimelineOptions = {},
+): RenderTimeline {
+  const fps = options.fps ?? 60;
+  const recordedByStepId = new Map(
+    manifest.steps.map((step) => [step.stepId, step]),
+  );
+  let cursorFrame = 0;
+  const timeline: RenderTimeline = {
+    schemaVersion,
+    demoId: ir.id,
+    fps,
+    durationInFrames: 0,
+    scenes: [],
+    camera: [],
+    cursor: [],
+    overlays: [],
+  };
+
+  for (const scene of ir.scenes) {
+    const sceneFromFrame = cursorFrame;
+    const renderSteps: RenderStep[] = [];
+
+    for (const step of scene.steps) {
+      const recordedStep = recordedByStepId.get(step.id);
+      const durationInFrames = msToFrames(
+        stepDurationMs(step, recordedStep),
+        fps,
+      );
+      const renderStep: RenderStep = {
+        stepId: step.id,
+        sceneId: scene.id,
+        kind: step.kind,
+        fromFrame: cursorFrame,
+        durationInFrames,
+        targetSnapshot: recordedStep?.targetSnapshot,
+      };
+      renderSteps.push(renderStep);
+      collectTracks(timeline, step, renderStep, recordedStep);
+      cursorFrame += durationInFrames;
+    }
+
+    timeline.scenes.push({
+      id: scene.id,
+      fromFrame: sceneFromFrame,
+      durationInFrames: cursorFrame - sceneFromFrame,
+      steps: renderSteps,
+    });
+  }
+
+  timeline.durationInFrames = cursorFrame;
+  return timeline;
+}
+
+function collectTracks(
+  timeline: RenderTimeline,
+  step: DemoStep,
+  renderStep: RenderStep,
+  recordedStep?: RecordedStep,
+) {
+  switch (step.kind) {
+    case "camera.establish":
+    case "camera.focus":
+      timeline.camera.push({
+        id: `${renderStep.stepId}.camera`,
+        stepId: renderStep.stepId,
+        sceneId: renderStep.sceneId,
+        kind: step.kind === "camera.establish" ? "establish" : "focus",
+        targetId: "target" in step ? step.target : undefined,
+        fromFrame: renderStep.fromFrame,
+        durationInFrames: renderStep.durationInFrames,
+        boundingBox: recordedStep?.targetSnapshot?.boundingBox,
+      });
+      break;
+    case "browser.click": {
+      const box = recordedStep?.targetSnapshot?.boundingBox;
+      timeline.cursor.push({
+        id: `${renderStep.stepId}.cursor`,
+        stepId: renderStep.stepId,
+        sceneId: renderStep.sceneId,
+        kind: "click",
+        targetId: step.target,
+        fromFrame: renderStep.fromFrame,
+        durationInFrames: renderStep.durationInFrames,
+        point: box ? center(box) : undefined,
+      });
+      break;
+    }
+    case "overlay.caption":
+      timeline.overlays.push({
+        id: `${renderStep.stepId}.overlay`,
+        stepId: renderStep.stepId,
+        sceneId: renderStep.sceneId,
+        kind: "caption",
+        text: step.text,
+        fromFrame: renderStep.fromFrame,
+        durationInFrames: renderStep.durationInFrames,
+        renderer: step.renderer,
+      });
+      break;
+    case "overlay.callout":
+      timeline.overlays.push({
+        id: `${renderStep.stepId}.overlay`,
+        stepId: renderStep.stepId,
+        sceneId: renderStep.sceneId,
+        kind: "callout",
+        targetId: step.target,
+        title: step.title,
+        description: step.description,
+        fromFrame: renderStep.fromFrame,
+        durationInFrames: renderStep.durationInFrames,
+        boundingBox: recordedStep?.targetSnapshot?.boundingBox,
+        renderer: step.renderer,
+      });
+      break;
+    default:
+      break;
+  }
+}
+
+function stepDurationMs(step: DemoStep, recordedStep?: RecordedStep): number {
+  const actualMs = recordedDurationMs(recordedStep);
+  const plannedMs = plannedStepDurationMs(step, recordedStep);
+  return Math.max(plannedMs, actualMs);
+}
+
+function plannedStepDurationMs(
+  step: DemoStep,
+  recordedStep?: RecordedStep,
+): number {
+  switch (step.kind) {
+    case "timeline.hold":
+      return step.durationMs;
+    case "timeline.transition":
+      return step.durationMs ?? 500;
+    case "overlay.caption":
+      return Math.max(1200, step.text.length * 45);
+    case "overlay.callout":
+      return Math.max(
+        1800,
+        `${step.title} ${step.description ?? ""}`.trim().length * 45,
+      );
+    case "camera.establish":
+      return 700;
+    case "camera.focus":
+      return 1100;
+    case "browser.click":
+      return 650;
+    case "browser.fill":
+    case "browser.select":
+      return 700;
+    case "browser.goto":
+      return Math.max(700, recordedDurationMs(recordedStep));
+    case "assert.visible":
+    case "assert.text":
+    case "assert.url":
+      return 300;
+    case "cue":
+      return 1;
+  }
+}
+
+function recordedDurationMs(recordedStep?: RecordedStep): number {
+  if (!recordedStep) return 0;
+  return Math.max(0, recordedStep.endedAtMs - recordedStep.startedAtMs);
+}
+
+function msToFrames(ms: number, fps: number): number {
+  return Math.max(1, Math.round((ms / 1000) * fps));
+}
+
+function center(box: BoundingBox): { x: number; y: number } {
+  return {
+    x: box.x + box.width / 2,
+    y: box.y + box.height / 2,
+  };
+}
