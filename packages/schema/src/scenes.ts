@@ -1,0 +1,34 @@
+import type { DemoStep } from "./steps";
+import type { TargetDefinition } from "./geometry";
+import type { schemaVersion } from "./version";
+
+export type DemoSource = {
+  baseUrl: string;
+  initialPath?: string;
+};
+
+export type ScenePacing = "slow" | "normal" | "fast";
+export type SceneImportance = "primary" | "secondary" | "supporting";
+
+export type SceneMetadata = {
+  purpose?: string;
+  pacing?: ScenePacing;
+  importance?: SceneImportance;
+};
+
+export type DemoSceneIR = {
+  id: string;
+  purpose?: string;
+  pacing: ScenePacing;
+  importance: SceneImportance;
+  steps: DemoStep[];
+};
+
+export type DemoIR = {
+  schemaVersion: typeof schemaVersion;
+  id: string;
+  title: string;
+  source: DemoSource;
+  targets: Record<string, TargetDefinition>;
+  scenes: DemoSceneIR[];
+};
