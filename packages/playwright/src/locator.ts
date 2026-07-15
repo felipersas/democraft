@@ -26,7 +26,22 @@ export async function resolveTarget(
     const locator = createLocator(page, locatorDefinition);
 
     try {
-      const visible = await locator.isVisible({ timeout: timeoutMs });
+      let visible = await locator.isVisible({ timeout: timeoutMs });
+
+      // SPA views (Next App Router, React Router) mount a frame after the
+      // route change: an element can be absent/not-yet-visible the instant
+      // navigation settles, then appear milliseconds later. `isVisible` reports
+      // the *current* state, so poll via `waitFor` when available — it resolves
+      // the moment the element becomes visible, or throws on timeout.
+      if (!visible && locator.waitFor) {
+        try {
+          await locator.waitFor({ state: "visible", timeout: timeoutMs });
+          visible = true;
+        } catch {
+          visible = false;
+        }
+      }
+
       const boundingBox =
         (await locator.boundingBox({ timeout: timeoutMs })) ?? undefined;
       attemptedLocators.push({ locator: locatorDefinition, success: visible });

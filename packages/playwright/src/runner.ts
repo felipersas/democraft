@@ -9,7 +9,13 @@ import type {
 import { schemaVersion } from "@democraft/schema";
 import { defaultBindings } from "./bindings";
 import { executeStep } from "./execute";
-import type { PageLike, PlaywrightBindings, RunDemoOptions } from "./types";
+import { DEFAULT_SETTLE_STRATEGY } from "./types";
+import type {
+  PageLike,
+  PlaywrightBindings,
+  RunDemoOptions,
+  SettleStrategy,
+} from "./types";
 
 export async function runDemo(
   ir: DemoIR,
@@ -30,6 +36,9 @@ export async function runDemoWithBindings(
   const environment = options.environment ?? {};
   const viewport = environment.viewport ?? { width: 1920, height: 1080 };
   const deviceScaleFactor = environment.deviceScaleFactor ?? 2;
+  // Resolve the settle strategy: defaults to DOM+visual settling (captures after
+  // the page quiets down), `false` disables it (legacy fixed-hold behavior).
+  const settleStrategy = resolveSettleStrategy(environment.settle);
 
   await mkdir(screenshotsPath, { recursive: true });
 
@@ -66,9 +75,14 @@ export async function runDemoWithBindings(
             page,
             sceneId: scene.id,
             step,
-            timeoutMs: options.timeoutMs ?? 5000,
+            // Default 8s: SPAs (Next App Router) can take several seconds to
+            // swap a route on a cold code-split chunk, and this timeout gates
+            // both target resolution and click-navigation. Override for faster
+            // apps or mock runtimes.
+            timeoutMs: options.timeoutMs ?? 8000,
             screenshotsPath,
             diagnostics,
+            settleStrategy,
           });
           steps.push(recorded);
         }
@@ -112,4 +126,23 @@ export async function runDemoWithBindings(
   } finally {
     await browser.close();
   }
+}
+
+/**
+ * Resolve the user-provided settle option into a fully-specified strategy (or
+ * `undefined` when disabled).
+ *
+ * - `undefined` (omitted) → {@link DEFAULT_SETTLE_STRATEGY} (DOM + visual,
+ *   350ms idle window, 4s timeout). Capture settles automatically — no author
+ *   configuration needed.
+ * - `false` → `undefined` (settling disabled; falls back to the fixed hold).
+ * - partial `SettleStrategy` → merged over the defaults so callers can tune a
+ *   single knob (e.g. `{ idleWindowMs: 600 }`) without restating the rest.
+ */
+function resolveSettleStrategy(
+  settle: SettleStrategy | false | undefined,
+): Required<SettleStrategy> | undefined {
+  if (settle === false) return undefined;
+  if (settle === undefined) return { ...DEFAULT_SETTLE_STRATEGY };
+  return { ...DEFAULT_SETTLE_STRATEGY, ...settle };
 }

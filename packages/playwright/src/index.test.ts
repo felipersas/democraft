@@ -72,7 +72,12 @@ describe("playwright runtime", () => {
       bindings,
       {
         outputDir,
-        environment: { viewport: { width: 800, height: 600 } },
+        // Disable settling: this test asserts an exact call/wait sequence from
+        // the fixed-hold path. Settle behavior is covered by its own tests.
+        // Short step timeout keeps the non-navigating click (mock URL never
+        // changes) from waiting the full default nav timeout.
+        timeoutMs: 200,
+        environment: { viewport: { width: 800, height: 600 }, settle: false },
       },
     );
 
@@ -118,6 +123,8 @@ describe("playwright runtime", () => {
       createBindings(page),
       {
         outputDir,
+        timeoutMs: 200,
+        environment: { settle: false },
       },
     );
 
@@ -141,6 +148,134 @@ describe("playwright runtime", () => {
         targetId: "button",
       }),
     );
+  });
+
+  it("waits for client-side navigation after a navigating click", async () => {
+    const { waitForClientNavigation } = await import("./execute");
+
+    // Emulate an SPA: the URL changes a tick after the click resolves. The
+    // wait should notice the new URL and call waitForLoadState to settle the
+    // incoming view.
+    const calls: string[] = [];
+    let currentUrl = "http://localhost:3000/dashboard";
+    const urlBefore = currentUrl;
+    setTimeout(() => {
+      currentUrl = "http://localhost:3000/dashboard/new";
+    }, 30);
+
+    await waitForClientNavigation(
+      {
+        url: () => currentUrl,
+        waitForLoadState: async (state?: string) => {
+          calls.push(state ?? "load");
+        },
+      },
+      urlBefore,
+      1000,
+    );
+
+    expect(calls).toContain("domcontentloaded");
+  });
+
+  it("does not stall when a click does not navigate", async () => {
+    const { waitForClientNavigation } = await import("./execute");
+
+    const start = Date.now();
+    // URL never changes — emulate a dialog/toggle click. Must resolve on its
+    // own (the timeout) without throwing. Short timeout keeps the test fast.
+    await waitForClientNavigation(
+      { url: () => "http://localhost:3000/same" },
+      "http://localhost:3000/same",
+      300,
+    );
+    // Resolves within the timeout budget (not much longer).
+    expect(Date.now() - start).toBeLessThan(1500);
+  });
+
+  it("settle: waits for DOM mutations to quiet down", async () => {
+    const { waitForSettled } = await import("./settle");
+    const { DEFAULT_SETTLE_STRATEGY } = await import("./types");
+
+    // Simulate a page that mutates for a bit, then stops. Each evaluate call
+    // returns the mutation count since the last read; the settle gate should
+    // keep going until a clean idle window elapses with zero mutations.
+    let mutationBurstRemaining = 3; // 3 noisy reads, then quiet
+    const evaluateCalls: string[] = [];
+    const fakePage = {
+      url: () => "http://localhost:3000/x",
+      evaluate: async <T>(_fn: () => T | Promise<T>): Promise<T> => {
+        evaluateCalls.push("evaluate");
+        // The settle gate reads the mutation counter (which our helper does in
+        // the page). The mock can't run the real MutationObserver, so it models
+        // the *outcome*: return the remaining burst count, decrementing.
+        const count = mutationBurstRemaining > 0 ? 1 : 0;
+        mutationBurstRemaining = Math.max(0, mutationBurstRemaining - 1);
+        return count as unknown as T;
+      },
+    };
+
+    const start = Date.now();
+    await waitForSettled(fakePage as any, {
+      ...DEFAULT_SETTLE_STRATEGY,
+      idleWindowMs: 60,
+      timeoutMs: 2000,
+      signal: "dom",
+    });
+    const elapsed = Date.now() - start;
+
+    // It polled more than once and eventually resolved (didn't time out).
+    expect(evaluateCalls.length).toBeGreaterThan(1);
+    expect(elapsed).toBeLessThan(2000);
+  });
+
+  it("settle: gives up at timeout without throwing (best-effort)", async () => {
+    const { waitForSettled } = await import("./settle");
+    const { DEFAULT_SETTLE_STRATEGY } = await import("./types");
+
+    // A page that NEVER quiets (every visual sample differs). Must resolve at
+    // the timeout without throwing.
+    let n = 0;
+    const fakePage = {
+      url: () => "http://localhost:3000/x",
+      screenshot: async () => Buffer.from(`frame-${n++}`), // always different
+    };
+
+    const start = Date.now();
+    await waitForSettled(fakePage as any, {
+      ...DEFAULT_SETTLE_STRATEGY,
+      idleWindowMs: 50,
+      timeoutMs: 300,
+      signal: "visual",
+    });
+    const elapsed = Date.now() - start;
+
+    // Resolved around the timeout (not immediately, not far past it).
+    expect(elapsed).toBeGreaterThanOrEqual(250);
+    expect(elapsed).toBeLessThan(1500);
+  });
+
+  it("settle: visual signal detects stable frame", async () => {
+    const { waitForSettled } = await import("./settle");
+    const { DEFAULT_SETTLE_STRATEGY } = await import("./types");
+
+    // Page whose screenshot is identical on every call (stable frame).
+    const stable = Buffer.from("identical-frame");
+    const fakePage = {
+      url: () => "http://localhost:3000/x",
+      screenshot: async () => stable,
+    };
+
+    const start = Date.now();
+    await waitForSettled(fakePage as any, {
+      ...DEFAULT_SETTLE_STRATEGY,
+      idleWindowMs: 50,
+      timeoutMs: 2000,
+      signal: "visual",
+    });
+    const elapsed = Date.now() - start;
+
+    // Stable from the start → resolves quickly (well under timeout).
+    expect(elapsed).toBeLessThan(500);
   });
 });
 

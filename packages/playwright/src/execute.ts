@@ -8,7 +8,8 @@ import type {
 } from "@democraft/schema";
 import { resolveTarget, resolveUrl } from "./locator";
 import { targetDiagnostic, unresolvedTargetDiagnostic } from "./diagnostics";
-import type { PageLike } from "./types";
+import { waitForSettled } from "./settle";
+import type { PageLike, SettleStrategy } from "./types";
 
 type ExecuteStepArgs = {
   ir: DemoIR;
@@ -18,9 +19,17 @@ type ExecuteStepArgs = {
   timeoutMs: number;
   screenshotsPath: string;
   diagnostics: Diagnostic[];
+  /**
+   * How to wait for the page to settle before the screenshot. When `undefined`,
+   * no settling runs and a fixed hold ({@link captureStepHoldMs}) is used
+   * instead. Pass a resolved strategy to capture after the page quiets down.
+   */
+  settleStrategy?: Required<SettleStrategy>;
 };
 
-export async function executeStep(args: ExecuteStepArgs): Promise<RecordedStep> {
+export async function executeStep(
+  args: ExecuteStepArgs,
+): Promise<RecordedStep> {
   const startedAtMs = Date.now();
   let targetSnapshot: TargetSnapshot | undefined;
 
@@ -38,7 +47,16 @@ export async function executeStep(args: ExecuteStepArgs): Promise<RecordedStep> 
         );
         targetSnapshot = resolved.snapshot;
         if (resolved.locator) {
+          // SPAs (Next.js App Router, React Router, …) resolve client-side
+          // navigation AFTER an <a>/<Link> click resolves: the click returns
+          // before the new route is mounted, so the next step would read the
+          // outgoing page. Capture the URL before clicking, then opportunisti-
+          // cally wait for the route to change. The wait is best-effort — it
+          // never throws and resolves quickly when no navigation happens
+          // (dialogs, toggles), so non-navigating clicks are unaffected.
+          const urlBefore = args.page.url();
           await resolved.locator.click();
+          await waitForClientNavigation(args.page, urlBefore, args.timeoutMs);
         } else {
           args.diagnostics.push(
             unresolvedTargetDiagnostic(
@@ -185,12 +203,36 @@ export async function executeStep(args: ExecuteStepArgs): Promise<RecordedStep> 
     });
   }
 
-  await args.page.waitForTimeout?.(captureStepHoldMs(args.step));
+  // Wait for the page to settle before the screenshot. When a settle strategy
+  // is configured, gate on DOM + visual stability (the page stopped changing)
+  // so the screenshot reflects the fully-rendered view — not a half-loaded
+  // transition frame. Steps whose duration is author-controlled (holds,
+  // captions, callouts) still use their explicit timing as a floor so the
+  // narrative pace the author wrote is preserved; action steps (goto, click,
+  // fill, select, asserts, camera) settle and capture as soon as the page is
+  // quiet, cutting dead air on fast pages.
+  if (args.settleStrategy && stepIsActionDriven(args.step)) {
+    await waitForSettled(args.page, args.settleStrategy);
+  }
+  // Author-controlled steps (and the fallback when settle is disabled) keep a
+  // fixed hold so the captured frame holds long enough to read.
+  if (!args.settleStrategy || !stepIsActionDriven(args.step)) {
+    await args.page.waitForTimeout?.(captureStepHoldMs(args.step));
+  }
 
   await args.page
     .screenshot?.({
       path: join(args.screenshotsPath, `${args.sceneId}-${args.step.id}.png`),
-      fullPage: true,
+      // Capture the viewport, not the full document. A full-page screenshot
+      // grows with page content (a tall dashboard yields a 1440×3244 PNG while
+      // a short page yields 1440×900), so consecutive steps would be captured
+      // at different aspect ratios and the renderer's fixed-size stage would
+      // re-scale every cut — visible as flicker/flash between steps. The
+      // viewport is constant (matches `environment.viewport`), so every
+      // screenshot lands at identical dimensions and maps 1:1 onto the stage.
+      // Element bounding boxes from Playwright are viewport-relative, so camera
+      // focus targets line up with what the screenshot actually shows.
+      fullPage: false,
     })
     .catch(() => undefined);
 
@@ -203,6 +245,37 @@ export async function executeStep(args: ExecuteStepArgs): Promise<RecordedStep> 
     targetSnapshot,
     url: args.page.url(),
   };
+}
+
+/**
+ * Steps whose on-screen content depends on the page state (navigation, inputs,
+ * asserts, camera moves). These benefit from settling — wait for the page to
+ * finish rendering before capturing, instead of a fixed delay.
+ *
+ * Steps NOT in this set (`timeline.hold`, `overlay.caption`, `overlay.callout`,
+ * `timeline.transition`, `cue`) are author-paced: their duration is part of
+ * the narrative. They use {@link captureStepHoldMs} so the captured frame
+ * matches the timing the author wrote.
+ */
+export function stepIsActionDriven(step: DemoStep): boolean {
+  switch (step.kind) {
+    case "browser.goto":
+    case "browser.click":
+    case "browser.fill":
+    case "browser.select":
+    case "assert.visible":
+    case "assert.text":
+    case "assert.url":
+    case "camera.establish":
+    case "camera.focus":
+    case "overlay.callout":
+      return true;
+    case "timeline.hold":
+    case "timeline.transition":
+    case "overlay.caption":
+    case "cue":
+      return false;
+  }
 }
 
 export function captureStepHoldMs(step: DemoStep): number {
@@ -235,5 +308,68 @@ export function captureStepHoldMs(step: DemoStep): number {
       return 300;
     case "cue":
       return 1;
+  }
+}
+
+/**
+ * How long to wait for client-side navigation after a click before giving up.
+ * SPAs (Next App Router in particular) can take several seconds to swap the
+ * route on a cold code-split chunk, so this is generous; the wait resolves the
+ * instant the URL changes and never throws. Tuned above the settle timeout so
+ * a slow route change isn't mistaken for a non-navigating click.
+ */
+const CLIENT_NAV_TIMEOUT_MS = 6000;
+const CLIENT_NAV_POLL_MS = 150;
+
+/**
+ * Best-effort wait for a client-side (SPA) navigation triggered by a click.
+ *
+ * After clicking an in-app link, the new route mounts asynchronously. We poll
+ * `page.url()` for a change, then let `waitForLoadState("domcontentloaded")`
+ * settle the new view. The wait is best-effort — it never throws and resolves
+ * quickly when no navigation happens (dialogs, toggles), so non-navigating
+ * clicks are unaffected. Uses an unconditional timer-based sleep so it stays
+ * cooperative even when the page mock lacks `waitForTimeout`.
+ */
+export async function waitForClientNavigation(
+  page: Pick<PageLike, "url" | "waitForLoadState">,
+  urlBefore: string,
+  timeoutMs: number = CLIENT_NAV_TIMEOUT_MS,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (page.url() !== urlBefore) {
+      // Navigation is underway — let the new view settle.
+      await withTimeout(
+        page.waitForLoadState?.("domcontentloaded"),
+        CLIENT_NAV_TIMEOUT_MS,
+      );
+      return;
+    }
+    await sleep(CLIENT_NAV_POLL_MS);
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function withTimeout(
+  promise: Promise<unknown> | undefined,
+  ms: number,
+): Promise<void> {
+  if (!promise) return;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      promise,
+      new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, ms);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 }
