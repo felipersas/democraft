@@ -1,5 +1,4 @@
 import { readFile } from "node:fs/promises";
-import { existsFile } from "./fs";
 import { readMeta, computeStaleness } from "./staleness";
 import path from "node:path";
 import type { StudioData } from "./types";
@@ -7,6 +6,7 @@ import {
   parseRecordedDemoManifestJson,
   parseRenderTimelineJson,
 } from "@democraft/schema";
+import { PathBoundaryError, resolveExistingPathWithin } from "./path-boundary";
 
 export const DEFAULT_STUDIO_DATA_DIR = path.resolve(
   process.cwd(),
@@ -20,9 +20,20 @@ export function studioDataDir(): string {
 export async function readJson<T>(
   filePath: string,
   parse: (json: string) => T,
+  allowedRoot = path.dirname(filePath),
 ): Promise<T | undefined> {
-  if (!(await existsFile(filePath))) return undefined;
-  const text = await readFile(filePath, "utf8");
+  let safePath: string;
+  try {
+    safePath = await resolveExistingPathWithin(
+      allowedRoot,
+      filePath,
+      "Studio JSON file",
+    );
+  } catch (error) {
+    if (error instanceof PathBoundaryError) return undefined;
+    throw error;
+  }
+  const text = await readFile(safePath, "utf8");
   return parse(text);
 }
 
@@ -31,8 +42,12 @@ export async function loadStudioData(): Promise<StudioData | undefined> {
   // manifest + timeline + meta are independent reads — fetch them concurrently
   // rather than sequentially to avoid paying disk latency twice.
   const [manifest, timeline, meta] = await Promise.all([
-    readJson(path.join(dir, "manifest.json"), parseRecordedDemoManifestJson),
-    readJson(path.join(dir, "timeline.json"), parseRenderTimelineJson),
+    readJson(
+      path.join(dir, "manifest.json"),
+      parseRecordedDemoManifestJson,
+      dir,
+    ),
+    readJson(path.join(dir, "timeline.json"), parseRenderTimelineJson, dir),
     readMeta(dir),
   ]);
   if (!manifest || !timeline) return undefined;

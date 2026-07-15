@@ -1,4 +1,12 @@
-import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { basename, join } from "node:path";
 import { tmpdir } from "node:os";
 import {
@@ -150,6 +158,76 @@ describe("studio capture metadata", () => {
         name.startsWith(`${basename(dataDir)}.previous-`),
       ),
     ).toEqual([]);
+  });
+
+  it("promotes capture metadata in the same generation", async () => {
+    const dataDir = await mkdtemp(join(tmpdir(), "democraft-data-"));
+    const captureDir = await mkdtemp(join(tmpdir(), "democraft-capture-"));
+    tempDirs.push(dataDir, captureDir);
+    const nextMeta = { ...metaFixture(), captureDir };
+
+    await materializeStudioData({
+      dataDir,
+      captureDir,
+      manifest: manifestFixture(),
+      timeline: timelineFixture(),
+      meta: nextMeta,
+    });
+
+    await expect(
+      readFile(join(dataDir, "meta.json"), "utf8").then(JSON.parse),
+    ).resolves.toEqual(nextMeta);
+  });
+
+  it("rejects a screenshot symlink that escapes the capture directory", async () => {
+    const base = await mkdtemp(join(tmpdir(), "democraft-paths-"));
+    tempDirs.push(base);
+    const dataDir = join(base, "studio-data");
+    const captureDir = join(base, "capture");
+    const outside = join(base, "outside.png");
+    await Promise.all([
+      mkdir(dataDir),
+      mkdir(join(captureDir, "screenshots"), { recursive: true }),
+      writeFile(outside, "not-a-capture"),
+    ]);
+    await symlink(outside, join(captureDir, "screenshots", "linked.png"));
+    const manifest = manifestFixture();
+    manifest.steps.push({
+      stepId: "step-1",
+      sceneId: "scene-1",
+      kind: "browser.goto",
+      startedAtMs: 0,
+      endedAtMs: 1,
+      screenshotPath: "screenshots/linked.png",
+    });
+
+    await expect(
+      materializeStudioData({
+        dataDir,
+        captureDir,
+        manifest,
+        timeline: timelineFixture(),
+      }),
+    ).rejects.toThrow(/Screenshot for step step-1 escapes its allowed root/);
+  });
+
+  it("does not overwrite an outside file through a metadata destination symlink", async () => {
+    const base = await mkdtemp(join(tmpdir(), "democraft-meta-target-"));
+    tempDirs.push(base);
+    const dataDir = join(base, "studio-data");
+    const outside = join(base, "outside.json");
+    await mkdir(dataDir);
+    await writeFile(outside, "OUTSIDE_UNCHANGED");
+    await symlink(outside, join(dataDir, "meta.json"));
+
+    await expect(
+      updateMetaAfterCapture(dataDir, metaFixture(), {
+        id: "demo",
+        definitionHash: NEW_DEFINITION_HASH,
+        captureHash: NEW_CAPTURE_HASH,
+      }),
+    ).rejects.toThrow(/escapes its allowed root|must not be a symbolic link/);
+    await expect(readFile(outside, "utf8")).resolves.toBe("OUTSIDE_UNCHANGED");
   });
 });
 

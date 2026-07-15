@@ -1,9 +1,11 @@
 import { createHash, randomBytes } from "node:crypto";
 import {
   access,
+  lstat,
   mkdir,
   readdir,
   readFile,
+  realpath,
   rename,
   rm,
   stat,
@@ -247,13 +249,21 @@ export async function resolveLatestCompletedCapture(
     }
   | undefined
 > {
+  let canonicalRoot: string;
+  try {
+    canonicalRoot = await realpath(rootDirectory);
+  } catch {
+    return undefined;
+  }
   const directories = [
     path.join(rootDirectory, captureNamespace(demoId)),
     path.join(rootDirectory, captureSlug(demoId)),
   ];
   const scanned = (
     await Promise.all(
-      directories.map((dir) => scanCompletedCaptures(dir, demoId)),
+      directories.map((dir) =>
+        scanCompletedCaptures(canonicalRoot, dir, demoId),
+      ),
     )
   )
     .flat()
@@ -272,7 +282,11 @@ export async function resolveLatestCompletedCapture(
     return undefined;
   }
   const legacyDir = path.join(rootDirectory, demoId);
-  if (await isReusableCaptureDirectory(legacyDir, demoId)) {
+  const safeLegacyDir = await canonicalContained(canonicalRoot, legacyDir);
+  if (
+    safeLegacyDir &&
+    (await isReusableCaptureDirectory(safeLegacyDir, demoId))
+  ) {
     return {
       captureDir: legacyDir,
       manifestPath: path.join(legacyDir, "manifest.json"),
@@ -287,13 +301,32 @@ export async function isReusableCaptureDirectory(
   demoId: string,
 ): Promise<boolean> {
   try {
+    const canonicalDirectory = await realpath(directory);
+    const manifestPath = await canonicalContained(
+      canonicalDirectory,
+      path.join(directory, "manifest.json"),
+    );
+    if (!manifestPath) return false;
     const manifest = parseRecordedDemoManifestJson(
-      await readFile(path.join(directory, "manifest.json"), "utf8"),
+      await readFile(manifestPath, "utf8"),
     );
     if (manifest.demoId !== demoId) return false;
     try {
+      const metadataCandidate = path.join(directory, "metadata.json");
+      const metadataPath = await canonicalContained(
+        canonicalDirectory,
+        metadataCandidate,
+      );
+      if (!metadataPath) {
+        try {
+          await lstat(metadataCandidate);
+          return false;
+        } catch (error) {
+          return isNodeError(error, "ENOENT");
+        }
+      }
       const metadata = parseCaptureArtifactMetadataJson(
-        await readFile(path.join(directory, "metadata.json"), "utf8"),
+        await readFile(metadataPath, "utf8"),
       );
       return (
         metadata.status === "completed" &&
@@ -402,9 +435,17 @@ function compareCompletedCaptures(
 }
 
 async function scanCompletedCaptures(
+  rootDirectory: string,
   demoDirectory: string,
   demoId: string,
 ): Promise<CompletedCapture[]> {
+  const publicDemoDirectory = demoDirectory;
+  const safeDemoDirectory = await canonicalContained(
+    rootDirectory,
+    demoDirectory,
+  );
+  if (!safeDemoDirectory) return [];
+  demoDirectory = safeDemoDirectory;
   let entries;
   try {
     entries = await readdir(demoDirectory, { withFileTypes: true });
@@ -416,9 +457,15 @@ async function scanCompletedCaptures(
       .filter((entry) => entry.isDirectory())
       .map(async (entry): Promise<CompletedCapture | undefined> => {
         const directory = path.join(demoDirectory, entry.name);
+        const publicDirectory = path.join(publicDemoDirectory, entry.name);
         try {
+          const metadataPath = await canonicalContained(
+            directory,
+            path.join(directory, "metadata.json"),
+          );
+          if (!metadataPath) return undefined;
           const metadata = parseCaptureArtifactMetadataJson(
-            await readFile(path.join(directory, "metadata.json"), "utf8"),
+            await readFile(metadataPath, "utf8"),
           );
           if (
             metadata.status !== "completed" ||
@@ -428,8 +475,8 @@ async function scanCompletedCaptures(
             return undefined;
           }
           return {
-            directory,
-            demoDirectory,
+            directory: publicDirectory,
+            demoDirectory: publicDemoDirectory,
             metadata,
             finishedAt: metadata.finishedAt,
           };
@@ -439,6 +486,20 @@ async function scanCompletedCaptures(
       }),
   );
   return candidates.filter((item): item is CompletedCapture => Boolean(item));
+}
+
+async function canonicalContained(root: string, candidate: string) {
+  try {
+    const canonical = await realpath(candidate);
+    const relative = path.relative(root, canonical);
+    return relative !== ".." &&
+      !relative.startsWith(`..${path.sep}`) &&
+      !path.isAbsolute(relative)
+      ? canonical
+      : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 async function repairPointer(capture: CompletedCapture): Promise<void> {

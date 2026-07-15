@@ -1,4 +1,11 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  mkdtemp,
+  readFile,
+  realpath,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { compileDemo } from "@democraft/compiler";
@@ -15,6 +22,9 @@ afterEach(async () => {
     tempDirs.map((dir) => rm(dir, { recursive: true, force: true })),
   );
   tempDirs.length = 0;
+  delete process.env.DEMOCRAFT_STUDIO_DATA;
+  delete process.env.DEMOCRAFT_STUDIO_WORKSPACE_ROOT;
+  delete process.env.DEMOCRAFT_STUDIO_DEMO_PATH;
 });
 
 describe("studio timeline re-resolution", () => {
@@ -86,6 +96,36 @@ describe("studio timeline re-resolution", () => {
       fixture.originalTimeline,
     );
   });
+
+  it("ignores mutable metadata paths and imports the launch-authorized demo", async () => {
+    const fixture = await createCapturedFixture();
+    fixture.meta.demoPath = "/tmp/untrusted-demo.mjs";
+    fixture.meta.workspaceRoot = "/tmp";
+
+    const result = await reResolveTimeline({
+      meta: fixture.meta,
+      dataDir: fixture.dataDir,
+    });
+
+    expect(result).toMatchObject({ structural: false });
+  });
+
+  it("rejects a timeline write redirected through an escaping symlink", async () => {
+    const fixture = await createCapturedFixture();
+    const outsideDir = await mkdtemp(
+      join(tmpdir(), "democraft-timeline-outside-"),
+    );
+    tempDirs.push(outsideDir);
+    const outside = join(outsideDir, "timeline.json");
+    await writeFile(outside, "outside");
+    await rm(fixture.timelinePath);
+    await symlink(outside, fixture.timelinePath);
+
+    await expect(
+      reResolveTimeline({ meta: fixture.meta, dataDir: fixture.dataDir }),
+    ).rejects.toThrow(/Studio timeline escapes its allowed root/);
+    await expect(readFile(outside, "utf8")).resolves.toBe("outside");
+  });
 });
 
 async function createCapturedFixture() {
@@ -93,6 +133,9 @@ async function createCapturedFixture() {
   tempDirs.push(dataDir);
   const demoPath = join(dataDir, "demo.mjs");
   await writeDemo(demoPath, {});
+  process.env.DEMOCRAFT_STUDIO_DATA = await realpath(dataDir);
+  process.env.DEMOCRAFT_STUDIO_WORKSPACE_ROOT = await realpath(dataDir);
+  process.env.DEMOCRAFT_STUDIO_DEMO_PATH = await realpath(demoPath);
   const compilation = await compileDemo(
     await loadDemo(demoPath, { version: "baseline" }),
   );

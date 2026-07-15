@@ -2,14 +2,25 @@ import { NextResponse } from "next/server";
 import { redactCaptureErrorMessage, runDemo } from "@democraft/playwright";
 import { readMeta, loadDemo } from "@/lib/staleness";
 import {
+  buildMetaAfterCapture,
   materializeStudioData,
-  updateMetaAfterCapture,
 } from "@/lib/materialize";
 import { studioDataDir } from "@/lib/server-data";
 import { publish } from "@/lib/event-bus";
 import { compileDemo } from "@democraft/compiler";
 import { resolveTimeline } from "@democraft/timeline";
 import path from "node:path";
+import {
+  resolveExactWritePath,
+  resolveWritePathWithin,
+} from "../../../lib/path-boundary";
+import { authorizeStudioMutation } from "../../../lib/request-security";
+import {
+  trustedDemoPath,
+  trustedExplicitCaptureDirectory,
+  trustedWorkspaceRoot,
+} from "../../../lib/studio-path-authority";
+import { mkdir } from "node:fs/promises";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -24,7 +35,10 @@ let recaptureInFlight = false;
  * Progress is published as `recapture-progress` events over SSE so the UI
  * can show a spinner/state.
  */
-export async function POST() {
+export async function POST(request: Request) {
+  const denied = authorizeStudioMutation(request);
+  if (denied) return denied;
+
   if (recaptureInFlight) {
     return NextResponse.json(
       { error: "A re-capture is already running." },
@@ -52,7 +66,8 @@ async function performRecapture() {
   publish("recapture-progress", { phase: "compiling" });
   let manifest;
   try {
-    const demo = await loadDemo(meta.demoPath);
+    const demoPath = await trustedDemoPath();
+    const demo = await loadDemo(demoPath);
     const compilation = await compileDemo(demo);
     const errors = compilation.diagnostics.filter(
       (diagnostic) => diagnostic.severity === "error",
@@ -64,11 +79,32 @@ async function performRecapture() {
     }
 
     publish("recapture-progress", { phase: "capturing" });
-    let captureDir = meta.captureDir;
+    const workspaceRoot = await trustedWorkspaceRoot();
+    const managedCaptureRoot = await resolveWritePathWithin(
+      workspaceRoot,
+      path.join(workspaceRoot, ".democraft", "runs"),
+      "Managed capture root",
+    );
+    const explicitOutput = trustedExplicitCaptureDirectory();
+    if (!explicitOutput) await mkdir(managedCaptureRoot, { recursive: true });
+    let captureDir = explicitOutput
+      ? await resolveExactWritePath(
+          explicitOutput,
+          "Explicit capture directory",
+        )
+      : await resolveWritePathWithin(
+          managedCaptureRoot,
+          meta.captureDir,
+          "Managed capture directory",
+        );
+    if (explicitOutput && captureDir !== path.resolve(explicitOutput)) {
+      throw new Error(
+        `Explicit capture directory changed after Studio startup: ${explicitOutput}`,
+      );
+    }
     manifest = await runDemo(compilation.ir, {
-      outputDir:
-        meta.captureOutputDirExplicit !== false ? meta.captureDir : undefined,
-      captureRootDir: path.join(meta.workspaceRoot, ".democraft", "runs"),
+      outputDir: explicitOutput ? captureDir : undefined,
+      captureRootDir: managedCaptureRoot,
       onArtifactCreated: (artifact) => {
         captureDir = artifact.outputDir;
       },
@@ -83,8 +119,8 @@ async function performRecapture() {
       captureDir,
       manifest,
       timeline,
+      meta: buildMetaAfterCapture(meta, compilation.ir, captureDir),
     });
-    await updateMetaAfterCapture(dataDir, meta, compilation.ir, captureDir);
   } catch (err) {
     const message = redactCaptureErrorMessage(
       err instanceof Error ? err : "Re-capture failed.",

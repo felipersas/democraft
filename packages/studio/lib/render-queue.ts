@@ -21,8 +21,15 @@ import { loadScreenshotDataUris } from "./render-assets";
 import { findRemotionEntry } from "./remotion-entry";
 import { assertRenderArtifactsCompatible } from "./render-identity";
 import { runRenderArtifactLifecycle } from "./render-lifecycle";
+import {
+  createRenderHistoryLoader,
+  authorizedRenderArtifactsDirectory,
+  mergeRenderJobs,
+  renderJobIdentity,
+} from "./render-history";
 import path from "node:path";
 import type { StudioRenderRequest } from "@democraft/schema";
+import { trustedWorkspaceRoot } from "./studio-path-authority";
 
 // Render types come from the single source of truth in types/render.ts,
 // shared with the client. Re-export for backward compatibility with anything
@@ -39,12 +46,17 @@ export type EnqueueRequest = StudioRenderRequest;
 
 const jobs = new Map<string, RenderJob>();
 const jobOrder: string[] = [];
+// Clear is intentionally session-scoped: durable artifacts are never deleted,
+// and become visible again after the Studio process restarts.
+const hiddenHistoricalJobs = new Set<string>();
 
 /** Holds the cancel() handle for the currently rendering job. */
 let activeCancel: (() => void) | null = null;
 let processing = false;
 
-const RENDERS_DIR = () => path.resolve(process.cwd(), "../.democraft/renders");
+export const rendersDirectory = async () =>
+  authorizedRenderArtifactsDirectory(await trustedWorkspaceRoot());
+const loadRenderHistory = createRenderHistoryLoader();
 
 function emit(job: RenderJob): void {
   publish("render-job-update", serializeJob(job));
@@ -57,6 +69,21 @@ export function serializeJob(job: RenderJob): RenderJob {
 
 export function listJobs(): RenderJob[] {
   return jobOrder.map((id) => jobs.get(id)!).filter(Boolean);
+}
+
+/** Refresh terminal history from disk before serving a queue snapshot. */
+export async function refreshRenderHistory(directory?: string): Promise<void> {
+  const historicalJobs = await loadRenderHistory(
+    directory ?? (await rendersDirectory()),
+  );
+  const mergedJobs = mergeRenderJobs(
+    jobs.values(),
+    historicalJobs,
+    hiddenHistoricalJobs,
+  );
+  jobs.clear();
+  for (const job of mergedJobs) jobs.set(job.id, job);
+  jobOrder.splice(0, jobOrder.length, ...mergedJobs.map((job) => job.id));
 }
 
 export function getJob(id: string): RenderJob | undefined {
@@ -72,6 +99,7 @@ export function clearFinished(): void {
       job.status === "failed" ||
       job.status === "cancelled"
     ) {
+      hiddenHistoricalJobs.add(renderJobIdentity(job));
       jobs.delete(id);
       const i = jobOrder.indexOf(id);
       if (i >= 0) jobOrder.splice(i, 1);
@@ -187,7 +215,7 @@ async function runJob(job: RenderJob): Promise<void> {
   let artifact: Awaited<ReturnType<typeof createRenderArtifact>>;
   try {
     artifact = await createRenderArtifact({
-      rootDirectory: RENDERS_DIR(),
+      rootDirectory: await rendersDirectory(),
       demoId: data.timeline.demoId,
       definitionHash:
         data.timeline.definitionHash ?? data.manifest.definitionHash,
@@ -219,6 +247,8 @@ async function runJob(job: RenderJob): Promise<void> {
   }
 
   job.status = "rendering";
+  job.artifactId = artifact.metadata.renderId;
+  job.artifactDirectory = artifact.directory;
   job.startedAt = Date.now();
   job.outputPath = artifact.outputFile;
   emit(job);
@@ -256,7 +286,10 @@ async function runJob(job: RenderJob): Promise<void> {
           ),
           // Resolve inside the managed lifecycle: a bad custom entry now leaves
           // terminal metadata instead of an orphaned "rendering" artifact.
-          entryPath: findRemotionEntry(job.options.entryPath),
+          entryPath: await findRemotionEntry(
+            job.options.entryPath,
+            await trustedWorkspaceRoot(),
+          ),
           cancelGuard,
         };
       },

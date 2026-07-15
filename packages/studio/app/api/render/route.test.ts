@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ enqueue: vi.fn() }));
 
@@ -7,12 +7,37 @@ vi.mock("@/lib/render-queue", () => ({
   listJobs: vi.fn(() => []),
   serializeJob: vi.fn((job) => job),
 }));
-
 import { POST } from "./route";
 
-beforeEach(() => mocks.enqueue.mockReset());
+beforeEach(() => {
+  mocks.enqueue.mockReset();
+  vi.stubEnv("DEMOCRAFT_STUDIO_SESSION_TOKEN", "test-token");
+});
+afterEach(() => vi.unstubAllEnvs());
 
 describe("POST /api/render", () => {
+  it.each([
+    [{ origin: "http://localhost" }, 401],
+    [
+      {
+        origin: "https://attacker.example",
+        "x-democraft-studio-token": "test-token",
+      },
+      403,
+    ],
+  ])("rejects an unauthorized mutation", async (headers, status) => {
+    const response = await POST(
+      new Request("http://localhost/api/render", {
+        method: "POST",
+        headers,
+        body: "{}",
+      }),
+    );
+
+    expect(response.status).toBe(status);
+    expect(mocks.enqueue).not.toHaveBeenCalled();
+  });
+
   it.each([
     [null, "$"],
     [{ width: 0 }, "$.width"],
@@ -34,7 +59,7 @@ describe("POST /api/render", () => {
     const response = await POST(
       new Request("http://localhost/api/render", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: authorizedHeaders({ "content-type": "application/json" }),
         body: "{",
       }),
     );
@@ -67,7 +92,14 @@ describe("POST /api/render", () => {
 function jsonRequest(body: unknown): Request {
   return new Request("http://localhost/api/render", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: authorizedHeaders({ "content-type": "application/json" }),
     body: JSON.stringify(body),
   });
+}
+
+function authorizedHeaders(extra: HeadersInit = {}): Headers {
+  const headers = new Headers(extra);
+  headers.set("origin", "http://localhost");
+  headers.set("x-democraft-studio-token", "test-token");
+  return headers;
 }

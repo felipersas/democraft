@@ -3,6 +3,7 @@ import { readMeta } from "@/lib/staleness";
 import { reResolveTimeline } from "@/lib/resolve-demo";
 import { studioDataDir } from "@/lib/server-data";
 import { publish } from "@/lib/event-bus";
+import { authorizeStudioMutation } from "../../../lib/request-security";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,10 @@ export const dynamic = "force-dynamic";
  * reload to the browser automatically. Returns whether the change was
  * structural (re-capture needed) vs. content-only (re-resolve sufficient).
  */
-export async function POST() {
+export async function POST(request: Request) {
+  const denied = authorizeStudioMutation(request);
+  if (denied) return denied;
+
   const dataDir = studioDataDir();
   const meta = await readMeta(dataDir);
   if (!meta) {

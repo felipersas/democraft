@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import type { RecordedDemoManifest } from "@democraft/schema";
 import { resolveRecordedScreenshotPath } from "@democraft/playwright";
 import { existsFile } from "./fs";
+import { resolveExistingPathWithin } from "./path-boundary";
 
 /**
  * Loads the settled screenshots consumed by the Studio render queue. Keeping
@@ -18,7 +19,12 @@ export async function loadScreenshotDataUris(
     const file = resolveRecordedScreenshotPath(dataDir, step);
     if (!file) continue;
     if (await existsFile(file)) {
-      const png = await readFile(file);
+      const safeFile = await resolveExistingPathWithin(
+        dataDir,
+        file,
+        `Render screenshot for step ${step.stepId}`,
+      );
+      const png = await readFile(safeFile);
       byStepId[step.stepId] = `data:image/png;base64,${png.toString("base64")}`;
     }
   }

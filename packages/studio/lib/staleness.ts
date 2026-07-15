@@ -12,6 +12,8 @@ import {
 import { readJson } from "./server-data";
 import { existsFile } from "./fs";
 import path from "node:path";
+import { resolveExistingPathWithin } from "./path-boundary";
+import { trustedDemoPath } from "./studio-path-authority";
 
 // Native dynamic import that bypasses webpack's static analysis. webpack
 // rewrites `import()` expressions it can see; wrapping it in a Function makes
@@ -30,8 +32,17 @@ export async function loadDemo(
   demoPath: string,
   options: { version?: string | number } = {},
 ): Promise<DemoDefinition> {
-  const file = await stat(demoPath);
-  const moduleUrl = new URL(pathToFileURL(demoPath));
+  const authorized = await trustedDemoPath();
+  const canonical = await resolveExistingPathWithin(
+    path.dirname(authorized),
+    demoPath,
+    "Demo module import",
+  );
+  if (canonical !== authorized) {
+    throw new Error(`Demo module is not the file authorized at Studio launch.`);
+  }
+  const file = await stat(canonical);
+  const moduleUrl = new URL(pathToFileURL(canonical));
   moduleUrl.searchParams.set(
     "democraft-version",
     String(options.version ?? `${file.mtimeMs}-${file.size}`),
@@ -40,7 +51,7 @@ export async function loadDemo(
     default?: DemoDefinition;
   };
   if (!imported.default) {
-    throw new Error(`Demo module "${demoPath}" must have a default export.`);
+    throw new Error(`Demo module "${canonical}" must have a default export.`);
   }
   return imported.default;
 }
@@ -79,7 +90,8 @@ export async function computeStaleness(args: {
   }
 
   try {
-    const demo = await loadDemo(meta.demoPath);
+    const demoPath = await trustedDemoPath();
+    const demo = await loadDemo(demoPath);
     const compilation = await compileDemo(demo);
     const errors = compilation.diagnostics.filter(
       (diagnostic) => diagnostic.severity === "error",
@@ -127,9 +139,13 @@ export async function computeStaleness(args: {
       };
     }
 
-    const demoMtime = (await stat(meta.demoPath)).mtimeMs;
-    const manifestMtime = (await stat(path.join(args.dataDir, "manifest.json")))
-      .mtimeMs;
+    const manifestPath = await resolveExistingPathWithin(
+      args.dataDir,
+      path.join(args.dataDir, "manifest.json"),
+      "Studio manifest",
+    );
+    const demoMtime = (await stat(demoPath)).mtimeMs;
+    const manifestMtime = (await stat(manifestPath)).mtimeMs;
     if (demoMtime > manifestMtime) {
       return {
         kind: "content",
@@ -150,7 +166,11 @@ export async function computeStaleness(args: {
 export async function readMeta(
   dataDir: string,
 ): Promise<StudioMeta | undefined> {
-  return readJson(path.join(dataDir, "meta.json"), parseStudioMetaJson);
+  return readJson(
+    path.join(dataDir, "meta.json"),
+    parseStudioMetaJson,
+    dataDir,
+  );
 }
 
 export { existsFile };

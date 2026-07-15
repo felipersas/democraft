@@ -1,11 +1,4 @@
-import {
-  copyFile,
-  mkdir,
-  readFile,
-  rename,
-  rm,
-  writeFile,
-} from "node:fs/promises";
+import { mkdir, readFile, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import {
   parseRecordedDemoManifest,
@@ -19,6 +12,14 @@ import {
 } from "@democraft/schema";
 import { existsFile, existsDir } from "./fs";
 import { resolveRecordedScreenshotPath } from "@democraft/playwright";
+import {
+  resolveExistingPathWithin,
+  resolveWritePathWithin,
+} from "./path-boundary";
+import {
+  copyFileContainedAtomic,
+  writeFileContainedAtomic,
+} from "./safe-write";
 
 /**
  * Copies capture artifacts (screenshots, recording) into studio-data and
@@ -31,6 +32,8 @@ export async function materializeStudioData(args: {
   captureDir: string;
   manifest: RecordedDemoManifest;
   timeline: RenderTimeline;
+  /** When supplied, metadata is promoted in the same generation. */
+  meta?: StudioMeta;
   /** Internal hook used to verify rollback before the generation is promoted. */
   beforePromote?: () => Promise<void>;
   /** Internal hook used to verify rollback after the old generation moved. */
@@ -38,12 +41,25 @@ export async function materializeStudioData(args: {
 }): Promise<void> {
   const manifest = parseRecordedDemoManifest(args.manifest);
   const timeline = parseRenderTimeline(args.timeline);
-  const parent = path.dirname(args.dataDir);
-  const generation = path.join(
-    parent,
-    `.${path.basename(args.dataDir)}.generation-${process.pid}-${Date.now()}`,
+  const dataDir = await resolveExistingPathWithin(
+    args.dataDir,
+    args.dataDir,
+    "Studio data directory",
   );
-  const backup = `${args.dataDir}.previous-${process.pid}-${Date.now()}`;
+  const parent = path.dirname(dataDir);
+  const generation = await resolveWritePathWithin(
+    parent,
+    path.join(
+      parent,
+      `.${path.basename(dataDir)}.generation-${process.pid}-${Date.now()}`,
+    ),
+    "Studio generation directory",
+  );
+  const backup = await resolveWritePathWithin(
+    parent,
+    `${dataDir}.previous-${process.pid}-${Date.now()}`,
+    "Studio backup directory",
+  );
   const screenshotsSrc = path.join(args.captureDir, "screenshots");
   const screenshotsDst = path.join(generation, "screenshots");
   await mkdir(generation, { recursive: false });
@@ -54,7 +70,17 @@ export async function materializeStudioData(args: {
       for (const step of manifest.steps) {
         const src = resolveRecordedScreenshotPath(args.captureDir, step);
         if (src && (await existsFile(src))) {
-          await copyFile(src, path.join(screenshotsDst, path.basename(src)));
+          const safeSrc = await resolveExistingPathWithin(
+            args.captureDir,
+            src,
+            `Screenshot for step ${step.stepId}`,
+          );
+          await copyFileContainedAtomic(
+            generation,
+            safeSrc,
+            path.join(screenshotsDst, path.basename(src)),
+            `Materialized screenshot for step ${step.stepId}`,
+          );
         }
       }
     }
@@ -65,28 +91,44 @@ export async function materializeStudioData(args: {
       : undefined;
     const recordingDst = path.join(generation, "recording.webm");
     if (recordingSrc && (await existsFile(recordingSrc))) {
-      await copyFile(recordingSrc, recordingDst);
+      await copyFileContainedAtomic(
+        generation,
+        recordingSrc,
+        recordingDst,
+        "Materialized recording",
+      );
     }
 
     await Promise.all([
-      writeFile(
+      writeFileContainedAtomic(
+        generation,
         path.join(generation, "manifest.json"),
         `${JSON.stringify(manifest, null, 2)}\n`,
+        "Materialized manifest",
       ),
-      writeFile(
+      writeFileContainedAtomic(
+        generation,
         path.join(generation, "timeline.json"),
         `${JSON.stringify(timeline, null, 2)}\n`,
+        "Materialized timeline",
       ),
-      copyMetaIfPresent(args.dataDir, generation),
+      args.meta
+        ? writeFileContainedAtomic(
+            generation,
+            path.join(generation, "meta.json"),
+            `${JSON.stringify(parseStudioMeta(args.meta), null, 2)}\n`,
+            "Materialized metadata",
+          )
+        : copyMetaIfPresent(dataDir, generation),
     ]);
     await args.beforePromote?.();
 
-    await rename(args.dataDir, backup);
+    await rename(dataDir, backup);
     try {
       await args.afterBackupRenamed?.();
-      await rename(generation, args.dataDir);
+      await rename(generation, dataDir);
     } catch (error) {
-      await rename(backup, args.dataDir);
+      await rename(backup, dataDir);
       throw error;
     }
     await rm(backup, { recursive: true, force: true }).catch(() => undefined);
@@ -97,21 +139,44 @@ export async function materializeStudioData(args: {
 }
 
 async function resolvePersistedPath(captureDir: string, persisted: string) {
-  if (path.isAbsolute(persisted)) return persisted;
-  const cwdRelative = path.resolve(persisted);
-  if (await existsFile(cwdRelative)) return cwdRelative;
-  return path.resolve(captureDir, persisted);
+  const captureRelative = path.isAbsolute(persisted)
+    ? persisted
+    : path.resolve(captureDir, persisted);
+  if (await existsFile(captureRelative)) {
+    return resolveExistingPathWithin(
+      captureDir,
+      captureRelative,
+      "Capture recording",
+    );
+  }
+
+  // Older manifests sometimes stored a cwd-relative path. Keep supporting it
+  // when it still resolves to the same authorized capture tree.
+  const legacyCwdRelative = path.resolve(persisted);
+  if (await existsFile(legacyCwdRelative)) {
+    return resolveExistingPathWithin(
+      captureDir,
+      legacyCwdRelative,
+      "Legacy capture recording",
+    );
+  }
+  return undefined;
 }
 
 async function copyMetaIfPresent(dataDir: string, generation: string) {
-  try {
-    await writeFile(
-      path.join(generation, "meta.json"),
-      await readFile(path.join(dataDir, "meta.json")),
-    );
-  } catch {
-    // Initial materialization may not have metadata yet.
-  }
+  const metaPath = path.join(dataDir, "meta.json");
+  if (!(await existsFile(metaPath))) return;
+  const safeMetaPath = await resolveExistingPathWithin(
+    dataDir,
+    metaPath,
+    "Studio metadata",
+  );
+  await writeFileContainedAtomic(
+    generation,
+    path.join(generation, "meta.json"),
+    await readFile(safeMetaPath),
+    "Materialized metadata",
+  );
 }
 
 /** Rewrites meta.json with the identity and timestamp of a completed capture. */
@@ -121,7 +186,21 @@ export async function updateMetaAfterCapture(
   ir: Pick<DemoIR, "id" | "definitionHash" | "captureHash">,
   captureDir = meta.captureDir,
 ): Promise<void> {
-  const nextMeta = parseStudioMeta({
+  const nextMeta = buildMetaAfterCapture(meta, ir, captureDir);
+  await writeFileContainedAtomic(
+    dataDir,
+    path.join(dataDir, "meta.json"),
+    `${JSON.stringify(nextMeta, null, 2)}\n`,
+    "Studio metadata",
+  );
+}
+
+export function buildMetaAfterCapture(
+  meta: StudioMeta,
+  ir: Pick<DemoIR, "id" | "definitionHash" | "captureHash">,
+  captureDir = meta.captureDir,
+): StudioMeta {
+  return parseStudioMeta({
     ...meta,
     schemaVersion,
     captureDir,
@@ -130,8 +209,4 @@ export async function updateMetaAfterCapture(
     captureHash: ir.captureHash,
     capturedAt: Date.now(),
   });
-  await writeFile(
-    path.join(dataDir, "meta.json"),
-    `${JSON.stringify(nextMeta, null, 2)}\n`,
-  );
 }

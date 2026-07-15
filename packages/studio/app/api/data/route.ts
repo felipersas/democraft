@@ -2,10 +2,14 @@ import { NextResponse } from "next/server";
 import { loadStudioData, studioDataDir } from "@/lib/server-data";
 import { existsDir } from "@/lib/fs";
 import { ArtifactValidationError } from "@democraft/schema";
+import { authorizeStudioLoopbackRequest } from "../../../lib/request-security";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const denied = authorizeStudioLoopbackRequest(request);
+  if (denied) return denied;
+
   const dir = studioDataDir();
   if (!(await existsDir(dir))) {
     return NextResponse.json(

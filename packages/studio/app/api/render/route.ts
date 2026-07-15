@@ -1,14 +1,26 @@
 import { NextResponse } from "next/server";
-import { enqueue, listJobs, serializeJob } from "@/lib/render-queue";
+import {
+  enqueue,
+  listJobs,
+  refreshRenderHistory,
+  serializeJob,
+} from "@/lib/render-queue";
 import {
   ArtifactValidationError,
   parseStudioRenderRequest,
 } from "@democraft/schema";
+import {
+  authorizeStudioLoopbackRequest,
+  authorizeStudioMutation,
+} from "../../../lib/request-security";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 export async function POST(req: Request) {
+  const denied = authorizeStudioMutation(req);
+  if (denied) return denied;
+
   let body: unknown;
   try {
     body = await req.json();
@@ -33,7 +45,11 @@ export async function POST(req: Request) {
 }
 
 /** List current queue state (also pushed live over SSE). */
-export async function GET() {
+export async function GET(request: Request) {
+  const denied = authorizeStudioLoopbackRequest(request);
+  if (denied) return denied;
+
+  await refreshRenderHistory();
   return NextResponse.json({ jobs: listJobs().map(serializeJob) });
 }
 

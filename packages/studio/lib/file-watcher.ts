@@ -4,6 +4,7 @@ import { existsDir } from "./fs";
 import { publishReload, publish } from "./event-bus";
 import { readMeta } from "./staleness";
 import { reResolveTimeline } from "./resolve-demo";
+import { trustedDemoPath } from "./studio-path-authority";
 
 let started = false;
 let dataDebounce: NodeJS.Timeout | undefined;
@@ -46,7 +47,8 @@ async function watchDemoSource(): Promise<void> {
   const meta = await readMeta(studioDataDir());
   if (!meta) return; // no demo source to watch
   try {
-    const watcher = watch(meta.demoPath, () => {
+    const demoPath = await trustedDemoPath();
+    const watcher = watch(demoPath, () => {
       clearTimeout(demoDebounce);
       demoDebounce = setTimeout(async () => {
         await handleDemoSourceChange(studioDataDir());

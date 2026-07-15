@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
-import { studioDataDir } from "@/lib/server-data";
-import { existsFile } from "@/lib/fs";
+import { authorizeStudioLoopbackRequest } from "../../../lib/request-security";
+import { resolveExistingPathWithin } from "../../../lib/path-boundary";
+import { trustedDataDirectory } from "../../../lib/studio-path-authority";
 
 export const dynamic = "force-dynamic";
 
@@ -16,16 +17,28 @@ const MIME: Record<string, string> = {
 };
 
 export async function GET(
-  _req: NextRequest,
+  request: NextRequest,
   ctx: { params: Promise<{ path: string[] }> },
 ) {
+  const denied = authorizeStudioLoopbackRequest(request);
+  if (denied) return denied;
+
   const { path: segments } = await ctx.params;
-  const dir = studioDataDir();
-  const safePath = path.resolve(dir, ...segments);
-  if (!safePath.startsWith(dir)) {
+  const dir = await trustedDataDirectory();
+  const candidate = path.resolve(dir, ...segments);
+  const relative = path.relative(dir, candidate);
+  if (
+    relative === ".." ||
+    relative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relative)
+  ) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
-  if (!(await existsFile(safePath))) {
+  let safePath: string;
+  try {
+    safePath = await resolveExistingPathWithin(dir, candidate, "Studio asset");
+  } catch {
+    // Do not reveal whether an escaping symlink points at an existing target.
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
   const ext = path.extname(safePath).toLowerCase();

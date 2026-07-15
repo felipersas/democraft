@@ -1,6 +1,17 @@
-import { copyFile, mkdir, readFile, rm, stat } from "node:fs/promises";
+import {
+  copyFile,
+  lstat,
+  mkdir,
+  readFile,
+  realpath,
+  rename,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { compileDemo } from "@democraft/compiler";
 import {
   resolveLatestCompletedCapture,
@@ -21,6 +32,7 @@ import {
 } from "@democraft/schema";
 import { formatDiagnostics } from "./format";
 import { loadDemo } from "./loaders";
+import { userResolve } from "./paths";
 
 export type StudioOptions = {
   demoPath: string;
@@ -32,10 +44,21 @@ export type StudioOptions = {
   workspaceRoot?: string;
 };
 
+export const STUDIO_LOOPBACK_HOST = "127.0.0.1";
+
+export function studioDevServerArgs(port: number): string[] {
+  return ["--filter", "@democraft/studio", "dev", "--port", String(port)];
+}
+
+export function studioUrl(port: number): string {
+  return `http://${STUDIO_LOOPBACK_HOST}:${port}`;
+}
+
 export async function launchStudio(
   options: StudioOptions,
 ): Promise<{ port: number; dataDir: string; url: string }> {
   const demo = await loadDemo(options.demoPath);
+  const demoPath = await realpath(userResolve(options.demoPath));
   const compilation = await compileDemo(demo);
 
   if (compilation.diagnostics.some((d) => d.severity === "error")) {
@@ -44,19 +67,34 @@ export async function launchStudio(
     );
   }
 
-  const root = options.workspaceRoot ?? process.cwd();
-  const runsRoot = path.join(root, ".democraft", "runs");
-  const explicitCaptureDir = options.outputDir
+  const root = await realpath(options.workspaceRoot ?? process.cwd());
+  const artifactsRoot = await prepareManagedStudioDirectory(
+    root,
+    path.join(root, ".democraft"),
+    "Democraft artifacts directory",
+  );
+  const runsRoot = await prepareManagedStudioDirectory(
+    artifactsRoot,
+    path.join(artifactsRoot, "runs"),
+    "Managed capture directory",
+  );
+  const explicitCaptureDirRaw = options.outputDir
     ? path.isAbsolute(options.outputDir)
       ? options.outputDir
       : path.resolve(root, options.outputDir)
+    : undefined;
+  const explicitCaptureDir = explicitCaptureDirRaw
+    ? await canonicalizePotentialPath(explicitCaptureDirRaw)
     : undefined;
   const latestCapture = explicitCaptureDir
     ? undefined
     : await resolveLatestCompletedCapture(runsRoot, compilation.ir.id);
   let captureDir = explicitCaptureDir ?? latestCapture?.captureDir;
-  const dataDir = path.join(root, ".democraft", "studio-data");
-  await mkdir(dataDir, { recursive: true });
+  const canonicalDataDir = await prepareManagedStudioDirectory(
+    artifactsRoot,
+    path.join(artifactsRoot, "studio-data"),
+    "Studio data directory",
+  );
 
   let manifest: RecordedDemoManifest;
   const existingManifest =
@@ -130,7 +168,7 @@ export async function launchStudio(
   });
 
   await materializeStudioData({
-    dataDir,
+    dataDir: canonicalDataDir,
     captureDir,
     manifest,
     timeline,
@@ -140,8 +178,8 @@ export async function launchStudio(
   // where captures are written — needed for in-studio re-capture, staleness
   // detection, and auto re-resolve. See docs/architecture/studio-roadmap.md "Workflow/DX".
   await writeMetaFile({
-    dataDir,
-    demoPath: path.resolve(options.demoPath),
+    dataDir: canonicalDataDir,
+    demoPath,
     captureDir,
     captureOutputDirExplicit: explicitCaptureDir !== undefined,
     workspaceRoot: root,
@@ -152,9 +190,15 @@ export async function launchStudio(
   });
 
   const port = options.port ?? 3000;
-  const url = await startStudioServer({ port, dataDir, workspaceRoot: root });
+  const url = await startStudioServer({
+    port,
+    dataDir: canonicalDataDir,
+    workspaceRoot: root,
+    demoPath,
+    explicitCaptureDir,
+  });
 
-  return { port, dataDir, url };
+  return { port, dataDir: canonicalDataDir, url };
 }
 
 export function captureActionForCompatibility(
@@ -197,14 +241,15 @@ async function writeMetaFile(args: {
     captureHash: args.captureHash,
     capturedAt: args.capturedAt,
   });
-  const { writeFile } = await import("node:fs/promises");
-  await writeFile(
+  await writeAtomicTarget(
+    args.dataDir,
     path.join(args.dataDir, "meta.json"),
     `${JSON.stringify(meta, null, 2)}\n`,
+    "Studio metadata",
   );
 }
 
-async function materializeStudioData(args: {
+export async function materializeStudioData(args: {
   dataDir: string;
   captureDir: string;
   manifest: RecordedDemoManifest;
@@ -221,32 +266,46 @@ async function materializeStudioData(args: {
     for (const step of manifest.steps) {
       const src = resolveRecordedScreenshotPath(args.captureDir, step);
       if (src && (await existsFile(src))) {
-        await copyFile(src, path.join(screenshotsDst, path.basename(src)));
+        const safeSrc = await resolveCaptureArtifactPath(
+          args.captureDir,
+          src,
+          `Screenshot for step ${step.stepId}`,
+        );
+        await copyAtomicTarget(
+          args.dataDir,
+          safeSrc,
+          path.join(screenshotsDst, path.basename(src)),
+          `Materialized screenshot for step ${step.stepId}`,
+        );
       }
     }
   }
 
   const recordingRaw = manifest.recording?.path;
   const recordingSrc = recordingRaw
-    ? path.isAbsolute(recordingRaw)
-      ? recordingRaw
-      : (await existsFile(path.resolve(recordingRaw)))
-        ? path.resolve(recordingRaw)
-        : path.resolve(args.captureDir, recordingRaw)
+    ? await resolvePersistedCapturePath(args.captureDir, recordingRaw)
     : undefined;
   const recordingDst = path.join(args.dataDir, "recording.webm");
   if (recordingSrc && (await existsFile(recordingSrc))) {
-    await copyFile(recordingSrc, recordingDst);
+    await copyAtomicTarget(
+      args.dataDir,
+      recordingSrc,
+      recordingDst,
+      "Materialized recording",
+    );
   }
 
-  const { writeFile } = await import("node:fs/promises");
-  await writeFile(
+  await writeAtomicTarget(
+    args.dataDir,
     path.join(args.dataDir, "manifest.json"),
     `${JSON.stringify(manifest, null, 2)}\n`,
+    "Materialized manifest",
   );
-  await writeFile(
+  await writeAtomicTarget(
+    args.dataDir,
     path.join(args.dataDir, "timeline.json"),
     `${JSON.stringify(timeline, null, 2)}\n`,
+    "Materialized timeline",
   );
 }
 
@@ -254,31 +313,19 @@ async function startStudioServer(args: {
   port: number;
   dataDir: string;
   workspaceRoot: string;
+  demoPath: string;
+  explicitCaptureDir?: string;
 }): Promise<string> {
   return new Promise((resolve, reject) => {
-    const child = spawn(
-      "pnpm",
-      ["--filter", "@democraft/studio", "dev", "--port", String(args.port)],
-      {
-        cwd: args.workspaceRoot,
-        stdio: ["inherit", "pipe", "inherit"],
-        env: {
-          ...process.env,
-          DEMOCRAFT_STUDIO_DATA: args.dataDir,
-          // Register the tsx loader so the studio's route handlers can
-          // dynamically import() the demo's TypeScript module (demo.ts).
-          // Without this, Node can't natively import .ts files. Using
-          // NODE_OPTIONS keeps tsx out of the Next webpack bundle (which
-          // can't resolve it).
-          NODE_OPTIONS: [process.env.NODE_OPTIONS, "--import tsx"]
-            .filter(Boolean)
-            .join(" "),
-        },
-        shell: process.platform === "win32",
-      },
-    );
+    const sessionToken = randomBytes(32).toString("base64url");
+    const child = spawn("pnpm", studioDevServerArgs(args.port), {
+      cwd: args.workspaceRoot,
+      stdio: ["inherit", "pipe", "inherit"],
+      env: studioServerEnvironment(args, sessionToken),
+      shell: process.platform === "win32",
+    });
 
-    const url = `http://localhost:${args.port}`;
+    const url = studioUrl(args.port);
     let resolved = false;
 
     child.stdout?.on("data", (chunk: Buffer) => {
@@ -312,6 +359,175 @@ async function startStudioServer(args: {
   });
 }
 
+export function studioServerEnvironment(
+  args: {
+    dataDir: string;
+    workspaceRoot: string;
+    demoPath: string;
+    explicitCaptureDir?: string;
+  },
+  sessionToken: string,
+): NodeJS.ProcessEnv {
+  return {
+    ...process.env,
+    DEMOCRAFT_STUDIO_DATA: args.dataDir,
+    DEMOCRAFT_STUDIO_WORKSPACE_ROOT: args.workspaceRoot,
+    DEMOCRAFT_STUDIO_DEMO_PATH: args.demoPath,
+    DEMOCRAFT_STUDIO_EXPLICIT_CAPTURE_DIR: args.explicitCaptureDir ?? "",
+    DEMOCRAFT_STUDIO_SESSION_TOKEN: sessionToken,
+    // Register the tsx loader so Studio can import the authorized .ts demo.
+    NODE_OPTIONS: [process.env.NODE_OPTIONS, "--import tsx"]
+      .filter(Boolean)
+      .join(" "),
+  };
+}
+
+async function resolvePersistedCapturePath(
+  captureDir: string,
+  persisted: string,
+): Promise<string | undefined> {
+  const captureRelative = path.isAbsolute(persisted)
+    ? persisted
+    : path.resolve(captureDir, persisted);
+  if (await existsFile(captureRelative)) {
+    return resolveCaptureArtifactPath(
+      captureDir,
+      captureRelative,
+      "Capture recording",
+    );
+  }
+  const legacy = path.resolve(persisted);
+  if (await existsFile(legacy)) {
+    return resolveCaptureArtifactPath(
+      captureDir,
+      legacy,
+      "Legacy capture recording",
+    );
+  }
+  return undefined;
+}
+
+async function resolveCaptureArtifactPath(
+  captureDir: string,
+  candidate: string,
+  label: string,
+): Promise<string> {
+  const [root, target] = await Promise.all([
+    realpath(captureDir),
+    realpath(candidate),
+  ]);
+  const relative = path.relative(root, target);
+  if (
+    relative === ".." ||
+    relative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relative)
+  ) {
+    throw new Error(`${label} escapes the capture directory: ${target}`);
+  }
+  return target;
+}
+
+async function canonicalizePotentialPath(candidate: string): Promise<string> {
+  const missing: string[] = [];
+  let ancestor = path.resolve(candidate);
+  while (true) {
+    try {
+      return path.join(await realpath(ancestor), ...missing);
+    } catch (error) {
+      if (!isNodeError(error, "ENOENT")) throw error;
+      const parent = path.dirname(ancestor);
+      if (parent === ancestor) throw error;
+      missing.unshift(path.basename(ancestor));
+      ancestor = parent;
+    }
+  }
+}
+
+export async function prepareManagedStudioDirectory(
+  root: string,
+  candidate: string,
+  label: string,
+): Promise<string> {
+  const canonicalRoot = await realpath(root);
+  const safeCandidate = await canonicalizePotentialPath(candidate);
+  assertContained(canonicalRoot, safeCandidate, label);
+  await mkdir(safeCandidate, { recursive: true });
+  const canonicalCandidate = await realpath(safeCandidate);
+  assertContained(canonicalRoot, canonicalCandidate, label);
+  return canonicalCandidate;
+}
+
+async function writeAtomicTarget(
+  root: string,
+  target: string,
+  contents: string,
+  label: string,
+) {
+  await promoteAtomicTarget(root, target, label, (temp) =>
+    writeFile(temp, contents, { flag: "wx" }),
+  );
+}
+
+async function copyAtomicTarget(
+  root: string,
+  source: string,
+  target: string,
+  label: string,
+) {
+  await promoteAtomicTarget(root, target, label, (temp) =>
+    copyFile(source, temp),
+  );
+}
+
+async function promoteAtomicTarget(
+  root: string,
+  target: string,
+  label: string,
+  create: (temp: string) => Promise<unknown>,
+) {
+  const canonicalRoot = await realpath(root);
+  const safeTarget = await canonicalizePotentialPath(target);
+  assertContained(canonicalRoot, safeTarget, label);
+  await rejectTargetSymlink(safeTarget, label);
+  const temp = path.join(
+    path.dirname(safeTarget),
+    `.${path.basename(safeTarget)}.${process.pid}-${randomBytes(6).toString("hex")}.tmp`,
+  );
+  try {
+    await create(temp);
+    const revalidated = await canonicalizePotentialPath(safeTarget);
+    assertContained(canonicalRoot, revalidated, label);
+    if (revalidated !== safeTarget)
+      throw new Error(`${label} changed during write.`);
+    await rejectTargetSymlink(safeTarget, label);
+    await rename(temp, safeTarget);
+  } finally {
+    await rm(temp, { force: true }).catch(() => undefined);
+  }
+}
+
+function assertContained(root: string, target: string, label: string) {
+  const relative = path.relative(root, target);
+  if (
+    relative === ".." ||
+    relative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relative)
+  ) {
+    throw new Error(`${label} escapes its output directory: ${target}`);
+  }
+}
+
+async function rejectTargetSymlink(target: string, label: string) {
+  try {
+    if ((await lstat(target)).isSymbolicLink()) {
+      throw new Error(`${label} must not be a symbolic link: ${target}`);
+    }
+  } catch (error) {
+    if (isNodeError(error, "ENOENT")) return;
+    throw error;
+  }
+}
+
 async function existsFile(p: string): Promise<boolean> {
   try {
     const s = await stat(p);
@@ -328,6 +544,14 @@ async function existsDir(p: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+function isNodeError(error: unknown, code: string): boolean {
+  return (
+    error instanceof Error &&
+    "code" in error &&
+    (error as NodeJS.ErrnoException).code === code
+  );
 }
 
 async function readArtifactIfExists<T>(

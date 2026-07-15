@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -51,5 +51,42 @@ describe("Studio artifact loading", () => {
       kind: "recorded demo manifest",
       issues: [expect.objectContaining({ path: "$.steps" })],
     });
+  });
+
+  it("treats an escaping artifact symlink as unavailable", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "democraft-studio-"));
+    const outside = await mkdtemp(path.join(tmpdir(), "democraft-outside-"));
+    directories.push(directory, outside);
+    process.env.DEMOCRAFT_STUDIO_DATA = directory;
+    await Promise.all([
+      writeFile(
+        path.join(outside, "manifest.json"),
+        JSON.stringify({
+          schemaVersion: "1",
+          demoId: "demo",
+          steps: [],
+          diagnostics: [],
+        }),
+      ),
+      writeFile(
+        path.join(directory, "timeline.json"),
+        JSON.stringify({
+          schemaVersion: "1",
+          demoId: "demo",
+          fps: 60,
+          durationInFrames: 0,
+          scenes: [],
+          camera: [],
+          cursor: [],
+          overlays: [],
+        }),
+      ),
+    ]);
+    await symlink(
+      path.join(outside, "manifest.json"),
+      path.join(directory, "manifest.json"),
+    );
+
+    await expect(loadStudioData()).resolves.toBeUndefined();
   });
 });

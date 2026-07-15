@@ -5,6 +5,7 @@ import {
   readFile,
   rename,
   rm,
+  symlink,
   utimes,
   writeFile,
 } from "node:fs/promises";
@@ -659,6 +660,57 @@ describe("capture artifacts", () => {
       manifestPath: path.join(legacy, "manifest.json"),
       legacy: true,
     });
+  });
+
+  it("rejects managed and legacy directory symlinks outside the runs root", async () => {
+    const root = await temporaryDirectory();
+    const outside = await temporaryDirectory();
+    await createCapture(outside, "outside-run");
+    await symlink(
+      path.join(outside, captureNamespace("demo")),
+      path.join(root, captureNamespace("demo")),
+    );
+    const legacyOutside = path.join(outside, "legacy-demo");
+    await mkdir(legacyOutside);
+    await writeFile(
+      path.join(legacyOutside, "manifest.json"),
+      JSON.stringify({
+        schemaVersion: "1",
+        demoId: "legacy-demo",
+        steps: [],
+        diagnostics: [],
+      }),
+    );
+    await symlink(legacyOutside, path.join(root, "legacy-demo"));
+
+    await expect(
+      resolveLatestCompletedCapture(root, "demo"),
+    ).resolves.toBeUndefined();
+    await expect(
+      resolveLatestCompletedCapture(root, "legacy-demo"),
+    ).resolves.toBeUndefined();
+  });
+
+  it("rejects a legacy manifest symlink outside the capture directory", async () => {
+    const root = await temporaryDirectory();
+    const outside = await temporaryDirectory();
+    const legacy = path.join(root, "legacy-demo");
+    const outsideManifest = path.join(outside, "manifest.json");
+    await mkdir(legacy);
+    await writeFile(
+      outsideManifest,
+      JSON.stringify({
+        schemaVersion: "1",
+        demoId: "legacy-demo",
+        steps: [],
+        diagnostics: [],
+      }),
+    );
+    await symlink(outsideManifest, path.join(legacy, "manifest.json"));
+
+    await expect(
+      resolveLatestCompletedCapture(root, "legacy-demo"),
+    ).resolves.toBeUndefined();
   });
 });
 

@@ -10,6 +10,11 @@ import {
 } from "@democraft/schema";
 import { loadDemo } from "./staleness";
 import { readJson } from "./server-data";
+import { trustedDataDirectory, trustedDemoPath } from "./studio-path-authority";
+import {
+  resolveExistingPathWithin,
+  resolveWritePathWithin,
+} from "./path-boundary";
 
 /**
  * Re-resolves the timeline from the current demo.ts + existing manifest, then
@@ -31,11 +36,18 @@ export async function reResolveTimeline(args: {
   | { structural: true; detail: string }
   | null
 > {
-  const manifestPath = path.join(args.dataDir, "manifest.json");
+  const dataDir = await trustedDataDirectory();
+  await resolveExistingPathWithin(
+    dataDir,
+    args.dataDir,
+    "Studio data directory",
+  );
+  const manifestPath = path.join(dataDir, "manifest.json");
   const manifest = await readJson(manifestPath, parseRecordedDemoManifestJson);
   if (!manifest) return null;
 
-  const demo = await loadDemo(args.meta.demoPath);
+  const demoPath = await trustedDemoPath();
+  const demo = await loadDemo(demoPath);
   const compilation = await compileDemo(demo);
   const errors = compilation.diagnostics.filter(
     (diagnostic) => diagnostic.severity === "error",
@@ -71,10 +83,12 @@ export async function reResolveTimeline(args: {
     fps: args.fps,
   });
 
-  await writeFile(
-    path.join(args.dataDir, "timeline.json"),
-    `${JSON.stringify(timeline, null, 2)}\n`,
+  const timelinePath = await resolveWritePathWithin(
+    dataDir,
+    path.join(dataDir, "timeline.json"),
+    "Studio timeline",
   );
+  await writeFile(timelinePath, `${JSON.stringify(timeline, null, 2)}\n`);
 
   return { timeline, structural: false };
 }

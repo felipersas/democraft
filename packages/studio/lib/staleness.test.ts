@@ -1,4 +1,4 @@
-import { mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
+import { mkdtemp, realpath, rm, utimes, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { compileDemo } from "@democraft/compiler";
@@ -18,12 +18,16 @@ afterEach(async () => {
     tempDirs.map((dir) => rm(dir, { recursive: true, force: true })),
   );
   tempDirs.length = 0;
+  delete process.env.DEMOCRAFT_STUDIO_DATA;
+  delete process.env.DEMOCRAFT_STUDIO_WORKSPACE_ROOT;
+  delete process.env.DEMOCRAFT_STUDIO_DEMO_PATH;
 });
 
 describe("studio staleness", () => {
   it("reloads an edited ESM demo using an explicit version", async () => {
     const fixture = await createFixture();
     await writeDemo(fixture.demoPath, { title: "First" });
+    await authorizeDemo(fixture.demoPath);
     const first = await loadDemo(fixture.demoPath, { version: "first" });
 
     await writeDemo(fixture.demoPath, { title: "Second" });
@@ -36,6 +40,7 @@ describe("studio staleness", () => {
   it("reloads an edited ESM demo when its mtime changes", async () => {
     const fixture = await createFixture();
     await writeDemo(fixture.demoPath, { title: "First" });
+    await authorizeDemo(fixture.demoPath);
     const first = await loadDemo(fixture.demoPath);
 
     await writeDemo(fixture.demoPath, { title: "Other" });
@@ -104,12 +109,16 @@ async function createFixture(): Promise<{
 }> {
   const dataDir = await mkdtemp(join(tmpdir(), "democraft-staleness-"));
   tempDirs.push(dataDir);
+  const canonical = await realpath(dataDir);
+  process.env.DEMOCRAFT_STUDIO_DATA = canonical;
+  process.env.DEMOCRAFT_STUDIO_WORKSPACE_ROOT = canonical;
   return { dataDir, demoPath: join(dataDir, "demo.mjs") };
 }
 
 async function capturedFixture(): Promise<Fixture> {
   const fixture = await createFixture();
   await writeDemo(fixture.demoPath, {});
+  await authorizeDemo(fixture.demoPath);
   const definition = await loadDemo(fixture.demoPath, { version: "baseline" });
   const compilation = await compileDemo(definition);
   const manifest = manifestFor(compilation.ir);
@@ -123,6 +132,10 @@ async function capturedFixture(): Promise<Fixture> {
   const result = { ...fixture, manifest, meta };
   await writeManifest(result, manifest);
   return result;
+}
+
+async function authorizeDemo(demoPath: string): Promise<void> {
+  process.env.DEMOCRAFT_STUDIO_DEMO_PATH = await realpath(demoPath);
 }
 
 function staleness(fixture: Fixture) {

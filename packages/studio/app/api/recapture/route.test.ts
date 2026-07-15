@@ -1,6 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { compileDemo } from "@democraft/compiler";
 import { publish } from "@/lib/event-bus";
+import { materializeStudioData } from "@/lib/materialize";
 
 const capture = vi.hoisted(() => {
   let resolve!: (value: unknown) => void;
@@ -26,7 +27,20 @@ vi.mock("@/lib/server-data", () => ({
   studioDataDir: vi.fn(() => "/workspace/.democraft/studio-data"),
 }));
 vi.mock("@/lib/event-bus", () => ({ publish: vi.fn() }));
+vi.mock("../../../lib/path-boundary", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../../lib/path-boundary")>()),
+  resolveExactWritePath: vi.fn(async (candidate: string) => candidate),
+  resolveWritePathWithin: vi.fn(
+    async (_root: string, candidate: string) => candidate,
+  ),
+}));
+vi.mock("../../../lib/studio-path-authority", () => ({
+  trustedDemoPath: vi.fn(async () => "/workspace/demo.ts"),
+  trustedWorkspaceRoot: vi.fn(async () => "/workspace"),
+  trustedExplicitCaptureDirectory: vi.fn(() => "/workspace/explicit"),
+}));
 vi.mock("@/lib/materialize", () => ({
+  buildMetaAfterCapture: vi.fn((meta) => meta),
   materializeStudioData: vi.fn(async () => undefined),
   updateMetaAfterCapture: vi.fn(async () => undefined),
 }));
@@ -46,11 +60,16 @@ vi.mock("@democraft/timeline", () => ({
 
 import { POST } from "./route";
 
+beforeEach(() => {
+  vi.stubEnv("DEMOCRAFT_STUDIO_SESSION_TOKEN", "test-token");
+});
+afterEach(() => vi.unstubAllEnvs());
+
 describe("POST /api/recapture", () => {
   it("rejects a concurrent recapture with 409", async () => {
-    const first = POST();
+    const first = POST(request());
     await vi.waitFor(async () => {
-      const second = await POST();
+      const second = await POST(request());
       expect(second.status).toBe(409);
     });
     capture.resolve({
@@ -60,13 +79,16 @@ describe("POST /api/recapture", () => {
       diagnostics: [],
     });
     expect((await first).status).toBe(200);
+    expect(vi.mocked(materializeStudioData)).toHaveBeenCalledWith(
+      expect.objectContaining({ meta: expect.any(Object) }),
+    );
   });
 
   it("redacts secrets from JSON and SSE failures", async () => {
     vi.mocked(compileDemo).mockRejectedValueOnce(
       new Error("Failed https://user:pass@example.test?token=abc&safe=ok"),
     );
-    const response = await POST();
+    const response = await POST(request());
     expect(response.status).toBe(500);
     await expect(response.json()).resolves.toEqual({
       error: "Failed https://[redacted]@example.test?token=[redacted]&safe=ok",
@@ -81,3 +103,13 @@ describe("POST /api/recapture", () => {
     );
   });
 });
+
+function request(): Request {
+  return new Request("http://127.0.0.1:3000/api/recapture", {
+    method: "POST",
+    headers: {
+      origin: "http://127.0.0.1:3000",
+      "x-democraft-studio-token": "test-token",
+    },
+  });
+}

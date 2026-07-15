@@ -6,7 +6,11 @@ import { renderDemoVideo } from "@democraft/remotion";
 import { runDemo } from "@democraft/playwright";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { formatDiagnostics, parseArgs, runCli } from "./index";
-import { captureActionForCompatibility } from "./studio";
+import {
+  captureActionForCompatibility,
+  studioDevServerArgs,
+  studioUrl,
+} from "./studio";
 
 vi.mock("@democraft/remotion", async () => {
   const actual = await vi.importActual<typeof import("@democraft/remotion")>(
@@ -63,6 +67,18 @@ afterEach(async () => {
 });
 
 describe("cli", () => {
+  it("builds the Studio command and loopback URL without exposing secrets", () => {
+    expect(studioDevServerArgs(4310)).toEqual([
+      "--filter",
+      "@democraft/studio",
+      "dev",
+      "--port",
+      "4310",
+    ]);
+    expect(studioUrl(4310)).toBe("http://127.0.0.1:4310");
+    expect(studioUrl(4310)).not.toContain("token");
+  });
+
   it("reuses only captures with known-compatible identity", () => {
     expect(captureActionForCompatibility("compatible")).toBe("reuse");
     expect(captureActionForCompatibility("unknown")).toBe("capture");

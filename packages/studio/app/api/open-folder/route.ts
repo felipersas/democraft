@@ -3,25 +3,23 @@ import { getJob } from "@/lib/render-queue";
 import { existsSync } from "node:fs";
 import { spawn } from "node:child_process";
 import path from "node:path";
+import { authorizeStudioMutation } from "../../../lib/request-security";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Reveals a render output file in the OS file manager. GET ?jobId=... maps to
- * the job's outputPath; GET ?path=... reveals an arbitrary path under the
- * renders dir (used by the "open folder" link in done toasts).
+ * Reveals a known render job's output file in the OS file manager.
  */
-export async function GET(req: Request) {
+export async function POST(req: Request) {
+  const denied = authorizeStudioMutation(req);
+  if (denied) return denied;
+
   const url = new URL(req.url);
   const jobId = url.searchParams.get("jobId");
-  const explicitPath = url.searchParams.get("path");
-
-  let target: string | undefined;
-  if (explicitPath) {
-    target = explicitPath;
-  } else if (jobId) {
-    target = getJob(jobId)?.outputPath;
+  if (!jobId) {
+    return NextResponse.json({ error: "jobId is required." }, { status: 400 });
   }
+  const target = getJob(jobId)?.outputPath;
   if (!target || !existsSync(target)) {
     return NextResponse.json(
       { error: "Output file not found." },
@@ -39,7 +37,10 @@ function revealInFileManager(filePath: string): void {
   try {
     if (platform === "darwin") {
       // `-R` reveals the file in Finder (selects it).
-      spawn("open", ["-R", filePath], { detached: true, stdio: "ignore" }).unref();
+      spawn("open", ["-R", filePath], {
+        detached: true,
+        stdio: "ignore",
+      }).unref();
     } else if (platform === "win32") {
       spawn("explorer.exe", ["/select,", filePath], {
         detached: true,

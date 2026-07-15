@@ -14,8 +14,14 @@ vi.mock("@/lib/server-data", () => ({
 import { GET } from "./route";
 
 describe("GET /api/data", () => {
+  it("rejects a non-loopback request target", async () => {
+    const response = await GET(new Request("http://studio.example/api/data"));
+
+    expect(response.status).toBe(403);
+  });
+
   it("returns structured 422 for invalid persisted artifacts", async () => {
-    const response = await GET();
+    const response = await GET(new Request("http://127.0.0.1:3000/api/data"));
 
     expect(response.status).toBe(422);
     await expect(response.json()).resolves.toMatchObject({

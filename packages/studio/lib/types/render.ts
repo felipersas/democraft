@@ -6,11 +6,7 @@
  */
 
 export type RenderJobStatus =
-  | "pending"
-  | "rendering"
-  | "done"
-  | "failed"
-  | "cancelled";
+  "pending" | "rendering" | "done" | "failed" | "cancelled";
 
 export type RenderJobOptions = {
   width?: number;
@@ -33,6 +29,10 @@ export type CaptionOverrides = Record<string, string>;
 /** A render-queue job. Mirrored across the SSE boundary (server → client). */
 export type RenderJob = {
   id: string;
+  /** Durable metadata id, distinct from the process-local queue id. */
+  artifactId?: string;
+  /** Stable identity for one artifact directory, including duplicate renderIds. */
+  artifactDirectory?: string;
   status: RenderJobStatus;
   /** 0..1. Only meaningful while rendering (and the final 1 on done). */
   progress: number;

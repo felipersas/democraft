@@ -3,6 +3,7 @@
 import * as React from "react";
 import { RefreshCw, Camera } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { studioMutationRequest } from "@/lib/studio-api";
 
 type RecapturePhase =
   | { kind: "idle" }
@@ -65,19 +66,24 @@ export function RecaptureButton() {
       return;
     setState({ kind: "running", phase: "starting" });
     try {
-      await fetch("/api/recapture", { method: "POST" });
+      await studioMutationRequest(
+        "/api/recapture",
+        { method: "POST" },
+        "Re-capture request failed.",
+      );
     } catch (err) {
       setState({
         kind: "failed",
         error: err instanceof Error ? err.message : "Request failed",
       });
+      setTimeout(() => setState({ kind: "idle" }), 4000);
     }
   };
 
   const running = state.kind === "running";
   const label =
     state.kind === "running"
-      ? PHASE_LABELS[state.phase] ?? "Working…"
+      ? (PHASE_LABELS[state.phase] ?? "Working…")
       : state.kind === "done"
         ? "Done"
         : state.kind === "failed"

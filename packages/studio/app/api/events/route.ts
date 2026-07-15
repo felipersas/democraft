@@ -1,10 +1,14 @@
 import type { NextRequest } from "next/server";
 import { subscribe } from "@/lib/event-bus";
+import { authorizeStudioLoopbackRequest } from "../../../lib/request-security";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET(_req: NextRequest) {
+  const denied = authorizeStudioLoopbackRequest(_req);
+  if (denied) return denied;
+
   const stream = new ReadableStream({
     start(controller) {
       const enc = new TextEncoder();

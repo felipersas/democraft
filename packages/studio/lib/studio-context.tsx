@@ -12,7 +12,7 @@ import type {
   StudioData,
   StudioStatus,
 } from "./types";
-import { readApiError } from "./api-error";
+import { studioMutationRequest } from "./studio-api";
 
 const StudioContext = React.createContext<StudioContextValue | null>(null);
 
@@ -93,15 +93,15 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
       };
       setRenderError(null);
       try {
-        const res = await fetch("/api/render", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(merged),
-        });
-        if (!res.ok) {
-          setRenderError(await readApiError(res, "Render request failed."));
-          return;
-        }
+        await studioMutationRequest(
+          "/api/render",
+          {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(merged),
+          },
+          "Render request failed.",
+        );
         await refreshJobs();
       } catch (error) {
         setRenderError(
@@ -113,19 +113,42 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
   );
 
   const cancelRender = React.useCallback((jobId: string) => {
-    void fetch("/api/render/cancel", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ jobId }),
+    setRenderError(null);
+    void studioMutationRequest(
+      "/api/render/cancel",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jobId }),
+      },
+      "Cancel render failed.",
+    ).catch((error) => {
+      setRenderError(renderMutationError(error, "Cancel render failed."));
     });
   }, []);
 
   const clearFinishedRenders = React.useCallback(() => {
-    void fetch("/api/render/jobs", { method: "DELETE" });
+    setRenderError(null);
+    void studioMutationRequest(
+      "/api/render/jobs",
+      { method: "DELETE" },
+      "Clear finished renders failed.",
+    ).catch((error) => {
+      setRenderError(
+        renderMutationError(error, "Clear finished renders failed."),
+      );
+    });
   }, []);
 
   const openOutputFolder = React.useCallback((jobId: string) => {
-    void fetch(`/api/open-folder?jobId=${encodeURIComponent(jobId)}`);
+    setRenderError(null);
+    void studioMutationRequest(
+      `/api/open-folder?jobId=${encodeURIComponent(jobId)}`,
+      { method: "POST" },
+      "Open output folder failed.",
+    ).catch((error) => {
+      setRenderError(renderMutationError(error, "Open output folder failed."));
+    });
   }, []);
 
   // ----- Layer visibility + solo -------------------------------------------------
@@ -292,4 +315,8 @@ export function useStudio(): StudioContextValue {
   const ctx = React.useContext(StudioContext);
   if (!ctx) throw new Error("useStudio must be used within StudioProvider");
   return ctx;
+}
+
+function renderMutationError(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
 }

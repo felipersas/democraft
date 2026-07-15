@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
+import { resolveExistingPathWithin } from "./path-boundary";
 
 /**
  * Resolve the Remotion entry file (`registerRoot`) for bundling.
@@ -14,7 +15,10 @@ import path from "node:path";
  *    is rewritten and the default resolution in `@democraft/remotion` gives
  *    the wrong path.
  */
-export function findRemotionEntry(userEntryPath?: string): string {
+export async function findRemotionEntry(
+  userEntryPath?: string,
+  workspaceRoot = process.cwd(),
+): Promise<string> {
   if (userEntryPath) {
     const resolved = path.isAbsolute(userEntryPath)
       ? userEntryPath
@@ -24,7 +28,11 @@ export function findRemotionEntry(userEntryPath?: string): string {
         `Remotion entry not found: ${resolved}. Check the --entry path.`,
       );
     }
-    return resolved;
+    return resolveExistingPathWithin(
+      workspaceRoot,
+      resolved,
+      "Custom Remotion entry",
+    );
   }
 
   let dir = process.cwd();
