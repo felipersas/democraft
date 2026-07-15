@@ -1,4 +1,3 @@
-import type React from "react";
 import {
   defaultVisualRegistry,
   type CalloutProps,
@@ -58,7 +57,9 @@ export type VisualEntry =
  * `remocn.*`) plus your additions. Entries with the same ID as a built-in
  * renderer override the default.
  */
-export function defineVisualRegistry(...entries: VisualEntry[]): VisualRegistry {
+export function defineVisualRegistry(
+  ...entries: VisualEntry[]
+): VisualRegistry {
   const registry: VisualRegistry = {
     captions: { ...defaultVisualRegistry.captions },
     callouts: { ...defaultVisualRegistry.callouts },
