@@ -17,10 +17,10 @@ type ExecutionState =
 
 Cada transição grava `updatedAt`, estágio, tentativa e diagnostic opcional. Estados terminais não voltam a executar.
 
-## Falhas observadas
+## Falhas observadas e status
 
-- Manifest da captura é gravado diretamente (`packages/playwright/src/runner.ts:121-124`).
-- O trace só para no caminho normal (`packages/playwright/src/runner.ts:68-93`).
+- Manifest da captura era gravado diretamente; a P1B passou a usar temp + rename.
+- O trace parava somente no caminho normal; a P1B agora finaliza trace, context e browser em sucesso, falha e cancelamento.
 - Renderer escreve no output final (`packages/remotion/src/server.ts:91-104`).
 - Studio cancela via `CancelSignal`, mas classifica cancelamento por closure local (`packages/studio/lib/render-queue.ts:197-205`).
 - A fila desaparece no restart (`packages/studio/lib/render-queue.ts:1-8`, `41-48`).
@@ -49,6 +49,24 @@ render(input, {signal: AbortSignal});
 ```
 
 Adapters convertem `AbortSignal` para Playwright/Remotion. Ordem de cleanup: impedir novos steps/frames, encerrar trace, fechar page/context/browser, remover temporários, persistir `cancelled`. Cleanup deve tolerar chamadas repetidas.
+
+Na captura, `RunDemoOptions.signal` já é cooperativo: é verificado antes de
+qualquer side effect, antes das fronteiras Playwright e entre steps. Uma chamada
+Playwright já em curso não é interrompida à força; ela termina antes do aborto,
+evitando fechar context no meio de uma operação não preparada para isso.
+Somente aborto solicitado pelo `signal` ou criado internamente pelo lifecycle é
+classificado como `cancelled`; uma exceção externa chamada `AbortError` continua
+`failed`. Falha e cancelamento a partir de `created` recebem `startedAt` para
+manter o contrato temporal válido.
+
+Re-capture no Studio é single-flight e responde `409` à segunda requisição. A
+materialização é preparada em uma generation irmã e promovida por rename, com
+rollback da geração anterior quando a promoção falha, evitando misturar
+screenshots e JSONs de capturas diferentes.
+
+Mensagens persistidas ou publicadas pela API/SSE removem credenciais em userinfo
+de URL e parâmetros sensíveis como token, code, key, secret, password, auth e
+signature, preservando a etapa e a causa operacional restante.
 
 ## Retry
 

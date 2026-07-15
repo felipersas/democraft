@@ -89,7 +89,49 @@ Default inicial: não apagar automaticamente. Fase posterior pode oferecer `keep
 
 ## Captura
 
-Capturas hoje também reutilizam `.democraft/runs/<demoId>` (`packages/playwright/src/runner.ts:32-33`). Migrá-las exige atualizar Studio, staleness e resolução de assets em conjunto. Por isso fica fora da primeira mudança, mas deve adotar o mesmo envelope `runId/status/metadata` na fase seguinte.
+Implementado na fase P1B. Capturas gerenciadas usam:
+
+```text
+.democraft/runs/<demo-slug>-<digest-do-id-original>/
+  latest.json
+  <timestamp>-<shortid>/
+    metadata.json
+    manifest.json
+    screenshots/
+    trace.zip
+    <recording-playwright>.webm
+```
+
+`metadata.json` registra `captureRunId`, identidade, estado
+`created/running/completed/failed/cancelled`, timestamps, ambiente efetivo sem
+`storageState` e paths relativos. Manifest e metadata usam temp + rename.
+`latest.json` é um índice atômico sob lock, atualizado somente após
+`completed`; seu reader confirma metadata, run ID e manifest antes de aceitar o
+pointer. Mesmo um pointer válido é comparado com todos os runs `completed`; o
+maior `finishedAt`, com desempate determinístico por run ID, vence. Pointer
+ausente, corrompido ou stale é reparado best-effort. Locks locais têm PID e
+owner token: um PID vivo nunca sofre takeover, mesmo depois da lease. Acquire,
+refresh, release e recovery passam por um operation guard próprio, também com
+PID e token. Sob esse guard, release remove apenas seu token e recovery substitui
+um owner morto ou malformado antigo antes de liberar a exclusão; não há janela
+canônica desprotegida. Locks parciais recentes não são roubados; locks e guards
+malformados antigos, owners mortos e markers de recovery órfãos são recuperados
+por idade e ownership. O reader também reconhece o namespace temporário
+`<demo-slug>` usado durante a implantação e o fallback legado
+`.democraft/runs/<demoId>/manifest.json`; nenhum artefato é migrado ou removido.
+
+`outputDir` explícito permanece o diretório exato e não participa de `latest`.
+Ele é single-writer, invalida o manifest anterior antes da tentativa e só volta
+a ser reutilizável quando metadata e manifest concordam em um run concluído.
+`runDemo()` mantém o retorno `RecordedDemoManifest`; `captureRunId?` foi
+adicionado de forma compatível e o callback opcional `onArtifactCreated` expõe
+o path real sem persistir paths absolutos no manifest.
+
+Screenshots usam filename canônico `slug(scene)-slug(step)-digest.png` e cada
+`RecordedStep` registra `screenshotPath` relativo somente quando a escrita
+termina. Readers aplicam containment lexical e mantêm o filename antigo apenas
+como fallback read-only. Falha de screenshot produz diagnostic, não referência
+falsa. Trace só é declarado quando o arquivo foi confirmado.
 
 ## Critérios da primeira entrega
 

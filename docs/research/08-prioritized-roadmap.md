@@ -73,6 +73,18 @@ de segurança/robustez do Studio, sem política ad hoc nesta mudança.
 - AbortSignal e cleanup;
 - Studio resolve `latest completed` explicitamente.
 
+**Status:** implementado em 2026-07-15. O default cria uma execução única por
+captura com metadata v1 e promoção atômica do manifest. Falhas de launch e
+cancelamentos ficam terminais sem atualizar `latest.json`; CLI e Studio usam o
+último `completed`, com fallback legado conservador. `outputDir` explícito e o
+retorno público de `runDemo()` foram preservados.
+
+**Hardening corretivo:** namespaces incluem digest estável do ID original;
+pointer é reparável por scan validado; output explícito tem lock/lease; paths de
+screenshot são canônicos e contidos; recapture é single-flight e promove uma
+generation completa. Hardening por `realpath` contra symlinks continua na fase
+1C, separado do containment lexical já aplicado.
+
 ### Fase 1C: hardening do Studio
 
 - containment de paths e `realpath`;
@@ -133,7 +145,7 @@ Schemas podem começar em paralelo com o design do hash, mas o hash só deve ser
 | novo default de output | scripts procuram path antigo | stdout claro; `--output-file` legado |
 | definition hash | falsos stale | fixtures canônicas e campo opcional |
 | schemas strict | rejeitar artefato legado | compat mode + migrations |
-| capture history | Studio usa pasta fixa | feature flag/migration coordenada |
+| capture history | scripts procuram pasta fixa | resolver `latest completed`; fallback legado; output explícito intacto |
 | path hardening | UI usa path explícito | migrar para job ID antes de bloquear |
 
 ## Critério de “pronto para 1.0”

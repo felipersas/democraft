@@ -9,10 +9,10 @@ O projeto já possui um pipeline coerente — DSL tipada, compilação para IR, 
 Os três problemas mais urgentes são:
 
 1. **Identidade incorreta:** `DemoIR.id` é apenas o `definition.id`, embora Studio e documentação o tratem como hash de conteúdo. Uma alteração no roteiro pode reutilizar uma captura velha sem aviso.
-2. **Artefatos destrutivos:** o render padrão da CLI usa um caminho estável e sobrescreve o MP4 anterior. Capturas também reutilizam uma pasta por demo.
+2. **Artefatos destrutivos (corrigido):** renders e capturas gerenciados agora usam execuções versionadas e não sobrescrevem o resultado anterior; paths explícitos preservam o comportamento compatível.
 3. **Fronteiras sem validação:** manifestos e timelines JSON entravam por `JSON.parse(...) as Type`; a fase P1A agora adiciona contratos Zod completos e migra os readers da CLI e do Studio.
 
-As duas primeiras intervenções são deliberadamente incrementais: cada render sem `--output-file` ganha um ID único, diretório próprio, `video.mp4` e `metadata.json`; e novos artefatos separam `definitionHash` autoral, `captureHash` de compatibilidade e ID humano. O caminho explícito e a leitura de artefatos antigos continuam funcionando, mas capturas sem hash são tratadas conservadoramente como compatibilidade desconhecida. Gestão de retenção, histórico de capturas e comparação visual ficam em fases posteriores porque alteram contratos mais amplos.
+As duas primeiras intervenções são deliberadamente incrementais: cada render sem `--output-file` ganha um ID único, diretório próprio, `video.mp4` e `metadata.json`; e novos artefatos separam `definitionHash` autoral, `captureHash` de compatibilidade e ID humano. O caminho explícito e a leitura de artefatos antigos continuam funcionando, mas capturas sem hash são tratadas conservadoramente como compatibilidade desconhecida. Gestão de retenção e comparação visual ficam em fases posteriores. O histórico de capturas foi entregue na P1B com metadata terminal e resolução explícita de `latest completed`.
 
 ## Mapa dos documentos
 
@@ -40,3 +40,10 @@ estruturados; campos opcionais legados continuam legíveis. CLI e Studio validam
 os JSONs persistidos antes de preview, resolução ou render. Publicação de JSON
 Schema e limites explícitos de tamanho/contagem permanecem como fechamento da
 fase P1A.
+
+A fase P1B também está implementada: a captura padrão usa
+`.democraft/runs/<demo-slug>-<digest>/<timestamp>-<shortid>/`, grava metadata v1 e
+manifest atomicamente, aceita `AbortSignal` cooperativo e atualiza
+`latest.json` apenas depois de uma captura concluída. CLI e Studio resolvem o
+último sucesso com fallback explícito para o layout legado; `--output-dir`
+continua usando exatamente o diretório informado.

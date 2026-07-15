@@ -95,7 +95,7 @@
 
 ## Follow-up, explicitly out of scope
 
-- capture history and `latest` resolution;
+- capture history and `latest` resolution; **entregue na fase P1B**
 - definition hash and staleness migration;
 - run listing/removal/retention CLI;
 - filesystem history UI;
@@ -123,6 +123,19 @@ demo entry module, not its transitive ESM imports. No safe existing isolation
 mechanism was found in the repository, so this plan deliberately does not add
 an ad hoc loader; worker/child-process or module-graph isolation should be
 designed and tested separately.
+
+Capture lifecycle advanced in P1B: managed capture runs now have unique crypto
+IDs, versioned terminal metadata, atomic manifest writes, cooperative
+`AbortSignal`, exhaustive Playwright cleanup and an atomic `latest.json` index.
+Studio launch and recapture follow the latest completed run while retaining a
+read-only legacy fallback. Explicit capture output remains exact and does not
+silently join the managed store.
+
+The corrective pass hardened this lifecycle with raw-ID namespace digests,
+leased single-writer locks, scan-and-repair for stale pointers, canonical
+contained screenshot paths and generation-based Studio materialization. These
+changes preserve both the original legacy layout and the temporary slug-only
+layout produced during the P1B rollout.
 
 Runtime validation advanced in P1A: versioned Zod contracts and public parsers
 now cover IR, capture manifest, render timeline, render metadata, and Studio
