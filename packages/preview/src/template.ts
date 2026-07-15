@@ -2,7 +2,9 @@ import { escapeHtml, safeJson } from "./escape";
 import type { PreviewInput } from "./types";
 
 export function renderPreviewHtml(input: PreviewInput): string {
-  const videoSrc = input.videoSrc ?? input.manifest.recording?.path ?? "";
+  // Recording playback is opt-in at the caller. Falling back to the manifest
+  // here would make the legacy preview diverge from the settled-media policy.
+  const videoSrc = input.videoSrc ?? "";
   const recording = input.manifest.recording ?? { width: 1440, height: 900 };
   const screenshotSrcByStepId = input.screenshotSrcByStepId ?? {};
 

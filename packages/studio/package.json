@@ -8,6 +8,7 @@
     "build": "tsc --noEmit",
     "start": "next start",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "lint": "next lint"
   },
   "dependencies": {

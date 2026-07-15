@@ -14,10 +14,7 @@ import { loadStudioData } from "./server-data";
 import { publish } from "./event-bus";
 import { applyCaptionOverrides } from "./captions";
 import { makeId } from "./id";
-import {
-  loadScreenshotDataUris,
-  resolveRecordingFile,
-} from "./render-assets";
+import { loadScreenshotDataUris } from "./render-assets";
 import { findRemotionEntry } from "./remotion-entry";
 import path from "node:path";
 import { mkdir } from "node:fs/promises";
@@ -48,8 +45,7 @@ const jobOrder: string[] = [];
 let activeCancel: (() => void) | null = null;
 let processing = false;
 
-const RENDERS_DIR = () =>
-  path.resolve(process.cwd(), "../.democraft/renders");
+const RENDERS_DIR = () => path.resolve(process.cwd(), "../.democraft/renders");
 
 function emit(job: RenderJob): void {
   publish("render-job-update", serializeJob(job));
@@ -168,10 +164,6 @@ async function runJob(job: RenderJob): Promise<void> {
         }
       : data.timeline;
 
-  const recordingFile = await resolveRecordingFile(
-    data.dataDir,
-    data.recordingSrc,
-  );
   const screenshotSrcByStepId = await loadScreenshotDataUris(
     data.manifest,
     data.dataDir,
@@ -223,9 +215,9 @@ async function runJob(job: RenderJob): Promise<void> {
   try {
     await renderDemoVideo({
       manifest: data.manifest,
+      mediaMode: "screenshots",
       timeline,
       screenshotSrcByStepId,
-      recordingFile,
       outputFile,
       entryPath,
       width: job.options.width,

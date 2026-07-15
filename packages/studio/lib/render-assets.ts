@@ -4,20 +4,10 @@ import type { RecordedDemoManifest } from "@democraft/schema";
 import { existsFile } from "./fs";
 
 /**
- * Gathers the recording + screenshots that the Remotion renderer needs,
- * producing the same shapes the client player consumes (base64 data URIs for
- * screenshots, absolute file path for the recording). Extracted from
- * render-queue.runJob so both can be tested independently.
+ * Loads the settled screenshots consumed by the Studio render queue. Keeping
+ * this path screenshot-only makes the Studio preview and its rendered output
+ * use the same stable, post-settle media as the CLI's default render.
  */
-
-export async function resolveRecordingFile(
-  dataDir: string,
-  recordingSrc?: string,
-): Promise<string | undefined> {
-  if (!recordingSrc) return undefined;
-  const file = path.join(dataDir, "recording.webm");
-  return (await existsFile(file)) ? file : undefined;
-}
 
 export async function loadScreenshotDataUris(
   manifest: RecordedDemoManifest,

@@ -1,10 +1,14 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 import { dirname, resolve } from "node:path";
 import { compileDemo, inspectIR } from "@democraft/compiler";
 import { runDemo } from "@democraft/playwright";
 import { renderPreviewHtml } from "@democraft/preview";
-import { renderDemoVideo } from "@democraft/remotion";
+import {
+  createProductDemoVideoProps,
+  renderDemoVideo,
+  type DemoMediaMode,
+} from "@democraft/remotion";
 import { inspectTimeline, resolveTimeline } from "@democraft/timeline";
 import type { RecordedDemoManifest, RenderTimeline } from "@democraft/schema";
 import { parseArgs } from "./args";
@@ -94,19 +98,35 @@ export async function runCli(argv = process.argv.slice(2)): Promise<CliResult> {
     const outputFile =
       args.outputFile ?? `.democraft/previews/${timeline.demoId}.html`;
     const absoluteOutputFile = userResolve(outputFile);
+    const recording = await resolveRequestedRecording(
+      manifest,
+      args.useRecording,
+    );
+    if (recording.error) return fail(recording.error);
+    const mediaMode: DemoMediaMode = args.useRecording
+      ? "recording"
+      : "screenshots";
+    const screenshotSrcByStepId = buildScreenshotSources(
+      manifest,
+      args.manifestPath,
+    );
+    const previewProps = createProductDemoVideoProps({
+      manifest,
+      mediaMode,
+      recordingSrc: recording.file
+        ? pathToFileURL(recording.file).href
+        : undefined,
+      timeline,
+      screenshotSrcByStepId,
+    });
     await mkdir(dirname(absoluteOutputFile), { recursive: true });
     await writeFile(
       absoluteOutputFile,
       renderPreviewHtml({
         manifest,
         timeline,
-        videoSrc: manifest.recording?.path
-          ? pathToFileURL(resolveRecordingPath(manifest.recording.path)).href
-          : undefined,
-        screenshotSrcByStepId: buildScreenshotSources(
-          manifest,
-          args.manifestPath,
-        ),
+        videoSrc: previewProps.recordingSrc,
+        screenshotSrcByStepId,
       }),
     );
 
@@ -128,18 +148,18 @@ export async function runCli(argv = process.argv.slice(2)): Promise<CliResult> {
     ) as RenderTimeline;
     const outputFile =
       args.outputFile ?? `.democraft/renders/${timeline.demoId}.mp4`;
+    const recording = await resolveRequestedRecording(
+      manifest,
+      args.useRecording,
+    );
+    if (recording.error) return fail(recording.error);
 
     await renderDemoVideo({
       manifest,
+      mediaMode: args.useRecording ? "recording" : "screenshots",
       timeline,
       outputFile: userResolve(outputFile),
-      // Render from screenshots by default. The recording (raw browser
-      // capture) shows page-load transitions and is opt-in via --recording;
-      // screenshots show the stable post-settle state for each step.
-      recordingFile:
-        args.useRecording && manifest.recording?.path
-          ? resolveRecordingPath(manifest.recording.path)
-          : undefined,
+      recordingFile: recording.file,
       screenshotSrcByStepId: await buildScreenshotDataUrls(
         manifest,
         args.manifestPath,
@@ -248,4 +268,27 @@ export async function runCli(argv = process.argv.slice(2)): Promise<CliResult> {
       ? `${JSON.stringify(manifest, null, 2)}\n`
       : `Captured ${manifest.demoId}\nManifest: ${args.outputDir ?? `.democraft/runs/${manifest.demoId}`}/manifest.json\n`,
   );
+}
+
+async function resolveRequestedRecording(
+  manifest: RecordedDemoManifest,
+  useRecording?: boolean,
+): Promise<{ file?: string; error?: string }> {
+  if (!useRecording) return {};
+  if (!manifest.recording?.path) {
+    return {
+      error:
+        'Raw recording requested with "--recording", but the manifest has no recording path.',
+    };
+  }
+
+  const file = resolveRecordingPath(manifest.recording.path);
+  try {
+    await access(file);
+    return { file };
+  } catch {
+    return {
+      error: `Raw recording requested with "--recording", but the file was not found: ${file}`,
+    };
+  }
 }

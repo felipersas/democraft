@@ -16,6 +16,7 @@ import {
   type CaptureDimensions,
 } from "./stage";
 import { compositionId } from "./constants";
+import { createProductDemoVideoProps } from "./media";
 
 // Re-exported so existing imports (e.g. tests) keep working from this module.
 export { cameraStateAt } from "./camera";
@@ -39,28 +40,26 @@ export type ProductDemoVideoProps = {
   registry?: VisualRegistry;
 };
 
-export const defaultProductDemoProps: ProductDemoVideoProps = {
-  manifest: {
-    schemaVersion: "1",
-    demoId: "demo",
-    steps: [],
-    diagnostics: [],
-  },
-  timeline: {
-    schemaVersion: "1",
-    demoId: "demo",
-    fps: 60,
-    durationInFrames: 1,
-    scenes: [],
-    camera: [],
-    cursor: [],
-    overlays: [],
-  },
-  recordingSrc: undefined,
-  screenshotSrcByStepId: {},
-  width: 1920,
-  height: 1080,
-};
+export const defaultProductDemoProps: ProductDemoVideoProps =
+  createProductDemoVideoProps({
+    manifest: {
+      schemaVersion: "1",
+      demoId: "demo",
+      steps: [],
+      diagnostics: [],
+    },
+    timeline: {
+      schemaVersion: "1",
+      demoId: "demo",
+      fps: 60,
+      durationInFrames: 1,
+      scenes: [],
+      camera: [],
+      cursor: [],
+      overlays: [],
+    },
+    screenshotSrcByStepId: {},
+  });
 
 export function ProductDemoVideo(props: ProductDemoVideoProps) {
   const frame = useCurrentFrame();

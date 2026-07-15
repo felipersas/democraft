@@ -78,6 +78,10 @@ export function imageStyle(
     left: 0,
     width: capture.width * dsf,
     height: capture.height * dsf,
+    // Host styles such as Tailwind's `img { max-width: 100% }` must not clamp
+    // the native DPR-sized bitmap before the compensating transform runs.
+    maxWidth: "none",
+    maxHeight: "none",
     transform: `scale(${1 / dsf})`,
     transformOrigin: "0 0",
     objectFit: "contain",

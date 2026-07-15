@@ -1,8 +1,5 @@
 // --- Server-side ---
-export {
-  renderDemoVideo,
-  type RenderDemoVideoOptions,
-} from "./server";
+export { renderDemoVideo, type RenderDemoVideoOptions } from "./server";
 export { compositionId } from "./constants";
 
 // --- Client-side composition ---
@@ -11,6 +8,13 @@ export {
   defaultProductDemoProps,
   type ProductDemoVideoProps,
 } from "./composition";
+
+export {
+  createProductDemoVideoProps,
+  DEFAULT_DEMO_MEDIA_MODE,
+  type CreateProductDemoVideoPropsOptions,
+  type DemoMediaMode,
+} from "./media";
 
 // --- Stage layout ---
 export { stageLayout, type StageLayout, type CaptureDimensions } from "./stage";
@@ -30,13 +34,7 @@ export {
 } from "./overlays";
 
 // --- Registry API ---
-export {
-  defineVisualRegistry,
-  type VisualEntry,
-} from "./registry";
+export { defineVisualRegistry, type VisualEntry } from "./registry";
 
 // --- Adapters ---
-export {
-  remocnAdapter,
-  type DemocraftAdapter,
-} from "./adapters/remocn";
+export { remocnAdapter, type DemocraftAdapter } from "./adapters/remocn";

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { compositionId } from "./index";
+import {
+  compositionId,
+  createProductDemoVideoProps,
+  DEFAULT_DEMO_MEDIA_MODE,
+} from "./index";
 import { cameraStateAt, stageMediaState } from "./composition";
 import { imageStyle } from "./stage";
 import type { RenderTimeline } from "@democraft/schema";
@@ -7,6 +11,44 @@ import type { RenderTimeline } from "@democraft/schema";
 describe("remotion", () => {
   it("exposes the composition id used by the renderer", () => {
     expect(compositionId).toBe("Democraft");
+  });
+
+  it("builds screenshot-backed composition props by default", () => {
+    const props = createProductDemoVideoProps({
+      manifest: emptyManifest,
+      timeline: emptyTimeline,
+      recordingSrc: "recording.webm",
+      screenshotSrcByStepId: { step: "step.png" },
+    });
+
+    expect(DEFAULT_DEMO_MEDIA_MODE).toBe("screenshots");
+    expect(props.recordingSrc).toBeUndefined();
+    expect(props.screenshotSrcByStepId).toEqual({ step: "step.png" });
+    expect(props.width).toBe(1920);
+    expect(props.height).toBe(1080);
+  });
+
+  it("only selects a recording when explicitly requested", () => {
+    const props = createProductDemoVideoProps({
+      manifest: emptyManifest,
+      timeline: emptyTimeline,
+      mediaMode: "recording",
+      recordingSrc: "recording.webm",
+      screenshotSrcByStepId: {},
+    });
+
+    expect(props.recordingSrc).toBe("recording.webm");
+  });
+
+  it("rejects recording mode when no recording is available", () => {
+    expect(() =>
+      createProductDemoVideoProps({
+        manifest: emptyManifest,
+        timeline: emptyTimeline,
+        mediaMode: "recording",
+        screenshotSrcByStepId: {},
+      }),
+    ).toThrow("Recording mode requires a recording source");
   });
 
   it("only crossfades screenshots during explicit transition steps", () => {
@@ -94,6 +136,8 @@ describe("remotion", () => {
     expect(style.height).toBe(1800); // 900 × 2
     expect(style.transform).toBe("scale(0.5)"); // 1 / dsf → visually 1440×900
     expect(style.transformOrigin).toBe("0 0");
+    expect(style.maxWidth).toBe("none");
+    expect(style.maxHeight).toBe("none");
   });
 
   it("falls back to CSS dimensions when deviceScaleFactor is absent", () => {
@@ -102,5 +146,25 @@ describe("remotion", () => {
     expect(style.width).toBe(1440);
     expect(style.height).toBe(900);
     expect(style.transform).toBe("scale(1)");
+    expect(style.maxWidth).toBe("none");
+    expect(style.maxHeight).toBe("none");
   });
 });
+
+const emptyManifest = {
+  schemaVersion: "1" as const,
+  demoId: "demo",
+  steps: [],
+  diagnostics: [],
+};
+
+const emptyTimeline: RenderTimeline = {
+  schemaVersion: "1",
+  demoId: "demo",
+  fps: 60,
+  durationInFrames: 1,
+  scenes: [],
+  camera: [],
+  cursor: [],
+  overlays: [],
+};

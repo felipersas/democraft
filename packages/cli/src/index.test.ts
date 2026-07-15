@@ -1,8 +1,17 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
-import { afterEach, describe, expect, it } from "vitest";
+import { pathToFileURL } from "node:url";
+import { renderDemoVideo } from "@democraft/remotion";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { formatDiagnostics, parseArgs, runCli } from "./index";
+
+vi.mock("@democraft/remotion", async () => {
+  const actual = await vi.importActual<typeof import("@democraft/remotion")>(
+    "@democraft/remotion",
+  );
+  return { ...actual, renderDemoVideo: vi.fn() };
+});
 
 const tempDirs: string[] = [];
 
@@ -11,6 +20,7 @@ afterEach(async () => {
     tempDirs.map((dir) => rm(dir, { recursive: true, force: true })),
   );
   tempDirs.length = 0;
+  vi.mocked(renderDemoVideo).mockClear();
 });
 
 describe("cli", () => {
@@ -149,8 +159,99 @@ describe("cli", () => {
     const html = await readFile(outputFile, "utf8");
     expect(html).toContain("Resolved Preview");
     expect(html).toContain("<video");
+    expect(html).not.toContain('src="file:///tmp/demo.webm"');
     expect(html).toContain(
       "screenshots/intro-intro.browser-goto-dashboard.1.png",
+    );
+  });
+
+  it("uses the raw recording in preview only when requested", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "democraft-cli-"));
+    tempDirs.push(dir);
+    const recordingFile = join(dir, "recording.webm");
+    await writeFile(recordingFile, "recording");
+    const manifestPath = await writeManifestFixture(recordingFile);
+    const timelinePath = await writeTimelineFixture();
+    const outputFile = join(dir, "preview.html");
+
+    const result = await runCli([
+      "preview",
+      "--manifest",
+      manifestPath,
+      "--timeline",
+      timelinePath,
+      "--output-file",
+      outputFile,
+      "--recording",
+    ]);
+
+    expect(result.exitCode).toBe(0);
+    expect(await readFile(outputFile, "utf8")).toContain(
+      `src="${pathToFileURL(recordingFile).href}"`,
+    );
+  });
+
+  it("reports a clear error when recording mode has no source", async () => {
+    const manifestPath = await writeManifestFixture(null);
+    const timelinePath = await writeTimelineFixture();
+
+    const result = await runCli([
+      "preview",
+      "--manifest",
+      manifestPath,
+      "--timeline",
+      timelinePath,
+      "--recording",
+    ]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("manifest has no recording path");
+  });
+
+  it("renders settled screenshots by default", async () => {
+    const manifestPath = await writeManifestFixture();
+    const timelinePath = await writeTimelineFixture();
+
+    const result = await runCli([
+      "render",
+      "--manifest",
+      manifestPath,
+      "--timeline",
+      timelinePath,
+    ]);
+
+    expect(result.exitCode).toBe(0);
+    expect(vi.mocked(renderDemoVideo)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mediaMode: "screenshots",
+        recordingFile: undefined,
+      }),
+    );
+  });
+
+  it("renders from the raw recording only when requested", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "democraft-cli-"));
+    tempDirs.push(dir);
+    const recordingFile = join(dir, "recording.webm");
+    await writeFile(recordingFile, "recording");
+    const manifestPath = await writeManifestFixture(recordingFile);
+    const timelinePath = await writeTimelineFixture();
+
+    const result = await runCli([
+      "render",
+      "--manifest",
+      manifestPath,
+      "--timeline",
+      timelinePath,
+      "--recording",
+    ]);
+
+    expect(result.exitCode).toBe(0);
+    expect(vi.mocked(renderDemoVideo)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mediaMode: "recording",
+        recordingFile,
+      }),
     );
   });
 
@@ -199,10 +300,24 @@ export default defineDemo({
   return demoPath;
 }
 
-async function writeManifestFixture(): Promise<string> {
+async function writeManifestFixture(
+  recordingPath: string | null = "/tmp/demo.webm",
+): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "democraft-cli-"));
   tempDirs.push(dir);
   const manifestPath = join(dir, "manifest.json");
+  const screenshotsDir = join(dir, "screenshots");
+  await mkdir(screenshotsDir, { recursive: true });
+  await Promise.all([
+    writeFile(
+      join(screenshotsDir, "intro-intro.browser-goto-dashboard.1.png"),
+      "screenshot",
+    ),
+    writeFile(
+      join(screenshotsDir, "intro-intro.assert-visible-dashboard.2.png"),
+      "screenshot",
+    ),
+  ]);
 
   await writeFile(
     manifestPath,
@@ -210,11 +325,13 @@ async function writeManifestFixture(): Promise<string> {
       {
         schemaVersion: "1",
         demoId: "demo",
-        recording: {
-          path: "/tmp/demo.webm",
-          width: 1440,
-          height: 900,
-        },
+        recording: recordingPath
+          ? {
+              path: recordingPath,
+              width: 1440,
+              height: 900,
+            }
+          : undefined,
         steps: [
           {
             stepId: "intro.browser-goto-dashboard.1",

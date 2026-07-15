@@ -23,6 +23,19 @@ describe("preview", () => {
     expect(html).toContain("Caption text");
     expect(html).toContain("timeline =");
   });
+
+  it("does not fall back to the manifest recording", () => {
+    const html = renderPreviewHtml({
+      manifest,
+      timeline,
+      screenshotSrcByStepId: {
+        "intro.caption.1": "file:///tmp/intro-caption.png",
+      },
+    });
+
+    expect(html).not.toContain('src="/tmp/demo.webm"');
+    expect(html).toContain('id="video" src=""');
+  });
 });
 
 const manifest: RecordedDemoManifest = {

@@ -7,6 +7,13 @@ export {
   type ProductDemoVideoProps,
 } from "./composition";
 
+export {
+  createProductDemoVideoProps,
+  DEFAULT_DEMO_MEDIA_MODE,
+  type CreateProductDemoVideoPropsOptions,
+  type DemoMediaMode,
+} from "./media";
+
 export { compositionId } from "./constants";
 
 export { stageLayout, type StageLayout, type CaptureDimensions } from "./stage";
@@ -24,12 +31,6 @@ export {
   type VisualRegistry,
 } from "./overlays";
 
-export {
-  defineVisualRegistry,
-  type VisualEntry,
-} from "./registry";
+export { defineVisualRegistry, type VisualEntry } from "./registry";
 
-export {
-  remocnAdapter,
-  type DemocraftAdapter,
-} from "./adapters/remocn";
+export { remocnAdapter, type DemocraftAdapter } from "./adapters/remocn";

@@ -29,7 +29,6 @@ export async function loadStudioData(): Promise<StudioData | undefined> {
     readMeta(dir),
   ]);
   if (!manifest || !timeline) return undefined;
-  const recordingExists = await existsFile(path.join(dir, "recording.webm"));
   // Staleness requires re-compiling demo.ts, which is heavier — compute it
   // only when we have meta pointing at a demo source.
   const staleness = meta
@@ -39,7 +38,6 @@ export async function loadStudioData(): Promise<StudioData | undefined> {
     manifest,
     timeline,
     screenshotBaseUrl: "/data/screenshots",
-    recordingSrc: recordingExists ? "/data/recording.webm" : undefined,
     dataDir: dir,
     meta,
     staleness,

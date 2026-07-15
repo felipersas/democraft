@@ -1,15 +1,18 @@
 "use client";
 
 import * as React from "react";
-import { Player } from "@remotion/player";
-import { ProductDemoVideo } from "@democraft/remotion/client";
+import { Player, type PlayerRef } from "@remotion/player";
+import {
+  createProductDemoVideoProps,
+  ProductDemoVideo,
+} from "@democraft/remotion/client";
 import type { ProductDemoVideoProps } from "@democraft/remotion/client";
 import type { RenderTimeline, RecordedDemoManifest } from "@democraft/schema";
 import { useStudio } from "@/lib/studio-context";
 import { cn } from "@/lib/utils";
-import { STUDIO_WIDTH, STUDIO_HEIGHT } from "@/lib/constants";
 import { isLayerVisible } from "@/lib/layers";
 import { applyCaptionOverrides } from "@/lib/captions";
+import { fitPlayerSize } from "@/lib/player-size";
 import type { CaptionOverrides, LayerState } from "@/lib/types";
 
 export function PlayerPane() {
@@ -39,7 +42,7 @@ export function PlayerPane() {
     );
   }
 
-  const { manifest, timeline, screenshotBaseUrl, recordingSrc } = status.data;
+  const { manifest, timeline, screenshotBaseUrl } = status.data;
 
   // Memoize the derived timeline + input props so the Remotion <Player> only
   // recomputes when the editing state or source data actually changes. Without
@@ -56,7 +59,6 @@ export function PlayerPane() {
           captionOverrides,
         }),
         screenshotBaseUrl,
-        recordingSrc,
       }),
     [
       manifest,
@@ -65,34 +67,83 @@ export function PlayerPane() {
       soloLayer,
       captionOverrides,
       screenshotBaseUrl,
-      recordingSrc,
     ],
   );
 
   return (
     <div className="flex-1 grid place-items-center p-6 bg-[var(--color-bg)] overflow-hidden">
-      <div
-        className={cn(
-          "relative rounded-xl overflow-hidden shadow-2xl",
-          "shadow-black/40 ring-1 ring-[var(--color-border)]",
-        )}
-        style={{ width: "min(100%, 960px)" }}
-      >
-        <Player
-          ref={playerRef}
-          component={ProductDemoVideo}
-          inputProps={inputProps}
-          durationInFrames={timeline.durationInFrames}
-          compositionWidth={inputProps.width}
-          compositionHeight={inputProps.height}
-          fps={timeline.fps}
-          style={{ width: "100%", aspectRatio: "16 / 9" }}
-          controls={false}
-          loop={loop}
-          autoPlay
-          acknowledgeRemotionLicense
-        />
-      </div>
+      <FittedPlayer
+        playerRef={playerRef}
+        inputProps={inputProps}
+        durationInFrames={timeline.durationInFrames}
+        fps={timeline.fps}
+        loop={loop}
+      />
+    </div>
+  );
+}
+
+function FittedPlayer(props: {
+  playerRef: React.RefObject<PlayerRef | null>;
+  inputProps: ProductDemoVideoProps;
+  durationInFrames: number;
+  fps: number;
+  loop: boolean;
+}) {
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [size, setSize] = React.useState<{ width: number; height: number }>();
+
+  React.useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const updateSize = () => {
+      const bounds = container.getBoundingClientRect();
+      const next = fitPlayerSize(
+        bounds.width,
+        bounds.height,
+        props.inputProps.width,
+        props.inputProps.height,
+      );
+      setSize((current) =>
+        current?.width === next.width && current.height === next.height
+          ? current
+          : next,
+      );
+    };
+
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [props.inputProps.width, props.inputProps.height]);
+
+  return (
+    <div ref={containerRef} className="w-full h-full grid place-items-center">
+      {size ? (
+        <div
+          className={cn(
+            "relative rounded-xl overflow-hidden shadow-2xl",
+            "shadow-black/40 ring-1 ring-[var(--color-border)]",
+          )}
+          style={size}
+        >
+          <Player
+            ref={props.playerRef}
+            component={ProductDemoVideo}
+            inputProps={props.inputProps}
+            durationInFrames={props.durationInFrames}
+            compositionWidth={props.inputProps.width}
+            compositionHeight={props.inputProps.height}
+            fps={props.fps}
+            style={{ width: "100%", height: "100%" }}
+            controls={false}
+            loop={props.loop}
+            autoPlay
+            acknowledgeRemotionLicense
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -144,23 +195,16 @@ function buildInputProps(args: {
   manifest: RecordedDemoManifest;
   timeline: RenderTimeline;
   screenshotBaseUrl: string;
-  recordingSrc?: string;
 }): ProductDemoVideoProps {
   const screenshotSrcByStepId: Record<string, string> = {};
   for (const step of args.manifest.steps) {
-    screenshotSrcByStepId[step.stepId] = `${args.screenshotBaseUrl}/${step.sceneId}-${step.stepId}.png`;
+    screenshotSrcByStepId[step.stepId] =
+      `${args.screenshotBaseUrl}/${step.sceneId}-${step.stepId}.png`;
   }
-  // composition.ts wraps recordingSrc with staticFile(), which in the browser
-  // player resolves to `${origin}/${path}`. Strip leading slash so a URL like
-  // "/data/recording.webm" becomes "data/recording.webm" → resolves to
-  // `${origin}/data/recording.webm`, which our Next.js route serves.
-  const recordingSrc = args.recordingSrc?.replace(/^\//, "");
-  return {
+  return createProductDemoVideoProps({
     manifest: args.manifest,
-    recordingSrc,
+    mediaMode: "screenshots",
     timeline: args.timeline,
     screenshotSrcByStepId,
-    width: STUDIO_WIDTH,
-    height: STUDIO_HEIGHT,
-  };
+  });
 }

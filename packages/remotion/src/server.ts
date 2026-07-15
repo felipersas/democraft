@@ -10,11 +10,12 @@ import {
   type FrameRange,
   type RenderMediaOnProgress,
 } from "@remotion/renderer";
-import type {
-  RecordedDemoManifest,
-  RenderTimeline,
-} from "@democraft/schema";
-import type { ProductDemoVideoProps } from "./composition";
+import type { RecordedDemoManifest, RenderTimeline } from "@democraft/schema";
+import {
+  createProductDemoVideoProps,
+  DEFAULT_DEMO_MEDIA_MODE,
+  type DemoMediaMode,
+} from "./media";
 import { compositionId } from "./constants";
 
 export type RenderDemoVideoOptions = {
@@ -22,6 +23,7 @@ export type RenderDemoVideoOptions = {
   timeline: RenderTimeline;
   screenshotSrcByStepId: Record<string, string>;
   recordingFile?: string;
+  mediaMode?: DemoMediaMode;
   outputFile: string;
   width?: number;
   height?: number;
@@ -57,16 +59,24 @@ export type RenderDemoVideoOptions = {
 export async function renderDemoVideo(
   options: RenderDemoVideoOptions,
 ): Promise<void> {
-  const publicDir = await createRenderPublicDir(options.recordingFile);
-  const scale = options.scale ?? 1;
-  const inputProps: ProductDemoVideoProps = {
+  // Preserve the old public API: providing recordingFile was already an
+  // explicit request to render from it. New callers should pass mediaMode.
+  const mediaMode =
+    options.mediaMode ??
+    (options.recordingFile ? "recording" : DEFAULT_DEMO_MEDIA_MODE);
+  const selectedRecordingFile =
+    mediaMode === "recording" ? options.recordingFile : undefined;
+  const inputProps = createProductDemoVideoProps({
     manifest: options.manifest,
-    recordingSrc: options.recordingFile ? "recording.webm" : undefined,
+    mediaMode,
+    recordingSrc: selectedRecordingFile ? "recording.webm" : undefined,
     timeline: options.timeline,
     screenshotSrcByStepId: options.screenshotSrcByStepId,
-    width: options.width ?? 1920,
-    height: options.height ?? 1080,
-  };
+    width: options.width,
+    height: options.height,
+  });
+  const publicDir = await createRenderPublicDir(selectedRecordingFile);
+  const scale = options.scale ?? 1;
   try {
     const entryPoint =
       options.entryPath ??

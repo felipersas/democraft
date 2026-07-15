@@ -26,7 +26,6 @@ export type StudioData = {
   manifest: RecordedDemoManifest;
   timeline: RenderTimeline;
   screenshotBaseUrl: string;
-  recordingSrc?: string;
   dataDir: string;
   meta?: StudioMeta;
   staleness?: Staleness;
