@@ -64,7 +64,7 @@ Purpose: defines every JSON-serializable shape that crosses a package boundary. 
 Public API surface — split across focused files, all re-exported from `packages/schema/src/index.ts`:
 
 - `version.ts` — `schemaVersion = "1" as const` (line 1). Every persisted JSON carries this.
-- `diagnostics.ts` — `diagnosticCodes` table (lines 1-9: `MD001`..`MD105`) and the `Diagnostic` shape (lines 13-22) with optional `demoId`/`sceneId`/`stepId`/`targetId`.
+- `diagnostics.ts` — the `DCxxxx` diagnostic code table, docs URL helper, and the `Diagnostic` shape with optional demo/scene/step/target context.
 - `geometry.ts` — `BoundingBox` (line 1), `Locator` discriminated union (line 8: `role`/`label`/`testId`/`text`), `TargetDefinition` (line 14).
 - `steps.ts` — the 14 step types and the `DemoStep` union (lines 84-98, keyed on `kind`).
 - `scenes.ts` — `SceneMetadata`, `DemoSceneIR` (line 19), `DemoIR` (line 27).
@@ -94,7 +94,7 @@ Purpose: takes a `DemoDefinition` and produces a serializable `DemoIR` plus a li
 Public API surface — barrel at `packages/compiler/src/index.ts` re-exports from:
 
 - `compile.ts` — `compileDemo(definition): Promise<CompilationResult>` (line 8). Runs the author's `run({ demo })` callback against a stub `demo` object (line 14) whose `scene()` records each step, then normalizes via `normalizeScene`, then runs `validateIR`.
-- `validation.ts` — `validateIR(ir): Diagnostic[]` (line 3). Checks required fields (MD001), duplicate scene/step ids (MD002), and references to undeclared targets (MD101).
+- `validation.ts` — `validateIR(ir): Diagnostic[]`. Checks required fields (`DC001`), duplicate ids (`DC002`), targets (`DC101`, `DC106`), scenes/steps (`DC103`, `DC104`), and custom visuals (`DC107`, `DC108`).
 - `inspect.ts` — `inspectIR(ir): string` (line 3). Pretty-printer used by `democraft inspect`; the per-kind `describeStep` switch is at line 17.
 - `duration.ts` — `parseDurationMs(duration): number | null` (line 1). Accepts `250ms`, `1s`, `1.5s`.
 
@@ -113,7 +113,7 @@ Public API surface — barrel at `packages/playwright/src/index.ts` re-exports f
 - `locator.ts` — `resolveTarget(ir, page, targetId, timeoutMs)` (line 4). Exported for unit tests; tries each declared `Locator` in order and records every attempt on the snapshot. Also exports `createLocator` (line 66) and `resolveUrl` (line 79).
 - `types.ts` — `PlaywrightBindings` (line 55) and the structural types `BrowserLike`/`BrowserContextLike`/`PageLike`/`LocatorLike` (lines 18-53), the subset of the Playwright API the package consumes. Plus `RunDemoOptions` (line 11) and `RuntimeEnvironment` (line 1).
 
-Internals: `execute.ts` exports `executeStep` (line 23) — the big switch over `DemoStep["kind"]`. For `browser.click`/`fill`/`select`, `assert.*`, `camera.*`, and `overlay.callout` it first calls `resolveTarget` and stores the resulting `TargetSnapshot`. `captureStepHoldMs` (line 208) decides how long Playwright waits after each step so the screenshot matches the planned timeline duration. `diagnostics.ts` exports `targetDiagnostic` (line 3, emits `MD201`) and `unresolvedTargetDiagnostic` (line 23).
+Internals: `execute.ts` exports `executeStep` — the switch over `DemoStep["kind"]`. Targeted browser, assertion, camera, and callout steps resolve the target and store the resulting `TargetSnapshot`. `captureStepHoldMs` decides how long Playwright waits after each step so the screenshot matches the planned timeline duration. `diagnostics.ts` emits contextual `DC201` runtime failures.
 
 Dependencies: `@democraft/schema`, `playwright` (`^1.58.2`).
 

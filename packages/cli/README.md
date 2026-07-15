@@ -1,15 +1,32 @@
 # @democraft/cli
 
-Minimal CLI for inspecting, statically validating, and capturing compiled demos.
+The Democraft command-line interface.
 
 ```bash
-democraft inspect ./demos/create-project/demo.js
-democraft targets ./demos/create-project/demo.js --json
-democraft validate ./demos/create-project/demo.js --static --json
-democraft capture ./demos/create-project/demo.js --output-dir .democraft/runs/create-project
-democraft timeline ./demos/create-project/demo.js --manifest .democraft/runs/create-project/manifest.json --output-file .democraft/timelines/create-project.landscape.json
-democraft preview --manifest .democraft/runs/create-project/manifest.json --timeline .democraft/timelines/create-project.landscape.json --output-file .democraft/previews/create-project.html
-democraft render --manifest .democraft/runs/create-project/manifest.json --timeline .democraft/timelines/create-project.landscape.json --output-file .democraft/renders/create-project.mp4
+pnpm add -D @democraft/cli
 ```
 
-When running TypeScript demo files directly during development, invoke the CLI source with `tsx`.
+Common workflows are end-to-end commands:
+
+```bash
+pnpm exec democraft studio demo.ts
+pnpm exec democraft validate demo.ts
+pnpm exec democraft render demo.ts -o demo.mp4
+```
+
+The path can be omitted when exactly one `demo.ts`, `demo.tsx`, `src/demo.ts`, or `src/demo.tsx` exists:
+
+```bash
+pnpm exec democraft studio
+pnpm exec democraft render -o demo.mp4
+```
+
+Explicit artifacts remain available for CI and debugging:
+
+```bash
+pnpm exec democraft capture demo.ts
+pnpm exec democraft timeline demo.ts --manifest manifest.json --output timeline.json
+pnpm exec democraft render demo.ts --manifest manifest.json --timeline timeline.json -o demo.mp4
+```
+
+Run `pnpm exec democraft help` or `pnpm exec democraft render --help` for usage.

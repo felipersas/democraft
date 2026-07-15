@@ -19,6 +19,7 @@ import {
   parseRecordedDemoManifestJson,
   parseRenderTimelineJson,
   type RecordedDemoManifest,
+  type RenderTimeline,
 } from "@democraft/schema";
 import { parseArgs } from "./args";
 import { formatDiagnostics, formatTargets, formatTargetsJson } from "./format";
@@ -29,12 +30,16 @@ import {
   loadDemo,
   resolveRecordingPath,
 } from "./loaders";
-import { userResolve, workspaceRoot } from "./paths";
+import { resolveDemoPath, userResolve, workspaceRoot } from "./paths";
 import { launchStudio } from "./studio";
 import type { CliResult, ParsedArgs } from "./types";
 
 export async function runCli(argv = process.argv.slice(2)): Promise<CliResult> {
   const args = parseArgs(argv);
+
+  if (args.parseError) {
+    return fail(`${args.parseError}\nRun \`democraft help\` for usage.`);
+  }
 
   if (
     !args.command ||
@@ -60,15 +65,33 @@ export async function runCli(argv = process.argv.slice(2)): Promise<CliResult> {
     return fail(`Unknown command "${args.command}".\n\n${help()}`);
   }
 
+  if (args.helpRequested) return ok(help(args.command));
+
   const numericError = validateNumericArgs(args);
   if (numericError) return fail(numericError);
 
-  if (!["preview", "render"].includes(args.command) && !args.demoPath) {
-    return fail(`Missing demo module path.\n\n${help()}`);
+  if (
+    args.command === "render" &&
+    Boolean(args.manifestPath) !== Boolean(args.timelinePath)
+  ) {
+    return fail(
+      "Artifact rendering requires both --manifest and --timeline. Omit both to render directly from the demo module.",
+    );
+  }
+
+  const usesExplicitRenderArtifacts =
+    args.command === "render" && args.manifestPath && args.timelinePath;
+  const needsDemo = args.command !== "preview" && !usesExplicitRenderArtifacts;
+  let demoPath = args.demoPath;
+  if (needsDemo) {
+    try {
+      demoPath = resolveDemoPath(args.demoPath);
+    } catch (error) {
+      return fail(error instanceof Error ? error.message : String(error));
+    }
   }
 
   if (args.command === "studio") {
-    const demoPath = args.demoPath;
     if (!demoPath) {
       return fail(`Missing demo module path.\n\n${help()}`);
     }
@@ -84,10 +107,6 @@ export async function runCli(argv = process.argv.slice(2)): Promise<CliResult> {
     return ok(
       `Studio ready at ${url}\nData: ${dataDir}\nPress Ctrl+C to stop.\n`,
     );
-  }
-
-  if (args.command === "validate" && !args.staticOnly) {
-    return fail('Only static validation is implemented. Pass "--static".');
   }
 
   if (args.command === "timeline" && !args.manifestPath) {
@@ -146,101 +165,76 @@ export async function runCli(argv = process.argv.slice(2)): Promise<CliResult> {
     return ok(`Preview written to ${outputFile}\n`);
   }
 
-  if (args.command === "render") {
-    if (!args.manifestPath || !args.timelinePath) {
-      return fail(
-        'Missing render inputs. Pass "--manifest <manifest.json>" and "--timeline <timeline.json>".',
-      );
-    }
-
+  if (args.command === "render" && args.manifestPath && args.timelinePath) {
     const manifest = parseRecordedDemoManifestJson(
       await readFile(userResolve(args.manifestPath), "utf8"),
     );
     const timeline = parseRenderTimelineJson(
       await readFile(userResolve(args.timelinePath), "utf8"),
     );
-    assertCaptureCompatibility(timeline, manifest);
-    const recording = await resolveRequestedRecording(
+    return executeRender({
+      args,
+      demoPath,
       manifest,
-      args.useRecording,
-    );
-    if (recording.error) return fail(recording.error);
-
-    const mediaMode: DemoMediaMode = args.useRecording
-      ? "recording"
-      : "screenshots";
-    const usesGenericVisuals = timeline.overlays.some(
-      (overlay) => overlay.kind === "visual",
-    );
-    if (usesGenericVisuals && !args.entryPath && !args.demoPath) {
-      return fail(
-        "This timeline uses custom visual components. Pass the demo module: `democraft render <demo.ts> --manifest ... --timeline ...`.",
-      );
-    }
-    const entryPath = args.entryPath
-      ? userResolve(args.entryPath)
-      : usesGenericVisuals && args.demoPath
-        ? await materializeDemoEntry(userResolve(args.demoPath))
-        : undefined;
-    const artifact = args.outputFile
-      ? undefined
-      : await createRenderArtifact({
-          rootDirectory: resolve(workspaceRoot(), ".democraft/renders"),
-          demoId: timeline.demoId,
-          definitionHash: timeline.definitionHash ?? manifest.definitionHash,
-          captureHash: timeline.captureHash ?? manifest.captureHash,
-          captureEnvironmentHash:
-            timeline.captureEnvironmentHash ?? manifest.captureEnvironmentHash,
-          render: {
-            fps: timeline.fps,
-            durationInFrames: timeline.durationInFrames,
-            mediaMode,
-            scale: args.scale,
-            crf: args.crf,
-          },
-          source: {
-            manifestPath: userResolve(args.manifestPath),
-            timelinePath: userResolve(args.timelinePath),
-          },
-        });
-    const renderOutputFile = artifact
-      ? artifact.temporaryOutputFile
-      : userResolve(args.outputFile!);
-
-    try {
-      await renderDemoVideo({
-        manifest,
-        mediaMode,
-        timeline,
-        outputFile: renderOutputFile,
-        recordingFile: recording.file,
-        screenshotSrcByStepId: await buildScreenshotDataUrls(
-          manifest,
-          args.manifestPath,
-        ),
-        scale: args.scale,
-        crf: args.crf,
-        entryPath,
-      });
-      if (artifact) await completeRenderArtifact(artifact);
-    } catch (error) {
-      if (artifact) await failRenderArtifact(artifact, error);
-      throw error;
-    }
-
-    if (!artifact) return ok(`Render written to ${args.outputFile}\n`);
-    return ok(
-      `Render written to ${artifact.outputFile}\nRender ID: ${artifact.metadata.renderId}\nMetadata: ${artifact.metadataPath}\n`,
-    );
+      manifestPath: args.manifestPath,
+      timeline,
+      timelinePath: args.timelinePath,
+    });
   }
 
-  const demoPath = args.demoPath;
   if (!demoPath) {
     return fail(`Missing demo module path.\n\n${help()}`);
   }
 
   const demo = await loadDemo(demoPath);
   const compilation = await compileDemo(demo);
+
+  if (args.command === "render") {
+    if (
+      compilation.diagnostics.some(
+        (diagnostic) => diagnostic.severity === "error",
+      )
+    ) {
+      return {
+        exitCode: 1,
+        stdout: "",
+        stderr: `Static validation failed before render.\n${formatDiagnostics(compilation.diagnostics)}\n`,
+      };
+    }
+
+    let captureArtifact:
+      { outputDir: string; manifestPath: string } | undefined;
+    const manifest = await runDemo(compilation.ir, {
+      outputDir: args.outputDir,
+      captureRootDir: args.outputDir
+        ? undefined
+        : resolve(workspaceRoot(), ".democraft/runs"),
+      headless: args.headless,
+      onArtifactCreated: (artifact) => {
+        captureArtifact = artifact;
+      },
+    });
+    if (!captureArtifact) {
+      throw new Error(
+        "Capture completed without reporting its artifact paths.",
+      );
+    }
+
+    const timeline = resolveTimeline(compilation.ir, manifest, {
+      fps: args.fps ?? compilation.config.fps,
+    });
+    const timelinePath = resolve(captureArtifact.outputDir, "timeline.json");
+    await writeFile(timelinePath, `${JSON.stringify(timeline, null, 2)}\n`);
+
+    return executeRender({
+      args,
+      demoPath,
+      manifest,
+      manifestPath: captureArtifact.manifestPath,
+      timeline,
+      timelinePath,
+    });
+  }
 
   if (args.command === "inspect") {
     return ok(
@@ -335,6 +329,91 @@ export async function runCli(argv = process.argv.slice(2)): Promise<CliResult> {
     args.json
       ? `${JSON.stringify(manifest, null, 2)}\n`
       : `Captured ${manifest.demoId}\nCapture run ID: ${captureArtifact?.captureRunId ?? manifest.captureRunId ?? "unknown"}\nManifest: ${captureArtifact?.manifestPath ?? `${args.outputDir}/manifest.json`}\n`,
+  );
+}
+
+async function executeRender(options: {
+  args: ParsedArgs;
+  demoPath?: string;
+  manifest: RecordedDemoManifest;
+  manifestPath: string;
+  timeline: RenderTimeline;
+  timelinePath: string;
+}): Promise<CliResult> {
+  const { args, demoPath, manifest, manifestPath, timeline, timelinePath } =
+    options;
+  assertCaptureCompatibility(timeline, manifest);
+  const recording = await resolveRequestedRecording(
+    manifest,
+    args.useRecording,
+  );
+  if (recording.error) return fail(recording.error);
+
+  const mediaMode: DemoMediaMode = args.useRecording
+    ? "recording"
+    : "screenshots";
+  const usesGenericVisuals = timeline.overlays.some(
+    (overlay) => overlay.kind === "visual",
+  );
+  if (usesGenericVisuals && !args.entryPath && !demoPath) {
+    return fail(
+      "This timeline uses custom visual components. Pass the demo module: `democraft render <demo.ts> --manifest ... --timeline ...`.",
+    );
+  }
+  const entryPath = args.entryPath
+    ? userResolve(args.entryPath)
+    : usesGenericVisuals && demoPath
+      ? await materializeDemoEntry(userResolve(demoPath))
+      : undefined;
+  const artifact = args.outputFile
+    ? undefined
+    : await createRenderArtifact({
+        rootDirectory: resolve(workspaceRoot(), ".democraft/renders"),
+        demoId: timeline.demoId,
+        definitionHash: timeline.definitionHash ?? manifest.definitionHash,
+        captureHash: timeline.captureHash ?? manifest.captureHash,
+        captureEnvironmentHash:
+          timeline.captureEnvironmentHash ?? manifest.captureEnvironmentHash,
+        render: {
+          fps: timeline.fps,
+          durationInFrames: timeline.durationInFrames,
+          mediaMode,
+          scale: args.scale,
+          crf: args.crf,
+        },
+        source: {
+          manifestPath: userResolve(manifestPath),
+          timelinePath: userResolve(timelinePath),
+        },
+      });
+  const renderOutputFile = artifact
+    ? artifact.temporaryOutputFile
+    : userResolve(args.outputFile!);
+
+  try {
+    await renderDemoVideo({
+      manifest,
+      mediaMode,
+      timeline,
+      outputFile: renderOutputFile,
+      recordingFile: recording.file,
+      screenshotSrcByStepId: await buildScreenshotDataUrls(
+        manifest,
+        manifestPath,
+      ),
+      scale: args.scale,
+      crf: args.crf,
+      entryPath,
+    });
+    if (artifact) await completeRenderArtifact(artifact);
+  } catch (error) {
+    if (artifact) await failRenderArtifact(artifact, error);
+    throw error;
+  }
+
+  if (!artifact) return ok(`Render written to ${args.outputFile}\n`);
+  return ok(
+    `Render written to ${artifact.outputFile}\nRender ID: ${artifact.metadata.renderId}\nMetadata: ${artifact.metadataPath}\n`,
   );
 }
 

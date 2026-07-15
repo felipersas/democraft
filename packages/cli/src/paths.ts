@@ -8,14 +8,18 @@ import { isAbsolute, resolve, dirname } from "node:path";
  *   1. workspace-root-relative (`examples/demo-app/src/demo.ts`)
  *   2. cwd-relative (`../../examples/demo-app/src/demo.ts` — the old style)
  *
- * We try workspace root first; if that file doesn't exist, we fall back to
- * the actual cwd. For absolute paths, we return them as-is.
+ * We try the invocation directory first, then the containing workspace root
+ * for compatibility with `pnpm --filter`, which changes the process cwd.
  */
 export function userResolve(p: string): string {
   if (isAbsolute(p)) return p;
-  const fromRoot = resolve(invocationRoot(), p);
-  if (existsSync(fromRoot)) return fromRoot;
-  return resolve(process.cwd(), p);
+  const fromInvocation = resolve(invocationRoot(), p);
+  if (existsSync(fromInvocation)) return fromInvocation;
+  const detectedRoot = findWorkspaceRoot(process.cwd());
+  const fromWorkspace = detectedRoot ? resolve(detectedRoot, p) : undefined;
+  return fromWorkspace && existsSync(fromWorkspace)
+    ? fromWorkspace
+    : fromInvocation;
 }
 
 /**
@@ -26,11 +30,50 @@ export function workspaceRoot(): string {
   return invocationRoot();
 }
 
+const CONVENTIONAL_DEMO_PATHS = [
+  "demo.ts",
+  "demo.tsx",
+  "src/demo.ts",
+  "src/demo.tsx",
+] as const;
+
+/** Resolve an explicit demo path or discover one unambiguous conventional file. */
+export function resolveDemoPath(
+  explicitPath?: string,
+  root = invocationRoot(),
+): string {
+  if (explicitPath) {
+    if (isAbsolute(explicitPath)) return explicitPath;
+    const fromInvocation = resolve(root, explicitPath);
+    if (existsSync(fromInvocation)) return fromInvocation;
+    const detectedRoot = findWorkspaceRoot(root);
+    const fromWorkspace = detectedRoot
+      ? resolve(detectedRoot, explicitPath)
+      : undefined;
+    return fromWorkspace && existsSync(fromWorkspace)
+      ? fromWorkspace
+      : fromInvocation;
+  }
+
+  const matches = CONVENTIONAL_DEMO_PATHS.map((candidate) =>
+    resolve(root, candidate),
+  ).filter((candidate) => existsSync(candidate));
+
+  if (matches.length === 1) return matches[0];
+  if (matches.length > 1) {
+    throw new Error(
+      `Multiple demo modules found:\n${matches.map((match) => `  - ${match}`).join("\n")}\nPass the one to use explicitly.`,
+    );
+  }
+
+  throw new Error(
+    `No demo module found in ${root}.\nCreate demo.ts or src/demo.ts, or pass a path explicitly.`,
+  );
+}
+
 function invocationRoot(): string {
-  const detected = findWorkspaceRoot(process.cwd());
-  if (detected) return detected;
   if (process.env.INIT_CWD && process.env.INIT_CWD.trim() !== "") {
-    return process.env.INIT_CWD;
+    return resolve(process.env.INIT_CWD);
   }
   return process.cwd();
 }
@@ -45,7 +88,8 @@ function findWorkspaceRoot(start: string): string | undefined {
   for (let i = 0; i < 20; i += 1) {
     if (
       existsSync(`${dir}/pnpm-workspace.yaml`) ||
-      (existsSync(`${dir}/package.json`) && hasWorkspaces(`${dir}/package.json`))
+      (existsSync(`${dir}/package.json`) &&
+        hasWorkspaces(`${dir}/package.json`))
     ) {
       return dir;
     }

@@ -52,15 +52,13 @@ O `hold("3000ms")` mais as alocações de frames padrão para `goto`/`establish`
 
 ```bash
 # inicie seu app em :4173, depois:
-pnpm --filter @democraft/cli exec tsx src/index.ts capture ./demo.ts
-pnpm --filter @democraft/cli exec tsx src/index.ts timeline ./demo.ts
-pnpm --filter @democraft/cli exec tsx src/index.ts render ./demo.ts --output-file out.mp4
+pnpm exec democraft render ./demo.ts -o out.mp4
 ```
 
 Ou itere no Studio:
 
 ```bash
-pnpm --filter @democraft/cli exec tsx src/index.ts studio ./demo.ts
+pnpm exec democraft studio ./demo.ts
 ```
 
 ## Próximo

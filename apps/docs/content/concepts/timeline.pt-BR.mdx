@@ -81,8 +81,9 @@ Esta é a fundação do workflow de [captura única](../pipeline/captura-unica):
 O comando `timeline` da CLI resolve e escreve `timeline.json`:
 
 ```bash
-pnpm --filter @democraft/cli exec tsx src/index.ts timeline \
-  $(pwd)/examples/demo-app/src/demo.ts
+pnpm exec democraft timeline examples/demo-app/src/demo.ts \
+  --manifest .democraft/runs/example/manifest.json \
+  --output timeline.json
 ```
 
 O Studio resolve a timeline a cada mudança no `demo.ts` e atualiza a pré-visualização em tempo real.

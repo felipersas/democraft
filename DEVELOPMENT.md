@@ -76,8 +76,7 @@ pnpm --filter @democraft/example-demo-app start
 **Terminal 2 — launch the studio:**
 
 ```bash
-pnpm --filter @democraft/cli exec tsx src/index.ts studio \
-  $(pwd)/examples/demo-app/src/demo.ts
+pnpm exec democraft studio examples/demo-app/src/demo.ts
 # → Studio ready at http://localhost:3000
 ```
 
@@ -96,7 +95,7 @@ Useful flags:
 ### Capture-only (without the studio)
 
 ```bash
-cd examples/demo-app && pnpm exec tsx src/run-capture.ts
+pnpm exec democraft capture examples/demo-app/src/demo.ts
 ```
 
 This starts the demo app, runs Playwright, and writes the manifest +
@@ -108,8 +107,7 @@ Once a capture exists at `.democraft/runs/<demoId>/`, the studio opens and
 works fully (preview, edit, render) without the target app running:
 
 ```bash
-pnpm --filter @democraft/cli exec tsx src/index.ts studio \
-  $(pwd)/examples/demo-app/src/demo.ts
+pnpm exec democraft studio examples/demo-app/src/demo.ts --no-capture
 ```
 
 ## Studio data layout
@@ -129,46 +127,49 @@ The studio's data dir is overridable via `DEMOCRAFT_STUDIO_DATA` env var.
 
 ## In-studio features
 
-| Feature | How |
-|---|---|
-| **Re-capture** | Header button (camera icon) — re-runs Playwright against the running app |
-| **Re-resolve** | Automatic on `demo.ts` save, or `POST /api/resolve` |
+| Feature              | How                                                                          |
+| -------------------- | ---------------------------------------------------------------------------- |
+| **Re-capture**       | Header button (camera icon) — re-runs Playwright against the running app     |
+| **Re-resolve**       | Automatic on `demo.ts` save, or `POST /api/resolve`                          |
 | **Layer visibility** | Eye icon next to Camera/Cursor/Overlays in the timeline (shift-click = solo) |
-| **Caption editor** | Inspector panel (right side) — edits are live in the preview |
-| **Render queue** | Render panel (right side) — "Add to queue" with progress + ETA + cancel |
-| **Render range** | "Range" button in the timeline → drag In/Out handles on the ruler |
-| **Command palette** | `Cmd+K` |
-| **Shortcuts** | `?` |
+| **Caption editor**   | Inspector panel (right side) — edits are live in the preview                 |
+| **Render queue**     | Render panel (right side) — "Add to queue" with progress + ETA + cancel      |
+| **Render range**     | "Range" button in the timeline → drag In/Out handles on the ruler            |
+| **Command palette**  | `Cmd+K`                                                                      |
+| **Shortcuts**        | `?`                                                                          |
 
 ## Keyboard shortcuts
 
-| Key | Action |
-|---|---|
-| `Space` | Play / pause |
-| `←` / `→` | Previous / next frame |
-| `Shift+←` / `Shift+→` | Jump 10 frames |
-| `Home` / `End` | Go to start / end |
-| `+` / `−` / `0` | Zoom timeline in / out / fit |
-| `⌘+scroll` | Zoom timeline |
-| `⌘K` | Command palette |
-| `?` | Shortcuts overlay |
+| Key                   | Action                       |
+| --------------------- | ---------------------------- |
+| `Space`               | Play / pause                 |
+| `←` / `→`             | Previous / next frame        |
+| `Shift+←` / `Shift+→` | Jump 10 frames               |
+| `Home` / `End`        | Go to start / end            |
+| `+` / `−` / `0`       | Zoom timeline in / out / fit |
+| `⌘+scroll`            | Zoom timeline                |
+| `⌘K`                  | Command palette              |
+| `?`                   | Shortcuts overlay            |
 
 ## CLI reference
 
 ```bash
-pnpm --filter @democraft/cli exec tsx src/index.ts <command> [demo.ts] [flags]
+pnpm exec democraft <command> [demo.ts] [flags]
 ```
 
-| Command | Description |
-|---|---|
-| `inspect <demo.ts>` | Compile + print the IR (targets, scenes, steps) |
-| `validate <demo.ts> --static` | Static validation diagnostics |
-| `targets <demo.ts> --json` | List resolved targets |
-| `capture` | Run Playwright capture (via the example's run-capture script) |
-| `timeline --manifest <m.json>` | Resolve a timeline from manifest + IR |
-| `preview --manifest <m> --timeline <t>` | Generate a standalone HTML preview |
-| `render --manifest <m> --timeline <t>` | Render to MP4 via Remotion |
-| `studio <demo.ts>` | Launch the studio (preview + render) |
+| Command                                  | Description                                       |
+| ---------------------------------------- | ------------------------------------------------- |
+| `inspect <demo.ts>`                      | Compile + print the IR (targets, scenes, steps)   |
+| `validate [demo.ts]`                     | Compile and report validation diagnostics         |
+| `targets <demo.ts> --json`               | List resolved targets                             |
+| `capture [demo.ts]`                      | Capture the demo with Playwright                  |
+| `timeline [demo.ts] --manifest <m.json>` | Resolve a timeline from a capture manifest        |
+| `preview --manifest <m> --timeline <t>`  | Generate a standalone HTML preview from artifacts |
+| `render [demo.ts] -o <video.mp4>`        | Capture, resolve, and render in one command       |
+| `studio [demo.ts]`                       | Capture or reuse data and launch the Studio       |
+
+Run `pnpm exec democraft help` or `pnpm exec democraft <command> --help` for
+the complete option list. Artifact flags remain available for CI and debugging.
 
 ## Architecture overview
 

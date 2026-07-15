@@ -1,6 +1,12 @@
 # Pipeline
 
-This document walks the end-to-end pipeline from an authored `demo.ts` to a rendered MP4, with the actual CLI commands and function names you would run at each stage. For the original design narrative see `../spec/15-end-to-end-example.md`; this doc describes what the code does today.
+This document walks the end-to-end pipeline from an authored `demo.ts` to a rendered MP4. The recommended interface is one command:
+
+```bash
+democraft render demo.ts -o demo.mp4
+```
+
+The individual stages below remain public for CI, debugging, and artifact reuse. For the original design narrative see `../spec/15-end-to-end-example.md`; this doc describes what the code does today.
 
 ## Stages at a glance
 
@@ -58,8 +64,8 @@ export default defineDemo({
 `compileDemo(definition)` in `packages/compiler/src/compile.ts:8` does three things in sequence:
 
 1. **Capture.** It builds a stub `demo` object (line 14) whose `scene()` method invokes the author's run callback with a `DemoScene` proxy from `createSceneCapture` (`packages/compiler/src/capture.ts:3`). Each proxy method pushes a `CapturedStep` onto an array — no browser is touched.
-2. **Normalize.** `normalizeScene`/`normalizeStep` (`packages/compiler/src/normalize.ts:6, 22`) slug-generate step ids when the author didn't supply one, parse durations like `"1.5s"` via `parseDurationMs` (`packages/compiler/src/duration.ts:1`), and emit `MD102` diagnostics for unparseable durations.
-3. **Validate.** `validateIR(ir)` (`packages/compiler/src/validation.ts:3`) runs the static checks — required fields (MD001), duplicate scene/step ids (MD002), references to undeclared targets (MD101).
+2. **Normalize.** `normalizeScene`/`normalizeStep` slug-generate step ids when the author didn't supply one, parse durations like `"1.5s"` via `parseDurationMs`, and emit `DC102` diagnostics for unparseable durations.
+3. **Validate.** `validateIR(ir)` runs the static checks — required fields (`DC001`), duplicate scene/step ids (`DC002`), references to undeclared targets (`DC101`), and invalid target/visual data (`DC106`–`DC108`).
 
 The result is a `{ ir, diagnostics }` tuple (typed as `CompilationResult` from `packages/compiler/src/types.ts`). The IR is JSON-serializable but is not written to disk by the compiler; downstream stages either hold it in memory or re-derive it.
 
@@ -68,10 +74,10 @@ The result is a `{ ir, diagnostics }` tuple (typed as `CompilationResult` from `
 ```bash
 democraft inspect ./demos/create-project/demo.ts
 democraft inspect ./demos/create-project/demo.ts --json
-democraft validate ./demos/create-project/demo.ts --static --json
+democraft validate ./demos/create-project/demo.ts --json
 ```
 
-`validate` exits with code 1 if any diagnostic has severity `error` (`packages/cli/src/run.ts:153`). `--static` is required because no runtime validator is implemented yet (`packages/cli/src/run.ts:51`).
+`validate` exits with code 1 if any diagnostic has severity `error`. Validation compiles the TypeScript demo; the legacy `--static` flag is accepted but no longer required.
 
 ## Stage 3 — Capture (`runDemo`)
 
@@ -91,14 +97,14 @@ The CLI re-runs `compileDemo` (`packages/cli/src/run.ts:134`), refuses to procee
 5. Takes a `fullPage` screenshot per step into `screenshots/<sceneId>-<stepId>.png` (line 190).
 6. Stops the trace into `trace.zip`, closes the context, and writes `manifest.json` containing the `RecordedDemoManifest` (line 84).
 
-The manifest's `steps` array is the ground truth for everything that follows. Each `RecordedStep` (`packages/schema/src/recorded.ts:21`) carries `startedAtMs`/`endedAtMs`, the resolved `TargetSnapshot` (including `boundingBox`), and the final URL. The manifest also embeds any runtime `diagnostics` (e.g. `MD201` for an unresolved target, emitted by `targetDiagnostic` in `packages/playwright/src/diagnostics.ts:3`).
+The manifest's `steps` array is the ground truth for everything that follows. Each `RecordedStep` carries `startedAtMs`/`endedAtMs`, the resolved `TargetSnapshot` (including `boundingBox`), and the final URL. The manifest also embeds runtime diagnostics such as `DC201` for an unresolved target.
 
 ## Stage 4 — Resolve timeline (`resolveTimeline`)
 
 ```bash
 democraft timeline ./demos/create-project/demo.ts \
   --manifest .democraft/runs/create-project/manifest.json \
-  --output-file .democraft/timelines/create-project.landscape.json \
+  --output .democraft/timelines/create-project.landscape.json \
   --fps 60
 ```
 
@@ -117,7 +123,7 @@ Output: a single `RenderTimeline` JSON object with `durationInFrames`, `scenes`,
 democraft preview \
   --manifest .democraft/runs/create-project/manifest.json \
   --timeline .democraft/timelines/create-project.landscape.json \
-  --output-file .democraft/previews/create-project.html
+  --output .democraft/previews/create-project.html
 ```
 
 This skips compilation entirely (`packages/cli/src/run.ts:59`) — it just reads the two JSON files and calls `renderPreviewHtml`. The output is a self-contained HTML document that plays back frames on `requestAnimationFrame`, swapping `<img>` sources per step and overlaying target boxes, the cursor, captions, and callouts scaled to the recording dimensions. Use this for fast iteration without spinning up Remotion.
@@ -128,7 +134,7 @@ This skips compilation entirely (`packages/cli/src/run.ts:59`) — it just reads
 democraft render \
   --manifest .democraft/runs/create-project/manifest.json \
   --timeline .democraft/timelines/create-project.landscape.json \
-  --output-file .democraft/renders/create-project.mp4 \
+  --output .democraft/renders/create-project.mp4 \
   --scale 1 --crf 15
 ```
 
@@ -144,23 +150,31 @@ See `remotion-integration.md` for what happens inside the composition.
 
 ## Putting it all together
 
-A single end-to-end run looks like:
+A normal end-to-end run looks like:
+
+```bash
+# Have the target app running first.
+democraft validate ./demos/create-project/demo.ts
+democraft render ./demos/create-project/demo.ts -o demo.mp4
+```
+
+The equivalent artifact-oriented flow is:
 
 ```bash
 # 0. Have your app running on http://localhost:3000
-democraft validate ./demos/create-project/demo.ts --static
+democraft validate ./demos/create-project/demo.ts
 democraft capture  ./demos/create-project/demo.ts \
   --output-dir .democraft/runs/create-project
 democraft timeline ./demos/create-project/demo.ts \
   --manifest .democraft/runs/create-project/manifest.json \
-  --output-file .democraft/timelines/create-project.landscape.json
+  --output .democraft/timelines/create-project.landscape.json
 democraft preview \
   --manifest .democraft/runs/create-project/manifest.json \
   --timeline .democraft/timelines/create-project.landscape.json
 democraft render \
   --manifest .democraft/runs/create-project/manifest.json \
   --timeline .democraft/timelines/create-project.landscape.json \
-  --output-file .democraft/renders/create-project.mp4
+  --output .democraft/renders/create-project.mp4
 ```
 
-`preview` and `render` only read the two JSON files — they never touch the browser. That means you can iterate on camera direction, captions, and overlays (which live entirely in the IR → timeline path) without re-capturing.
+When `preview` or `render` receives both `--manifest` and `--timeline`, it only reads those artifacts and never touches the browser. Without artifact flags, `render demo.ts` performs capture and timeline resolution automatically.

@@ -12,6 +12,9 @@ importers:
         specifier: ^3.24.1
         version: 3.25.76
     devDependencies:
+      '@democraft/cli':
+        specifier: workspace:^
+        version: link:packages/cli
       '@eslint/js':
         specifier: ^9.18.0
         version: 9.39.5
@@ -151,6 +154,9 @@ importers:
       '@democraft/timeline':
         specifier: workspace:*
         version: link:../timeline
+      tsx:
+        specifier: ^4.23.0
+        version: 4.23.0
 
   packages/compiler:
     dependencies:

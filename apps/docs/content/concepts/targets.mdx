@@ -80,8 +80,7 @@ Targets encode **intent**, which is far more stable than **structure**.
 The CLI's `targets` command lists the contracts a demo uses:
 
 ```bash
-pnpm --filter @democraft/cli exec tsx src/index.ts targets \
-  $(pwd)/examples/demo-app/src/demo.ts
+pnpm exec democraft targets examples/demo-app/src/demo.ts
 ```
 
 This is useful for auditing which targets a demo depends on before a capture.

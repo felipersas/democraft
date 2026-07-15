@@ -1,76 +1,78 @@
 ---
 title: Installation
-description: Prerequisites and setup for the Democraft monorepo.
+description: Install Democraft from npm or set up the contributor workspace.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
 import { Tab, Tabs } from "fumadocs-ui/components/tabs";
 
-Democraft is a pnpm monorepo. You'll need the toolchain, the workspace packages built once, and the Playwright browser binary.
+## Use Democraft in a project
 
-## Prerequisites
+After the first npm release, install the CLI and the authoring API as development dependencies:
 
-- **Node.js** ≥ 20
-- **pnpm** ≥ 9
-- **Playwright browsers** (Chromium, installed once)
-
-<Tabs items={["pnpm (recommended)", "corepack"]}>
-  <Tab value="pnpm (recommended)">
+<Tabs items={["pnpm", "npm", "yarn"]}>
+  <Tab value="pnpm">
     ```bash
-    npm install -g pnpm@9
+    pnpm add -D @democraft/cli @democraft/core
+    pnpm exec playwright install chromium
     ```
   </Tab>
-  <Tab value="corepack">
+  <Tab value="npm">
     ```bash
-    corepack enable
-    corepack prepare pnpm@9 --activate
+    npm install --save-dev @democraft/cli @democraft/core
+    npx playwright install chromium
+    ```
+  </Tab>
+  <Tab value="yarn">
+    ```bash
+    yarn add --dev @democraft/cli @democraft/core
+    yarn playwright install chromium
     ```
   </Tab>
 </Tabs>
 
-## Clone and install
+Chromium is required for capture. Once your target app is running, validate or render a demo directly:
 
 ```bash
-git clone <repo-url> democraft
-cd democraft
-pnpm install
+pnpm exec democraft validate demo.ts
+pnpm exec democraft render demo.ts -o demo.mp4
 ```
 
-## Build the workspace packages
-
-Workspace packages (`@democraft/schema`, `@democraft/core`, `@democraft/compiler`, `@democraft/playwright`, `@democraft/timeline`, `@democraft/remotion`, `@democraft/cli`) resolve from their compiled `dist/` directories. Build them once after install:
-
-```bash
-pnpm build
-```
-
-<Callout type="info">
-`pnpm build` runs through `turbo`, which tracks the dependency graph. After editing a package's source, re-running `pnpm build` (or `pnpm typecheck`) rebuilds only what changed — and its downstream consumers.
+<Callout type="warn" title="Pre-release repository">
+The npm packages are not release-ready yet. Until the first release is completed, use the contributor setup below. In particular, the published CLI must gain a distributable Studio before `democraft studio` can work outside this monorepo.
 </Callout>
 
-## Install the Playwright browser
+## Contribute from source
+
+Prerequisites: Node.js 20 or newer and pnpm 9 or newer.
 
 ```bash
+git clone https://github.com/felipersas/democraft.git
+cd democraft
+corepack enable
+pnpm install
+pnpm build
 pnpm exec playwright install chromium
 ```
 
-This downloads the headless Chromium binary that `@democraft/playwright` drives during capture. It is only needed for **capture**, not for preview or render.
-
-## Verify the install
+Verify the workspace:
 
 ```bash
-pnpm typecheck   # typecheck every package
-pnpm test        # run the test suite
+pnpm lint
+pnpm typecheck
+pnpm test
 ```
 
-If both pass, the workspace is ready. Head to the [quickstart](./quickstart) to render your first video.
+<Callout type="info">
+Workspace packages resolve from their compiled `dist/` directories. Build once after installation; Turbo rebuilds changed dependencies on later workspace commands.
+</Callout>
 
 ## Troubleshooting
 
 <Callout type="warn" title="Workspace packages not found">
-If you see `Cannot find module '@democraft/...'`, you skipped `pnpm build`. Workspace packages are consumed from `dist/`, which does not exist until the first build. Re-run `pnpm build`.
+If source development reports `Cannot find module '@democraft/...'`, run `pnpm build` from the repository root.
 </Callout>
 
 <Callout type="warn" title="Playwright browser missing">
-If capture fails with `Executable doesn't exist`, run `pnpm exec playwright install chromium`. Preview and render do not need this — only capture.
+If capture reports `Executable doesn't exist`, run `pnpm exec playwright install chromium`.
 </Callout>

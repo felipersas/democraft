@@ -66,7 +66,7 @@ The `meta.json` written by the CLI (`launchStudio`) is the Studio's map: it poin
 
 - **Package manager:** pnpm workspaces.
 - **Task runner:** turbo. `pnpm build`, `pnpm typecheck`, `pnpm test` run across the graph, respecting dependencies.
-- **Package builds:** tsup compiles each `@democraft/*` package to `dist/` (CJS + ESM + types). Consumers resolve from `dist/`, so `pnpm build` is required once after install.
+- **Package builds:** tsup compiles each `@democraft/*` package to `dist/` (ESM + types). Workspace consumers resolve from `dist/`, so source contributors run `pnpm build` once after installing.
 - **Tests:** vitest.
 - **The Studio and docs:** Next.js apps, built with `next build`.
 

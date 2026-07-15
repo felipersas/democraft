@@ -1,12 +1,31 @@
 {
   "name": "@democraft/cli",
-  "version": "0.0.0",
+  "version": "0.1.0-beta.0",
+  "description": "Command-line interface for authoring, capturing, and rendering Democraft demos.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/felipersas/democraft.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/felipersas/democraft#readme",
+  "bugs": "https://github.com/felipersas/democraft/issues",
+  "engines": {
+    "node": ">=20"
+  },
   "type": "module",
   "bin": {
     "democraft": "./dist/index.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -14,7 +33,8 @@
     }
   },
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts",
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "prepack": "pnpm build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
@@ -25,6 +45,7 @@
     "@democraft/preview": "workspace:*",
     "@democraft/remotion": "workspace:*",
     "@democraft/schema": "workspace:*",
-    "@democraft/timeline": "workspace:*"
+    "@democraft/timeline": "workspace:*",
+    "tsx": "^4.23.0"
   }
 }

@@ -1,25 +1,47 @@
 import type { CliResult } from "./types";
 
-export function help(): string {
-  return `democraft <command> <demo-module>
+export function help(command?: string): string {
+  if (command === "render") {
+    return `democraft render [demo.ts] [options]
 
-Commands:
+Capture the demo, resolve its timeline, and render an MP4.
+
+The demo path is optional when demo.ts or src/demo.ts is unambiguous.
+
+Options:
+  -o, --output <path>    Write the MP4 to this path
+  --fps <number>         Timeline frames per second
+  --scale <number>       Render scale multiplier (default 1)
+  --crf <number>         h264 CRF (default 15, lower is better)
+  --headed               Show the browser during capture
+  --headless             Hide the browser during capture
+  --recording            Render the raw browser recording
+
+Advanced artifact mode:
+  democraft render [demo.ts] --manifest <manifest.json> --timeline <timeline.json>
+`;
+  }
+
+  return `democraft <command> [demo.ts] [options]
+
+Common workflows:
+  studio    Capture and open the interactive Studio
+  render    Capture, resolve, and render an MP4
+  validate  Validate a demo without opening a browser
+
+Other commands:
   inspect   Compile a demo and print readable inspection output
-  validate  Run static validation diagnostics
   capture   Run static validation, then execute the browser capture
   targets   List target contracts used by a demo
   timeline  Resolve a render timeline from a demo and capture manifest
-  studio    Launch the Democraft Studio (Next.js preview + render UI)
-  render    Render an MP4 from manifest and timeline
   preview   (Deprecated) Write a standalone HTML preview
 
-Flags:
-  --static             Required for validate in this milestone
+The demo path is optional when demo.ts or src/demo.ts is unambiguous.
+
+Common options:
+  -o, --output <path>  Write the generated artifact to a file
   --json               Print JSON output
   --output-dir <path>  Capture output directory
-  --manifest <path>    Capture manifest path for timeline
-  --timeline <path>    Render timeline path for preview/render
-  --output-file <path> Write generated artifact to a file
   --fps <number>       Timeline frames per second
   --scale <number>     Render scale multiplier (default 1, try 2 for sharper)
   --crf <number>       h264 CRF (default 15, lower = better quality)
@@ -27,7 +49,8 @@ Flags:
   --no-capture         Reuse existing capture for studio
   --headless           Run browser headless
   --headed             Run browser headed
-  --entry <path>       Advanced Remotion entry override (normally generated from demo.ts)
+
+Run democraft <command> --help for command details.
 `;
 }
 

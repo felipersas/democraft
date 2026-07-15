@@ -1,113 +1,109 @@
 ---
 title: Visão geral da CLI
-description: Os comandos, flags e uso da CLI democraft.
+description: Os comandos, padrões e controles avançados da CLI democraft.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
 import { Tab, Tabs } from "fumadocs-ui/components/tabs";
 
-A CLI `democraft` orquestra o pipeline. Todo comando recebe um `<demo-module>` (um caminho para um arquivo `demo.ts`) como primeiro argumento.
+A CLI `democraft` mantém o fluxo comum curto e preserva controles diretos de artefatos para CI e depuração.
+
+## Uso
+
+Instale a CLI no projeto e execute-a pelo seu gerenciador de pacotes:
+
+```bash
+pnpm add -D @democraft/cli
+pnpm exec democraft studio demo.ts
+```
+
+O caminho da demo é opcional quando o projeto contém exatamente um módulo convencional: `demo.ts`, `demo.tsx`, `src/demo.ts` ou `src/demo.tsx`.
+
+```bash
+pnpm exec democraft studio
+pnpm exec democraft validate
+pnpm exec democraft render -o demo.mp4
+```
+
+Se mais de um módulo convencional existir, passe o caminho explicitamente. A CLI nunca escolhe silenciosamente uma demo ambígua.
 
 ## Comandos
 
 | Comando | Propósito |
 |---------|-----------|
-| `inspect` | Compila uma demo e imprime saída de inspeção legível. |
-| `validate` | Roda diagnósticos de validação estática. |
-| `capture` | Valida, depois executa a captura do navegador. |
-| `targets` | Lista os contratos de alvo usados por uma demo. |
-| `timeline` | Resolve uma timeline de renderização a partir da demo e do manifest de captura. |
-| `studio` | Abre o Democraft Studio (UI Next.js de pré-visualização + renderização). |
-| `render` | Renderiza um MP4 a partir do manifest e da timeline. |
+| `studio` | Captura e abre o Studio interativo. |
+| `render` | Valida, captura, resolve a timeline e renderiza um MP4. |
+| `validate` | Roda validação estática sem abrir o navegador. |
+| `inspect` | Compila uma demo e imprime uma inspeção legível. |
+| `capture` | Valida e cria artefatos reutilizáveis do navegador. |
+| `targets` | Lista os contratos de alvo usados pela demo. |
+| `timeline` | Resolve uma timeline a partir de um manifest explícito. |
 | `preview` | *(Depreciado)* Escreve uma pré-visualização HTML autônoma. |
 
-## Uso
+## Fluxos comuns
 
-A partir da raiz do repo, invoque via pnpm filter + tsx:
-
-```bash
-pnpm --filter @democraft/cli exec tsx src/index.ts <command> <demo-module> [flags]
-```
-
-Por exemplo, para abrir o Studio contra o exemplo demo-app:
-
-```bash
-pnpm --filter @democraft/cli exec tsx src/index.ts studio \
-  $(pwd)/examples/demo-app/src/demo.ts
-```
-
-## Flags
-
-### Flags globais
-
-| Flag | Efeito |
-|------|--------|
-| `--json` | Imprime saída JSON (para `inspect`, `validate`, `targets`). |
-| `--static` | Obrigatório para `validate` neste milestone (sem navegador). |
-| `--headed` / `--headless` | Roda o navegador visível ou headless. |
-
-### Flags de captura / studio
-
-| Flag | Efeito |
-|------|--------|
-| `--output-dir <path>` | Diretório de saída da captura. |
-| `--no-capture` | Studio: reutiliza captura existente, falha se não houver. |
-| `--port <number>` | Porta do dev server do Studio (padrão 3000). |
-
-### Flags de timeline / renderização
-
-| Flag | Efeito |
-|------|--------|
-| `--manifest <path>` | Caminho do manifest de captura para `timeline`. |
-| `--timeline <path>` | Caminho da timeline de renderização para `render`. |
-| `--fps <number>` | Frames por segundo da timeline. |
-| `--output-file <path>` | Escreve o artefato gerado em um arquivo (`render`). |
-| `--scale <number>` | Multiplicador de escala de renderização (padrão 1, tente 2 para mais nítido). |
-| `--crf <number>` | CRF h264 (padrão 15, menor = melhor qualidade). |
-
-## Workflows típicos
-
-<Tabs items={["Iteração no Studio", "Renderização headless"]}>
-  <Tab value="Iteração no Studio">
+<Tabs items={["Studio", "Render headless", "Script do pacote"]}>
+  <Tab value="Studio">
     ```bash
-    # 1. inicie o app-alvo
-    pnpm --filter @democraft/example-demo-app start
-
-    # 2. abra o Studio (captura na primeira vez, reutiliza depois)
-    pnpm --filter @democraft/cli exec tsx src/index.ts studio \
-      $(pwd)/examples/demo-app/src/demo.ts
+    pnpm exec democraft studio demo.ts
     ```
+
+    O Studio captura quando necessário e reúne pré-visualização, edição da timeline e renderização em uma UI.
   </Tab>
-  <Tab value="Renderização headless">
+  <Tab value="Render headless">
     ```bash
-    # capturar (precisa do app rodando)
-    pnpm --filter @democraft/cli exec tsx src/index.ts capture \
-      $(pwd)/examples/demo-app/src/demo.ts
-
-    # resolver timeline (sem app)
-    pnpm --filter @democraft/cli exec tsx src/index.ts timeline \
-      $(pwd)/examples/demo-app/src/demo.ts
-
-    # renderizar (sem app)
-    pnpm --filter @democraft/cli exec tsx src/index.ts render \
-      $(pwd)/examples/demo-app/src/demo.ts \
-      --output-file out.mp4
+    pnpm exec democraft render demo.ts -o demo.mp4
     ```
+
+    Este único comando executa validação, captura, resolução da timeline e renderização. O app-alvo precisa estar rodando durante a captura.
+  </Tab>
+  <Tab value="Script do pacote">
+    ```json
+    {
+      "scripts": {
+        "demo": "democraft studio demo.ts",
+        "demo:render": "democraft render demo.ts -o demo.mp4"
+      }
+    }
+    ```
+
+    Scripts do pacote podem chamar diretamente o binário `democraft` local.
   </Tab>
 </Tabs>
 
-## Inspeção estática (sem navegador)
+## Opções
 
-`inspect` e `validate --static` nunca tocam em um navegador. Eles compilam a demo para IR e rodam diagnósticos. Use-os em editores e CI para capturar erros antes da captura:
+| Opção | Efeito |
+|-------|--------|
+| `-o, --output <path>` | Escreve o artefato no caminho escolhido. |
+| `--json` | Imprime saída estruturada nos comandos de inspeção suportados. |
+| `--headed` / `--headless` | Mostra ou oculta o navegador durante a captura. |
+| `--output-dir <path>` | Usa um diretório de captura explícito. |
+| `--fps <number>` | Sobrescreve os frames por segundo da timeline. |
+| `--scale <number>` | Define a escala do render (padrão 1). |
+| `--crf <number>` | Define a qualidade h264 (padrão 15, menor é melhor). |
+| `--port <number>` | Define a porta do Studio (padrão 3000). |
+| `--no-capture` | Apenas Studio: exige uma captura existente compatível. |
+
+`--output-file` continua disponível como alias retrocompatível de `--output`.
+
+## Modo avançado por artefatos
+
+Use artefatos explícitos quando um job de CI separa captura, resolução da timeline e renderização:
 
 ```bash
-pnpm --filter @democraft/cli exec tsx src/index.ts inspect \
-  $(pwd)/examples/demo-app/src/demo.ts --static
-
-pnpm --filter @democraft/cli exec tsx src/index.ts validate \
-  $(pwd)/examples/demo-app/src/demo.ts --static
+pnpm exec democraft capture demo.ts
+pnpm exec democraft timeline demo.ts \
+  --manifest .democraft/runs/example/manifest.json \
+  --output timeline.json
+pnpm exec democraft render demo.ts \
+  --manifest .democraft/runs/example/manifest.json \
+  --timeline timeline.json \
+  -o demo.mp4
 ```
 
+`--manifest` e `--timeline` devem ser fornecidos juntos no render por artefatos. `--entry` continua como override avançado do entry do Remotion; componentes visuais normais são carregados automaticamente do `demo.ts`.
+
 <Callout type="info">
-A CLI é o orquestrador de referência. O Studio reutiliza as mesmas funções de estágio (compile, capture, resolve, render) in-process — eles compartilham código, então o comportamento é idêntico.
+Opções desconhecidas, valores ausentes, argumentos posicionais extras e módulos de demo ambíguos falham antes de iniciar captura ou renderização. Use `democraft render --help` para orientação específica do comando.
 </Callout>

@@ -33,8 +33,7 @@ O app-alvo só é necessário na **primeira** vez, para a captura. Depois disso,
 O Studio é um app Next.js que pré-visualiza, edita e renderiza. Ele é aberto pela CLI, que grava um `meta.json` para que o Studio saiba onde estão a demo e suas capturas.
 
 ```bash title="Terminal 2"
-pnpm --filter @democraft/cli exec tsx src/index.ts studio \
-  $(pwd)/examples/demo-app/src/demo.ts
+pnpm exec democraft studio examples/demo-app/src/demo.ts
 ```
 
 O primeiro lançamento roda o Playwright contra `:4173` e captura. Ao terminar, o Studio abre em `http://localhost:3000` mostrando a timeline capturada.
@@ -48,24 +47,18 @@ O primeiro lançamento roda o Playwright contra `:4173` e captura. Ao terminar, 
 
 ## Renderizar pela CLI
 
-Para renderizar sem o Studio, use o comando `render` da CLI. Ele lê um manifest capturado e uma timeline resolvida:
+Para renderizar sem o Studio, use o comando end-to-end `render` da CLI:
 
 ```bash
-pnpm --filter @democraft/cli exec tsx src/index.ts capture \
-  $(pwd)/examples/demo-app/src/demo.ts
-
-pnpm --filter @democraft/cli exec tsx src/index.ts timeline \
-  $(pwd)/examples/demo-app/src/demo.ts
-
-pnpm --filter @democraft/cli exec tsx src/index.ts render \
-  $(pwd)/examples/demo-app/src/demo.ts \
-  --output-file out.mp4
+pnpm exec democraft render examples/demo-app/src/demo.ts -o out.mp4
 ```
+
+O comando valida, captura, resolve a timeline e renderiza. Os artefatos intermediários continuam disponíveis em `.democraft/`, sem virarem argumentos obrigatórios da CLI.
 
 <Tabs items={["Flags comuns", "Qualidade"]}>
   <Tab value="Flags comuns">
     ```bash
-    --output-file <path>   # onde escrever o MP4
+    -o, --output <path>    # onde escrever o MP4
     --fps <number>         # frames por segundo (timeline)
     --scale <number>       # escala de renderização (tente 2 para saída mais nítida)
     --crf <number>         # qualidade h264 (padrão 15, menor = melhor)
@@ -77,9 +70,8 @@ pnpm --filter @democraft/cli exec tsx src/index.ts render \
     Para um vídeo mais nítido, aumente a escala de renderização e diminua o CRF:
 
     ```bash
-    pnpm --filter @democraft/cli exec tsx src/index.ts render \
-      $(pwd)/examples/demo-app/src/demo.ts \
-      --output-file out.mp4 \
+    pnpm exec democraft render examples/demo-app/src/demo.ts \
+      -o out.mp4 \
       --scale 2 \
       --crf 12
     ```
@@ -91,11 +83,8 @@ pnpm --filter @democraft/cli exec tsx src/index.ts render \
 Antes de capturar, você pode inspecionar ou validar estaticamente uma demo sem navegador:
 
 ```bash
-pnpm --filter @democraft/cli exec tsx src/index.ts inspect \
-  $(pwd)/examples/demo-app/src/demo.ts --static
-
-pnpm --filter @democraft/cli exec tsx src/index.ts validate \
-  $(pwd)/examples/demo-app/src/demo.ts --static
+pnpm exec democraft inspect examples/demo-app/src/demo.ts
+pnpm exec democraft validate examples/demo-app/src/demo.ts
 ```
 
 `inspect` imprime um resumo legível do IR compilado. `validate` roda os diagnósticos (`DC001`–`DC105`) e relata quaisquer problemas.

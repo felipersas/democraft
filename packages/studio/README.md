@@ -5,10 +5,11 @@ Local Next.js app that previews and renders Democraft compositions. The CLI's `s
 ## Run via CLI
 
 ```bash
-pnpm --filter @democraft/cli exec tsx src/index.ts studio ../../examples/basic-demo/src/demo.ts
+pnpm exec democraft studio examples/basic-demo/src/demo.ts
 ```
 
 The CLI:
+
 1. Compiles the demo (`compileDemo`)
 2. Captures via Playwright (`runDemo`)
 3. Resolves the timeline (`resolveTimeline`)
@@ -25,11 +26,11 @@ The server reads from `../.democraft/studio-data/` by default. Override with the
 
 ## Keyboard shortcuts
 
-| Key | Action |
-|---|---|
-| `space` | Play / pause |
-| `←` / `→` | Step one frame (hold `shift` for 10) |
-| `home` / `end` | Jump to start / end |
+| Key            | Action                               |
+| -------------- | ------------------------------------ |
+| `space`        | Play / pause                         |
+| `←` / `→`      | Step one frame (hold `shift` for 10) |
+| `home` / `end` | Jump to start / end                  |
 
 ## Architecture
 

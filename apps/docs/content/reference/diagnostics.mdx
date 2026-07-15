@@ -9,7 +9,7 @@ Democraft emits stable `DCxxxx` diagnostics during static validation and live ca
 
 ## How diagnostics surface
 
-- **CLI:** `democraft validate <demo> --static` prints them to stderr. Add `--json` for machine-readable output.
+- **CLI:** `democraft validate <demo>` prints them to stderr. Add `--json` for machine-readable output.
 - **Studio:** the staleness badge and capture progress surface validation failures inline.
 - **Capture:** assertion failures (`assert.visible`, `assert.text`, `assert.url`) and unresolvable targets produce diagnostics that fail the capture.
 
@@ -44,12 +44,14 @@ A diagnostic has:
 - `DC104`: invalid step.
 - `DC105`: unknown visual renderer.
 - `DC106`: invalid target or locator list.
+- `DC107`: unknown custom visual reference.
+- `DC108`: custom visual props are not JSON-serializable.
 - `DC201`: browser execution, assertion, target resolution, or screenshot failure.
 
 <Callout type="info">
-The full code list lives in `packages/schema/src/diagnostics.ts`. Codes are stable across versions — a diagnostic that emits `DC042` today will emit `DC042` after an upgrade. New codes are only appended, never reused.
+The canonical codes and their producers live in `packages/schema/src/diagnostics.ts`, `packages/compiler/src/validation.ts`, and `packages/playwright/src/diagnostics.ts`. Once a code is released, it must not be repurposed for a different failure.
 </Callout>
 
 ## For AI agents
 
-When generating a `demo.ts`, run `democraft validate <demo> --static` and fix every diagnostic before attempting a capture. The static pass catches structural issues (unknown target names, malformed steps, bad durations) without needing the target app — so it is cheap to iterate against.
+When generating a `demo.ts`, run `democraft validate <demo>` and fix every diagnostic before attempting a capture. The static pass catches structural issues (unknown target names, malformed steps, bad durations) without needing the target app — so it is cheap to iterate against.

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-import { pathToFileURL } from "node:url";
+import { realpathSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { parseArgs } from "./args";
 import { formatDiagnostics } from "./format";
 import { runCli } from "./run";
@@ -8,10 +9,7 @@ import type { CliResult } from "./types";
 export type { CliResult };
 export { parseArgs, formatDiagnostics, runCli };
 
-if (
-  process.argv[1] &&
-  import.meta.url === pathToFileURL(process.argv[1]).href
-) {
+if (isDirectInvocation()) {
   runCli()
     .then((result) => {
       if (result.stdout) process.stdout.write(result.stdout);
@@ -24,4 +22,15 @@ if (
       );
       process.exitCode = 1;
     });
+}
+
+function isDirectInvocation(): boolean {
+  if (!process.argv[1]) return false;
+  try {
+    const invokedPath = realpathSync(process.argv[1]);
+    const modulePath = realpathSync(fileURLToPath(import.meta.url));
+    return invokedPath === modulePath;
+  } catch {
+    return false;
+  }
 }

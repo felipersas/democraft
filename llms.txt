@@ -1,17 +1,20 @@
 # Democraft
 
-Democraft turns real product workflows into rendered Remotion videos.
+Democraft turns real browser workflows into deterministic Remotion videos. A
+human developer and an LLM author the same TypeScript API; there is no separate
+agent format.
 
-Core packages:
+## Public packages
 
-- `@democraft/core`: TypeScript authoring API.
-- `@democraft/compiler`: compiles demos into JSON-compatible IR.
-- `@democraft/playwright`: executes browser workflows and records manifests.
-- `@democraft/timeline`: resolves render timelines from IR and manifests.
-- `@democraft/remotion`: renders videos from timelines.
-- `@democraft/cli`: agent-friendly inspection, validation, capture, preview, and render commands.
+- `@democraft/core`: authoring API, targets, locators, and custom visuals.
+- `@democraft/compiler`: compilation, validation, and readable inspection.
+- `@democraft/playwright`: browser capture and recorded manifests.
+- `@democraft/timeline`: frame-accurate timeline resolution.
+- `@democraft/remotion`: React composition and MP4 rendering.
+- `@democraft/schema`: portable artifact types and `DCxxxx` diagnostics.
+- `@democraft/cli`: the `democraft` command.
 
-Authoring pattern:
+## Minimal authoring pattern
 
 ```ts
 import { byTestId, defineDemo, defineTargets } from "@democraft/core";
@@ -21,44 +24,93 @@ const targets = defineTargets({
 });
 
 export default defineDemo({
-  id: "create-project",
-  title: "Create Project",
+  id: "dashboard-tour",
+  title: "Dashboard tour",
   source: { baseUrl: "http://localhost:3000" },
   targets,
   async run({ demo }) {
     await demo.scene("intro", async (scene) => {
       await scene.goto("/dashboard");
       await scene.expectVisible("dashboard");
+      await scene.establish("dashboard");
+      await scene.caption("Everything you need, at a glance.");
     });
   },
 });
 ```
 
-Agent workflow:
+Keep a demo self-contained unless shared targets or visual components genuinely
+benefit from another file.
+
+## Preferred CLI workflow
+
+The demo path is optional when `demo.ts`, `demo.tsx`, `src/demo.ts`, or
+`src/demo.tsx` is unambiguous.
 
 ```bash
-democraft targets ./demos/create-project/demo.ts --json
-democraft inspect ./demos/create-project/demo.ts --json
-democraft validate ./demos/create-project/demo.ts --static --json
-democraft capture ./demos/create-project/demo.ts --output-dir .democraft/runs/create-project
-democraft timeline ./demos/create-project/demo.ts --manifest .democraft/runs/create-project/manifest.json --output-file .democraft/timelines/create-project.landscape.json
-democraft preview --manifest .democraft/runs/create-project/manifest.json --timeline .democraft/timelines/create-project.landscape.json --output-file .democraft/previews/create-project.html
-democraft render --manifest .democraft/runs/create-project/manifest.json --timeline .democraft/timelines/create-project.landscape.json --output-file .democraft/renders/create-project.mp4
+pnpm exec democraft validate demo.ts
+pnpm exec democraft inspect demo.ts --json
+pnpm exec democraft targets demo.ts --json
+pnpm exec democraft render demo.ts -o demo.mp4
+pnpm exec democraft studio demo.ts
 ```
 
-Remocn integration:
-
-Remocn components are copied into the user's project with shadcn, for example:
+Use individual artifact stages only for CI, debugging, or deliberate reuse:
 
 ```bash
-pnpm dlx shadcn@latest add @remocn/soft-blur-in
+pnpm exec democraft capture demo.ts --output-dir .democraft/runs/dashboard-tour
+pnpm exec democraft timeline demo.ts \
+  --manifest .democraft/runs/dashboard-tour/manifest.json \
+  -o .democraft/timelines/dashboard-tour.json
+pnpm exec democraft render demo.ts \
+  --manifest .democraft/runs/dashboard-tour/manifest.json \
+  --timeline .democraft/timelines/dashboard-tour.json \
+  -o demo.mp4
 ```
 
-The renderer should map semantic renderer IDs to copied Remocn components through a visual registry. Demo source should reference portable IDs such as `renderer: "remocn.soft-blur-in"` instead of importing Remocn components directly.
+## Custom visual components
 
-Guardrails:
+Declare React/Remotion-compatible components in the same demo module. Props and
+visual IDs are inferred by TypeScript.
 
-- Keep target IDs stable.
-- Prefer literal locators from `defineTargets()`.
-- Run `validate --static --json` before capture.
-- Use structured diagnostics to repair target IDs, locators, durations, and renderer IDs.
+```ts
+import { defineDemo, defineVisual } from "@democraft/core";
+import { LaunchTitle } from "./launch-title";
+
+export default defineDemo({
+  id: "launch",
+  title: "Launch",
+  source: { baseUrl: "http://localhost:3000" },
+  visuals: {
+    "local.launch-title": defineVisual(LaunchTitle),
+  },
+  async run({ demo }) {
+    await demo.scene("intro", async (scene) => {
+      await scene.visual("local.launch-title", { title: "New analytics" });
+    });
+  },
+});
+```
+
+Components may be local or copied from a shadcn-style registry such as remocn.
+The user owns the copied source. A custom Remotion entry is only for replacing
+the whole composition or other advanced renderer behavior.
+
+## Agent rules
+
+1. Prefer semantic target IDs and resilient locators: role, label, test ID, text.
+2. Run `validate` before capture or render and repair every error diagnostic.
+3. Prefer the high-level `render` and `studio` commands over manual pipelines.
+4. Use `--json` for machine-readable inspection, target lists, and diagnostics.
+5. Treat `.democraft/` as generated artifacts, never as authoring source.
+6. Presentation-only changes can reuse capture; changed browser actions or
+   locators require a new capture.
+7. Do not hand-author Demo IR. Author `demo.ts`; the compiler owns the IR.
+
+## More context
+
+- `README.md`: product overview and source quickstart.
+- `apps/docs/content/sdk/overview.mdx`: authoring API.
+- `apps/docs/content/cli/overview.mdx`: CLI reference.
+- `apps/docs/content/concepts/components.mdx`: user-owned visual components.
+- `docs/architecture/pipeline.md`: artifact pipeline internals.

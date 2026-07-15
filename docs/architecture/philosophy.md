@@ -25,7 +25,7 @@ Proof:
 - `packages/schema/src/schemas.ts` exports Zod schemas for the input side — `locatorSchema` (line 5), `targetDefinitionSchema` (line 16), `diagnosticSchema` (line 28). The schema package is the canonical contract for what the IR looks like — `../spec/13-system-architecture.md` calls this the "portable contract."
 - The CLI persists IR-adjacent artifacts at three points: `manifest.json` is written by `runDemoWithBindings` (`packages/playwright/src/runner.ts:100`), the timeline JSON is written by the CLI's `timeline` command (`packages/cli/src/run.ts:195`), and the rendered MP4 is written by `renderMedia` inside `renderDemoVideo` (`packages/remotion/src/index.ts:56`). The compiler's IR itself is not persisted today, but the JSON shape is what makes that a trivial future addition.
 
-Concretely: the framework is structured so that an LLM (or visual editor) could emit either `demo.ts` or `demo.ir.json` and the downstream pipeline would not be able to tell the difference. That symmetry is the design payoff.
+Concretely: humans and LLMs author the same small TypeScript API. The compiler turns it into portable JSON-compatible internal artifacts for capture, timeline resolution, Studio, and rendering. A public `demo.ir.json` authoring entry point does not exist today.
 
 ## 3. Capture is the truth, render is the staging
 
@@ -38,4 +38,4 @@ Proof:
 - Camera tracks (`packages/schema/src/timeline.ts:22-31`) carry the recorded `boundingBox` so the renderer can frame what was actually on screen, not what the author intended to be on screen. `cameraTarget` (`packages/remotion/src/camera.ts:60`) reads `track.boundingBox` to compute focus; if the bounding box is missing the camera falls back to identity.
 - Cursor tracks (`packages/schema/src/timeline.ts:33-45`) carry the recorded `point` — the center of the actual clicked element (`packages/timeline/src/resolve.ts:186`). If the click target was off-screen or unresolved, no cursor is rendered.
 
-This split is also why `democraft preview` and `democraft render` only need `manifest.json` + `timeline.json` (`packages/cli/src/index.ts:72-139`). Once the truth is captured, the renderer never needs to ask the browser another question. Re-rendering after a caption or camera tweak is a single command, never a re-capture.
+This split is also why artifact-mode `democraft preview` and `democraft render` only need `manifest.json` + `timeline.json`. Once the truth is captured, the renderer never needs to ask the browser another question. The high-level `democraft render demo.ts -o demo.mp4` command orchestrates capture, resolution, and rendering for convenience; passing both artifacts reuses the existing capture.

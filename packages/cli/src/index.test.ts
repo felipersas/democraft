@@ -6,6 +6,7 @@ import { renderDemoVideo } from "@democraft/remotion";
 import { runDemo } from "@democraft/playwright";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { formatDiagnostics, parseArgs, runCli } from "./index";
+import { resolveDemoPath } from "./paths";
 import {
   captureActionForCompatibility,
   studioDevServerArgs,
@@ -38,7 +39,13 @@ beforeEach(() => {
   });
   vi.mocked(runDemo).mockImplementation(async (ir, options) => {
     const outputDir =
-      options?.outputDir ?? "/workspace/.democraft/runs/demo/run";
+      options?.outputDir ??
+      (options?.captureRootDir
+        ? join(options.captureRootDir, "demo", "run")
+        : "/workspace/.democraft/runs/demo/run");
+    if (options?.captureRootDir) {
+      await mkdir(join(outputDir, "screenshots"), { recursive: true });
+    }
     await options?.onArtifactCreated?.({
       captureRunId: "demo-2026-07-15-abcdef",
       outputDir,
@@ -113,8 +120,112 @@ describe("cli", () => {
     });
   });
 
+  it.each(["--output", "-o"])("accepts %s as an output alias", (flag) => {
+    expect(parseArgs(["render", "./demo.ts", flag, "video.mp4"])).toMatchObject(
+      {
+        outputFile: "video.mp4",
+        parseError: undefined,
+      },
+    );
+  });
+
+  it("accepts the demo path after options", () => {
+    expect(
+      parseArgs(["render", "--headless", "-o", "video.mp4", "./demo.ts"]),
+    ).toMatchObject({
+      demoPath: "./demo.ts",
+      headless: true,
+      outputFile: "video.mp4",
+      parseError: undefined,
+    });
+  });
+
+  it.each([
+    [["render", "demo.ts", "--wat"], 'Unknown option "--wat".'],
+    [
+      ["render", "demo.ts", "--output", "--json"],
+      'Missing value for "--output".',
+    ],
+    [["render", "demo.ts", "extra.ts"], 'Unexpected argument "extra.ts".'],
+  ])("reports invalid arguments", (argv, message) => {
+    expect(parseArgs(argv)).toMatchObject({ parseError: message });
+  });
+
+  it("rejects invalid arguments before running a command", async () => {
+    const result = await runCli(["render", "demo.ts", "--wat"]);
+
+    expect(result).toMatchObject({
+      exitCode: 1,
+      stderr: 'Unknown option "--wat".\nRun `democraft help` for usage.',
+    });
+    expect(runDemo).not.toHaveBeenCalled();
+    expect(renderDemoVideo).not.toHaveBeenCalled();
+  });
+
+  it("shows help after a command without discovering a demo", async () => {
+    const result = await runCli(["render", "--help"]);
+
+    expect(result).toMatchObject({
+      exitCode: 0,
+      stdout: expect.stringContaining("democraft render [demo.ts]"),
+    });
+    expect(runDemo).not.toHaveBeenCalled();
+    expect(renderDemoVideo).not.toHaveBeenCalled();
+  });
+
   it("formats empty diagnostics", () => {
     expect(formatDiagnostics([])).toBe("No diagnostics.");
+  });
+
+  it.each(["demo.ts", "src/demo.ts"])(
+    "discovers the conventional %s module",
+    async (relativePath) => {
+      const root = await mkdtemp(join(tmpdir(), "democraft-discovery-"));
+      tempDirs.push(root);
+      const demoPath = join(root, relativePath);
+      await mkdir(dirname(demoPath), { recursive: true });
+      await writeFile(demoPath, "export default {};");
+
+      expect(resolveDemoPath(undefined, root)).toBe(demoPath);
+    },
+  );
+
+  it("explains when no conventional demo module exists", async () => {
+    const root = await mkdtemp(join(tmpdir(), "democraft-discovery-"));
+    tempDirs.push(root);
+
+    expect(() => resolveDemoPath(undefined, root)).toThrow(
+      "No demo module found",
+    );
+  });
+
+  it("requires an explicit path when demo discovery is ambiguous", async () => {
+    const root = await mkdtemp(join(tmpdir(), "democraft-discovery-"));
+    tempDirs.push(root);
+    await mkdir(join(root, "src"));
+    await Promise.all([
+      writeFile(join(root, "demo.ts"), "export default {};"),
+      writeFile(join(root, "src/demo.ts"), "export default {};"),
+    ]);
+
+    expect(() => resolveDemoPath(undefined, root)).toThrow(
+      "Multiple demo modules found",
+    );
+  });
+
+  it("discovers from the invoked package instead of the monorepo root", async () => {
+    const root = await mkdtemp(join(tmpdir(), "democraft-monorepo-"));
+    const app = join(root, "apps", "demo-app");
+    tempDirs.push(root);
+    await mkdir(app, { recursive: true });
+    await Promise.all([
+      writeFile(join(root, "pnpm-workspace.yaml"), "packages: ['apps/*']\n"),
+      writeFile(join(app, "demo.ts"), "export default {};"),
+    ]);
+
+    await withTemporaryInvocationRoot(async () => {
+      expect(resolveDemoPath()).toBe(join(app, "demo.ts"));
+    }, app);
   });
 
   it("formats diagnostic paths and repair suggestions", () => {
@@ -205,13 +316,30 @@ describe("cli", () => {
     });
   });
 
-  it("requires static validation mode", async () => {
+  it("uses static validation by default", async () => {
     const demoPath = await writeDemoFixture();
 
     const result = await runCli(["validate", demoPath]);
 
-    expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain("--static");
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toBe("No diagnostics.\n");
+  });
+
+  it("discovers and loads a TypeScript demo without a path", async () => {
+    const sourceDemo = await writeDemoFixture();
+    const root = await mkdtemp(join(tmpdir(), "democraft-cli-project-"));
+    tempDirs.push(root);
+    await writeFile(join(root, "demo.ts"), await readFile(sourceDemo, "utf8"));
+
+    const result = await withTemporaryInvocationRoot(
+      () => runCli(["validate"]),
+      root,
+    );
+
+    expect(result).toMatchObject({
+      exitCode: 0,
+      stdout: "No diagnostics.\n",
+    });
   });
 
   it.each([
@@ -457,6 +585,40 @@ describe("cli", () => {
     );
   });
 
+  it("captures, resolves, and renders from one demo command", async () => {
+    const demoPath = await writeDemoFixture();
+
+    await withTemporaryInvocationRoot(async () => {
+      const outputFile = join(process.cwd(), "demo.mp4");
+      const result = await runCli(["render", demoPath, "-o", outputFile]);
+
+      expect(result).toMatchObject({
+        exitCode: 0,
+        stdout: `Render written to ${outputFile}\n`,
+      });
+      expect(runDemo).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "demo" }),
+        expect.objectContaining({
+          captureRootDir: join(process.env.INIT_CWD!, ".democraft", "runs"),
+        }),
+      );
+      const timelinePath = join(
+        process.cwd(),
+        ".democraft",
+        "runs",
+        "demo",
+        "run",
+        "timeline.json",
+      );
+      await expect(readFile(timelinePath, "utf8")).resolves.toContain(
+        '"demoId": "demo"',
+      );
+      expect(renderDemoVideo).toHaveBeenCalledWith(
+        expect.objectContaining({ outputFile }),
+      );
+    });
+  });
+
   it("generates the Remotion entry from demo.ts for generic visuals", async () => {
     const demoPath = await writeDemoFixture();
     const manifestPath = await writeManifestFixture();
@@ -662,11 +824,25 @@ describe("cli", () => {
     );
   });
 
-  it("requires render inputs", async () => {
-    const result = await runCli(["render"]);
+  it("explains how to provide a demo when render cannot discover one", async () => {
+    const result = await withTemporaryInvocationRoot(() => runCli(["render"]));
 
     expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain("Missing render inputs");
+    expect(result.stderr).toContain("No demo module found");
+    expect(result.stderr).toContain("pass a path explicitly");
+  });
+
+  it("rejects incomplete explicit artifact inputs", async () => {
+    const result = await runCli(["render", "--manifest", "manifest.json"]);
+
+    expect(result).toMatchObject({
+      exitCode: 1,
+      stderr: expect.stringContaining(
+        "requires both --manifest and --timeline",
+      ),
+    });
+    expect(runDemo).not.toHaveBeenCalled();
+    expect(renderDemoVideo).not.toHaveBeenCalled();
   });
 });
 
@@ -851,9 +1027,11 @@ async function writeVisualTimelineFixture(): Promise<string> {
 
 async function withTemporaryInvocationRoot<T>(
   run: () => Promise<T>,
+  existingDirectory?: string,
 ): Promise<T> {
-  const directory = await mkdtemp(join(tmpdir(), "democraft-cli-root-"));
-  tempDirs.push(directory);
+  const directory =
+    existingDirectory ?? (await mkdtemp(join(tmpdir(), "democraft-cli-root-")));
+  if (!existingDirectory) tempDirs.push(directory);
   const previousCwd = process.cwd();
   const previousInitCwd = process.env.INIT_CWD;
   process.chdir(directory);

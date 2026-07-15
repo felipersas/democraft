@@ -7,6 +7,8 @@ export type CliResult = {
 export type ParsedArgs = {
   command?: string;
   demoPath?: string;
+  parseError?: string;
+  helpRequested?: boolean;
   json: boolean;
   staticOnly: boolean;
   outputDir?: string;

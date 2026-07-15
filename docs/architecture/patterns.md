@@ -80,13 +80,16 @@ Instead of throwing exceptions, every stage returns an `ir`/`manifest`/`timeline
 
 ```ts
 export const diagnosticCodes = {
-  invalidConfig: "MD001",
-  duplicateId: "MD002",
-  unknownTarget: "MD101",
-  invalidDuration: "MD102",
-  invalidScene: "MD103",
-  invalidStep: "MD104",
-  unknownRenderer: "MD105",
+  invalidConfig: "DC001",
+  duplicateId: "DC002",
+  authoringFailed: "DC003",
+  unknownTarget: "DC101",
+  invalidDuration: "DC102",
+  invalidScene: "DC103",
+  invalidStep: "DC104",
+  unknownRenderer: "DC105",
+  invalidTarget: "DC106",
+  runtimeStepFailed: "DC201",
 } as const;
 ```
 
@@ -94,11 +97,11 @@ Codes are grouped by prefix:
 
 - `MD0xx` — authoring/structural errors (caught at compile time).
 - `MD1xx` — referential errors (caught at compile time after the IR is built).
-- `MD2xx` — runtime errors (caught by Playwright during capture; e.g. `MD201` for an unresolved target, emitted by `targetDiagnostic` at `packages/playwright/src/diagnostics.ts:3`).
+- `DC2xx` — runtime errors caught by Playwright during capture, such as `DC201` for an unresolved target.
 
 Each `Diagnostic` (`packages/schema/src/diagnostics.ts:13-22`) carries optional `demoId`/`sceneId`/`stepId`/`targetId` so the caller can route the error back to the offending node. The CLI surfaces them via `formatDiagnostics` at `packages/cli/src/index.ts:284` and exits with code 1 when any diagnostic has severity `error` (line 166).
 
-Producers today: `compileDemo` emits MD001/MD002/MD101/MD102 (`packages/compiler/src/`); `executeStep` emits MD201 (`packages/playwright/src/execute.ts:177`). MD103/MD104/MD105 are declared but not yet emitted at runtime — see the diagnostics cheat-sheet in `../spec/12-validation-and-diagnostics.md`.
+Producers today: authoring/compilation emits `DC001`–`DC003` and `DC101`–`DC108`; Playwright execution emits `DC201`. The public diagnostics reference is the canonical user-facing list.
 
 ## 4. The visual registry pattern
 
@@ -160,7 +163,7 @@ Because interpolation happens in focus-point space, the camera now moves in a st
 
 ## 6. Duration as a string, parsed at the boundary
 
-The authoring API accepts durations as human strings (`"250ms"`, `"1s"`, `"1.5s"`). See `packages/core/src/types.ts:51` — `timeline.hold` accepts `duration: string`. The compiler parses it into `durationMs: number` via `parseDurationMs` at `packages/compiler/src/duration.ts:1` and emits `MD102` if parsing fails (`packages/compiler/src/normalize.ts:35`). The rest of the pipeline (timeline, remotion) only ever sees numbers.
+The authoring API accepts durations as human strings (`"250ms"`, `"1s"`, `"1.5s"`). The compiler parses them into `durationMs: number` and emits `DC102` if parsing fails. The rest of the pipeline only sees numbers.
 
 This keeps the authoring API ergonomic and the IR portable: `DemoIR.timeline.transition.durationMs` is always an integer number of milliseconds.
 

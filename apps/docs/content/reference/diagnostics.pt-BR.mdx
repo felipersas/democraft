@@ -9,7 +9,7 @@ O Democraft emite diagnostics `DCxxxx` estáveis durante a validação estática
 
 ## Como os diagnósticos aparecem
 
-- **CLI:** `democraft validate <demo> --static` os imprime no stderr. Adicione `--json` para saída legível por máquina.
+- **CLI:** `democraft validate <demo>` os imprime no stderr. Adicione `--json` para saída legível por máquina.
 - **Studio:** o badge de staleness e o progresso de captura mostram falhas de validação inline.
 - **Captura:** falhas de asserção (`assert.visible`, `assert.text`, `assert.url`) e alvos não resolvidos produzem diagnósticos que falham a captura.
 
@@ -44,12 +44,14 @@ Um diagnóstico tem:
 - `DC104`: step inválido.
 - `DC105`: renderer visual desconhecido.
 - `DC106`: target ou lista de locators inválida.
+- `DC107`: referência a visual customizado desconhecida.
+- `DC108`: props do visual customizado não são serializáveis em JSON.
 - `DC201`: falha no navegador, assertion, resolução de target ou screenshot.
 
 <Callout type="info">
-A lista completa de códigos vive em `packages/schema/src/diagnostics.ts`. Códigos são estáveis entre versões — um diagnóstico que emite `DC042` hoje emitirá `DC042` após um upgrade. Novos códigos são apenas adicionados, nunca reutilizados.
+Os códigos canônicos e seus produtores vivem em `packages/schema/src/diagnostics.ts`, `packages/compiler/src/validation.ts` e `packages/playwright/src/diagnostics.ts`. Depois que um código é publicado, ele não deve ser reutilizado para uma falha diferente.
 </Callout>
 
 ## Para agentes de IA
 
-Ao gerar um `demo.ts`, rode `democraft validate <demo> --static` e corrija cada diagnóstico antes de tentar uma captura. O passe estático captura problemas estruturais (nomes de alvo desconhecidos, passos malformados, durações ruins) sem precisar do app-alvo — então é barato iterar contra ele.
+Ao gerar um `demo.ts`, rode `democraft validate <demo>` e corrija cada diagnóstico antes de tentar uma captura. O passe estático captura problemas estruturais (nomes de alvo desconhecidos, passos malformados, durações ruins) sem precisar do app-alvo — então é barato iterar contra ele.

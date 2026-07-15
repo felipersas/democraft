@@ -1,6 +1,7 @@
 import { readFile, stat } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 import { dirname } from "node:path";
+import { register } from "tsx/esm/api";
 import type { DemoDefinition } from "@democraft/core";
 import type { RecordedDemoManifest } from "@democraft/schema";
 import { resolveRecordedScreenshotPath } from "@democraft/playwright";
@@ -19,13 +20,27 @@ export async function loadDemo(demoPath: string): Promise<DemoDefinition> {
     );
   }
   const moduleUrl = pathToFileURL(resolved).href;
-  const imported = (await import(moduleUrl)) as { default?: DemoDefinition };
+  const unregister = register();
+  let imported: { default?: unknown };
+  try {
+    imported = (await import(moduleUrl)) as typeof imported;
+  } finally {
+    await unregister();
+  }
 
-  if (!imported.default) {
+  const firstDefault = imported.default;
+  const definition =
+    firstDefault &&
+    typeof firstDefault === "object" &&
+    "default" in firstDefault
+      ? firstDefault.default
+      : firstDefault;
+
+  if (!definition) {
     throw new Error(`Demo module "${demoPath}" must have a default export.`);
   }
 
-  return imported.default;
+  return definition as DemoDefinition;
 }
 
 async function existsFile(p: string): Promise<boolean> {

@@ -7,7 +7,7 @@ Built with **only MIT-licensed Remotion packages** — `remotion`, `@remotion/pl
 ## Quick start
 
 ```bash
-pnpm --filter @democraft/cli exec tsx src/index.ts studio examples/basic-demo/src/demo.ts
+pnpm exec democraft studio examples/basic-demo/src/demo.ts
 ```
 
 The CLI:

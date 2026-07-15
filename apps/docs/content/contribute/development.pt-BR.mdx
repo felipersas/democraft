@@ -58,8 +58,7 @@ O Studio é aberto via CLI contra um arquivo de demo. Veja o [início rápido](.
 
 ```bash
 pnpm --filter @democraft/example-demo-app start   # terminal 1 (app-alvo)
-pnpm --filter @democraft/cli exec tsx src/index.ts studio \
-  $(pwd)/examples/demo-app/src/demo.ts              # terminal 2
+pnpm exec democraft studio examples/demo-app/src/demo.ts # terminal 2
 ```
 
 ## Rodando a documentação
@@ -94,4 +93,4 @@ Ambos os locales devem permanecer sincronizados. Ao editar a documentação:
 
 ## Reportando problemas
 
-Falhas de captura devem incluir o `trace.zip` de `.democraft/runs/<id>/` — ele permite que outros reproduzam a sessão exata do Playwright. Rode `inspect --static` e `validate --static` primeiro para descartar erros estruturais da demo.
+Falhas de captura devem incluir o `trace.zip` de `.democraft/runs/<id>/` — ele permite que outros reproduzam a sessão exata do Playwright. Rode `inspect` e `validate` primeiro para descartar erros estruturais da demo.

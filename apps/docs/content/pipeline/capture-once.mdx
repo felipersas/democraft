@@ -74,8 +74,7 @@ Re-capture requires the target app to be running at `source.baseUrl`. If it isn'
 By default, the CLI reuses a capture if one exists and captures if not. The `--no-capture` flag changes this to **forced skip**: reuse if a manifest exists, **fail** if not. Use it in CI to guarantee no browser is spawned.
 
 ```bash
-pnpm --filter @democraft/cli exec tsx src/index.ts studio \
-  $(pwd)/examples/demo-app/src/demo.ts --no-capture
+pnpm exec democraft studio examples/demo-app/src/demo.ts --no-capture
 ```
 
 ## Why this works

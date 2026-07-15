@@ -81,8 +81,9 @@ This is the foundation of the [capture-once](../pipeline/capture-once) workflow:
 The CLI's `timeline` command resolves and writes `timeline.json`:
 
 ```bash
-pnpm --filter @democraft/cli exec tsx src/index.ts timeline \
-  $(pwd)/examples/demo-app/src/demo.ts
+pnpm exec democraft timeline examples/demo-app/src/demo.ts \
+  --manifest .democraft/runs/example/manifest.json \
+  --output timeline.json
 ```
 
 The Studio resolves the timeline on every `demo.ts` change and live-updates the preview.

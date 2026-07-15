@@ -1,55 +1,75 @@
 import type { ParsedArgs } from "./types";
 
 export function parseArgs(argv: string[]): ParsedArgs {
-  const [command, maybeDemoPath, ...rest] = argv;
-  const demoPath = maybeDemoPath?.startsWith("--") ? undefined : maybeDemoPath;
-  const flags = demoPath ? rest : argv.slice(1);
+  const [command, ...tokens] = argv;
   const parsed: ParsedArgs = {
     command,
-    demoPath,
+    demoPath: undefined,
+    parseError: undefined,
     json: false,
     staticOnly: false,
   };
 
-  for (let index = 0; index < flags.length; index += 1) {
-    const flag = flags[index];
+  for (let index = 0; index < tokens.length; index += 1) {
+    const flag = tokens[index];
+
+    if (!flag.startsWith("-")) {
+      if (!parsed.demoPath) {
+        parsed.demoPath = flag;
+        continue;
+      }
+      parsed.parseError = `Unexpected argument "${flag}".`;
+      break;
+    }
+
+    const readValue = (): string | undefined => {
+      const value = tokens[index + 1];
+      if (!value || value.startsWith("-")) {
+        parsed.parseError = `Missing value for "${flag}".`;
+        return undefined;
+      }
+      index += 1;
+      return value;
+    };
 
     if (flag === "--json") parsed.json = true;
+    else if (flag === "--help" || flag === "-h") parsed.helpRequested = true;
     else if (flag === "--static") parsed.staticOnly = true;
     else if (flag === "--headed") parsed.headless = false;
     else if (flag === "--headless") parsed.headless = true;
     else if (flag === "--manifest") {
-      parsed.manifestPath = flags[index + 1];
-      index += 1;
+      parsed.manifestPath = readValue();
     } else if (flag === "--timeline") {
-      parsed.timelinePath = flags[index + 1];
-      index += 1;
-    } else if (flag === "--output-file") {
-      parsed.outputFile = flags[index + 1];
-      index += 1;
+      parsed.timelinePath = readValue();
+    } else if (["--output-file", "--output", "-o"].includes(flag)) {
+      parsed.outputFile = readValue();
     } else if (flag === "--fps") {
-      parsed.fps = Number(flags[index + 1]);
-      index += 1;
+      const value = readValue();
+      if (value !== undefined) parsed.fps = Number(value);
     } else if (flag === "--output-dir") {
-      parsed.outputDir = flags[index + 1];
-      index += 1;
+      parsed.outputDir = readValue();
     } else if (flag === "--scale") {
-      parsed.scale = Number(flags[index + 1]);
-      index += 1;
+      const value = readValue();
+      if (value !== undefined) parsed.scale = Number(value);
     } else if (flag === "--crf") {
-      parsed.crf = Number(flags[index + 1]);
-      index += 1;
+      const value = readValue();
+      if (value !== undefined) parsed.crf = Number(value);
     } else if (flag === "--port") {
-      parsed.port = Number(flags[index + 1]);
-      index += 1;
+      const value = readValue();
+      if (value !== undefined) parsed.port = Number(value);
     } else if (flag === "--no-capture") {
       parsed.noCapture = true;
     } else if (flag === "--recording") {
       parsed.useRecording = true;
     } else if (flag === "--entry") {
-      parsed.entryPath = flags[index + 1];
-      index += 1;
+      parsed.entryPath = readValue();
+    } else if (flag.startsWith("-")) {
+      parsed.parseError = `Unknown option "${flag}".`;
+    } else {
+      parsed.parseError = `Unexpected argument "${flag}".`;
     }
+
+    if (parsed.parseError) break;
   }
 
   return parsed;

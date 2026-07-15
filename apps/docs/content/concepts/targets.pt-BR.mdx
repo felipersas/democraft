@@ -80,8 +80,7 @@ Alvos codificam **intenção**, que é muito mais estável que **estrutura**.
 O comando `targets` da CLI lista os contratos que uma demo usa:
 
 ```bash
-pnpm --filter @democraft/cli exec tsx src/index.ts targets \
-  $(pwd)/examples/demo-app/src/demo.ts
+pnpm exec democraft targets examples/demo-app/src/demo.ts
 ```
 
 Isso é útil para auditar de quais alvos uma demo depende antes de uma captura.
