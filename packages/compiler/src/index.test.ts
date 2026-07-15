@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { byTestId, defineDemo, defineTargets } from "@democraft/core";
+import type { Duration } from "@democraft/core";
 import type { DemoIR } from "@democraft/schema";
 import { schemaVersion } from "@democraft/schema";
 import {
@@ -50,8 +51,50 @@ describe("compiler", () => {
     expect(result.diagnostics).toContainEqual(
       expect.objectContaining({
         code: "DC001",
+        path: "config.fps",
         severity: "error",
         message: "Config fps must be a finite number greater than 0.",
+        suggestion: "Use a positive FPS such as 30 or 60.",
+      }),
+    );
+  });
+
+  it("reports invalid durations and author callback failures precisely", async () => {
+    const invalidDuration = await compileDemo(
+      defineDemo({
+        id: "invalid-duration",
+        title: "Invalid duration",
+        source: { baseUrl: "http://localhost:3000" },
+        async run({ demo }) {
+          await demo.scene("intro", async (scene) => {
+            await scene.hold("soon" as Duration);
+          });
+        },
+      }),
+    );
+    const failedCallback = await compileDemo(
+      defineDemo({
+        id: "failed-callback",
+        title: "Failed callback",
+        source: { baseUrl: "http://localhost:3000" },
+        async run() {
+          throw new Error("Author code exploded");
+        },
+      }),
+    );
+
+    expect(invalidDuration.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "DC102",
+        path: "scenes.intro.steps.intro.timeline-hold.1.duration",
+        suggestion: 'Use a duration such as "250ms", "1s", or "1.5s".',
+      }),
+    );
+    expect(failedCallback.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "DC003",
+        path: "run",
+        message: "Author code exploded",
       }),
     );
   });
@@ -148,7 +191,9 @@ describe("compiler", () => {
     expect(result.diagnostics).toContainEqual(
       expect.objectContaining({
         code: "DC101",
+        path: "scenes.broken.steps.broken.browser-click-missing.1.target",
         sceneId: "broken",
+        suggestion: expect.stringContaining("dashboard"),
         targetId: "missing",
       }),
     );

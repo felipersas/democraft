@@ -3,12 +3,13 @@ import {
   canonicalScreenshotFilename,
   screenshotRelativePath,
 } from "./screenshot-path";
-import type {
-  DemoIR,
-  DemoStep,
-  Diagnostic,
-  RecordedStep,
-  TargetSnapshot,
+import {
+  diagnosticDocsUrl,
+  type DemoIR,
+  type DemoStep,
+  type Diagnostic,
+  type RecordedStep,
+  type TargetSnapshot,
 } from "@democraft/schema";
 import { resolveTarget, resolveUrl } from "./locator";
 import { targetDiagnostic, unresolvedTargetDiagnostic } from "./diagnostics";
@@ -166,9 +167,12 @@ export async function executeStep(
       case "assert.url":
         if (!args.page.url().includes(args.step.path)) {
           args.diagnostics.push({
-            code: "MD201",
+            code: "DC201",
             severity: "error",
             message: `Current URL "${args.page.url()}" does not include "${args.step.path}".`,
+            path: `scenes.${args.sceneId}.steps.${args.step.id}.path`,
+            suggestion: `Navigate to a URL containing "${args.step.path}" or update the assertion.`,
+            docsUrl: diagnosticDocsUrl("DC201"),
             demoId: args.ir.id,
             sceneId: args.sceneId,
             stepId: args.step.id,
@@ -197,10 +201,13 @@ export async function executeStep(
     }
   } catch (error) {
     args.diagnostics.push({
-      code: "MD201",
+      code: "DC201",
       severity: "error",
       message:
         error instanceof Error ? error.message : "Step execution failed.",
+      path: `scenes.${args.sceneId}.steps.${args.step.id}`,
+      suggestion: "Inspect the failed browser step and its target contract.",
+      docsUrl: diagnosticDocsUrl("DC201"),
       demoId: args.ir.id,
       sceneId: args.sceneId,
       stepId: args.step.id,
@@ -248,12 +255,15 @@ export async function executeStep(
     }
   } catch (error) {
     args.diagnostics.push({
-      code: "MD201",
+      code: "DC201",
       severity: "warning",
       message:
         error instanceof Error
           ? `Screenshot failed: ${error.message}`
           : "Screenshot failed.",
+      path: `scenes.${args.sceneId}.steps.${args.step.id}`,
+      suggestion: "Check screenshot permissions and the browser page state.",
+      docsUrl: diagnosticDocsUrl("DC201"),
       demoId: args.ir.id,
       sceneId: args.sceneId,
       stepId: args.step.id,

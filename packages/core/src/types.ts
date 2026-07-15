@@ -45,9 +45,11 @@ export type SceneStepOptions = {
   id?: string;
 };
 
+export type Duration = `${number}ms` | `${number}s`;
+
 export type TransitionOptions = SceneStepOptions & {
   type?: "cut" | "crossfade";
-  duration?: string;
+  duration?: Duration;
 };
 
 export type CaptionOptions = SceneStepOptions & {
@@ -74,12 +76,12 @@ export type CapturedStep =
   | { kind: "assert.url"; id?: string; path: string }
   | { kind: "camera.establish"; id?: string; target?: string }
   | { kind: "camera.focus"; id?: string; target: string; padding?: number }
-  | { kind: "timeline.hold"; id?: string; duration: string }
+  | { kind: "timeline.hold"; id?: string; duration: Duration }
   | {
       kind: "timeline.transition";
       id?: string;
       transition?: "cut" | "crossfade";
-      duration?: string;
+      duration?: Duration;
     }
   | { kind: "overlay.caption"; id?: string; text: string; renderer?: string }
   | {
@@ -114,7 +116,7 @@ export type DemoScene<TTargetId extends string = string> = {
   expectUrl(path: string, options?: SceneStepOptions): Promise<void>;
   establish(target?: TTargetId, options?: SceneStepOptions): Promise<void>;
   focus(target: TTargetId, options?: FocusOptions): Promise<void>;
-  hold(duration: string, options?: SceneStepOptions): Promise<void>;
+  hold(duration: Duration, options?: SceneStepOptions): Promise<void>;
   transition(options?: TransitionOptions): Promise<void>;
   caption(text: string, options?: CaptionOptions): Promise<void>;
   callout(target: TTargetId, options: CalloutOptions): Promise<void>;
@@ -143,11 +145,13 @@ export type DemoInput<
     baseUrl: string;
     initialPath?: string;
   };
-  targets: TTargets;
+  targets?: TTargets;
   run(args: {
     demo: DemoCapture<Extract<keyof TTargets, string>>;
   }): Promise<void> | void;
 };
 
-export type DemoDefinition<TTargets extends TargetMap = TargetMap> =
-  DemoInput<TTargets>;
+export type DemoDefinition<TTargets extends TargetMap = TargetMap> = Omit<
+  DemoInput<TTargets>,
+  "targets"
+> & { targets: TTargets };

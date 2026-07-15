@@ -6,8 +6,32 @@ import {
   defineTarget,
   defineTargets,
 } from "./index";
+import type { Duration } from "./index";
 
 describe("targets", () => {
+  it("types supported durations and normalizes target-free demos", () => {
+    const seconds: Duration = "1.5s";
+    const milliseconds: Duration = "250ms";
+    // @ts-expect-error Durations require an ms or s suffix.
+    const invalid: Duration = "soon";
+    const definition = defineDemo({
+      id: "title-card",
+      title: "Title card",
+      source: { baseUrl: "http://localhost:3000" },
+      async run({ demo }) {
+        await demo.scene("intro", async (scene) => {
+          await scene.hold(seconds);
+          await scene.transition({ duration: milliseconds });
+          // @ts-expect-error A target-free demo has no valid target ids.
+          await scene.click("missing");
+        });
+      },
+    });
+
+    expect(invalid).toBe("soon");
+    expect(definition.targets).toEqual({});
+  });
+
   it("defines a single locator target", () => {
     const targets = defineTargets({
       dashboard: byTestId("dashboard"),

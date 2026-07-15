@@ -117,6 +117,22 @@ describe("cli", () => {
     expect(formatDiagnostics([])).toBe("No diagnostics.");
   });
 
+  it("formats diagnostic paths and repair suggestions", () => {
+    expect(
+      formatDiagnostics([
+        {
+          code: "DC101",
+          severity: "error",
+          message: 'Unknown target "save".',
+          path: "scenes.checkout.steps.click.target",
+          suggestion: 'Declare "save" in targets.',
+        },
+      ]),
+    ).toBe(
+      'ERROR DC101 at scenes.checkout.steps.click.target: Unknown target "save".\n  Suggestion: Declare "save" in targets.',
+    );
+  });
+
   it("prints the managed capture run id and actual manifest path", async () => {
     const demoPath = await writeDemoFixture();
 

@@ -1,11 +1,11 @@
 ---
 title: Diagnostics
-description: The DC001–DC105 diagnostic codes emitted by validation.
+description: Stable, actionable DCxxxx diagnostics emitted by validation and capture.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-Democraft's validator emits diagnostics with stable codes in the `DC0xx` range. These run during `validate` (statically, no browser) and during capture (against the live app). An AI agent generating a `demo.ts` should expect to see these and fix them before the demo will capture cleanly.
+Democraft emits stable `DCxxxx` diagnostics during static validation and live capture. Human-readable output includes repair suggestions; `--json` exposes the same fields for tools and coding agents.
 
 ## How diagnostics surface
 
@@ -17,12 +17,9 @@ Democraft's validator emits diagnostics with stable codes in the `DC0xx` range. 
 
 | Range | Category |
 |-------|----------|
-| `DC001`–`DC019` | Demo structure (missing/invalid `id`, `title`, `source`, `targets`, `run`). |
-| `DC020`–`DC039` | Targets and locators (unknown target name, empty locator list, unresolvable). |
-| `DC040`–`DC059` | Scene and step structure (empty scene, unknown step kind, missing required fields). |
-| `DC060`–`DC079` | Durations and timing (unparseable duration string, non-positive hold). |
-| `DC080`–`DC099` | Capture-time failures (target not found in DOM, assertion failed, navigation error). |
-| `DC100`–`DC105` | Render-time issues (missing screenshot, invalid frame range). |
+| `DC001`–`DC099` | Definition and author callback failures. |
+| `DC100`–`DC199` | Targets, scenes, steps, durations, and renderers. |
+| `DC200`–`DC299` | Browser execution and capture failures. |
 
 ## Reading a diagnostic
 
@@ -30,10 +27,24 @@ A diagnostic has:
 
 - **`code`** — the `DC0xx` identifier.
 - **`message`** — human-readable description.
+- **`path`** — semantic location in `demo.ts`.
+- **`suggestion`** — a concrete repair action.
+- **`docsUrl`** — stable documentation for the code.
 - **`demoId`** / **`sceneId`** / **`stepId`** — where in the demo the issue is (when applicable).
-- **`target`** — the target name involved (for locator/assertion issues).
+- **`targetId`** — the target name involved (for locator/assertion issues).
 
 ## Common codes
+
+- `DC001`: invalid structure or configuration.
+- `DC002`: duplicate scene or step ID.
+- `DC003`: the author `run` callback threw.
+- `DC101`: unknown target reference.
+- `DC102`: invalid duration.
+- `DC103`: invalid scene or missing callback.
+- `DC104`: invalid step.
+- `DC105`: unknown visual renderer.
+- `DC106`: invalid target or locator list.
+- `DC201`: browser execution, assertion, target resolution, or screenshot failure.
 
 <Callout type="info">
 The full code list lives in `packages/schema/src/diagnostics.ts`. Codes are stable across versions — a diagnostic that emits `DC042` today will emit `DC042` after an upgrade. New codes are only appended, never reused.

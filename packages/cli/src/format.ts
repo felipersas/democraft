@@ -1,15 +1,18 @@
 import type { DemoDefinition } from "@democraft/core";
-import type { Locator } from "@democraft/schema";
+import type { Diagnostic, Locator } from "@democraft/schema";
 
 export function formatDiagnostics(
-  diagnostics: Array<{ code: string; severity: string; message: string }>,
+  diagnostics: Diagnostic[],
 ): string {
   if (diagnostics.length === 0) return "No diagnostics.";
   return diagnostics
-    .map(
-      (diagnostic) =>
-        `${diagnostic.severity.toUpperCase()} ${diagnostic.code}: ${diagnostic.message}`,
-    )
+    .map((diagnostic) => {
+      const location = diagnostic.path ? ` at ${diagnostic.path}` : "";
+      const suggestion = diagnostic.suggestion
+        ? `\n  Suggestion: ${diagnostic.suggestion}`
+        : "";
+      return `${diagnostic.severity.toUpperCase()} ${diagnostic.code}${location}: ${diagnostic.message}${suggestion}`;
+    })
     .join("\n");
 }
 

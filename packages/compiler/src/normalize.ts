@@ -1,5 +1,10 @@
 import type { CapturedStep } from "@democraft/core";
-import type { DemoSceneIR, DemoStep, Diagnostic } from "@democraft/schema";
+import {
+  diagnosticDocsUrl,
+  type DemoSceneIR,
+  type DemoStep,
+  type Diagnostic,
+} from "@democraft/schema";
 import { parseDurationMs } from "./duration";
 import type { CapturedScene } from "./types";
 
@@ -62,9 +67,12 @@ function invalidDuration(
   duration: string,
 ): Diagnostic {
   return {
-    code: "MD102",
+    code: "DC102",
     severity: "error",
     message: `Invalid duration "${duration}". Use positive values like "250ms", "1s", or "1.5s".`,
+    path: `scenes.${sceneId}.steps.${stepId}.duration`,
+    suggestion: 'Use a duration such as "250ms", "1s", or "1.5s".',
+    docsUrl: diagnosticDocsUrl("DC102"),
     demoId,
     sceneId,
     stepId,

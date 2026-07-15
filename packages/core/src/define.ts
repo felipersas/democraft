@@ -11,13 +11,16 @@ export function defineConfig(config: DemoConfig): DemoConfig {
   return config;
 }
 
-export function defineDemo<TTargets extends Record<string, TargetInput>>(
+export function defineDemo<
+  TTargets extends Record<string, TargetInput> = Record<never, never>,
+>(
   definition: DemoInput<TTargets>,
 ): DemoDefinition<DefinedTargets<TTargets>> {
-  if (hasNormalizedTargets(definition.targets)) {
+  const targets = definition.targets ?? ({} as TTargets);
+  if (definition.targets && hasNormalizedTargets(targets)) {
     return definition as DemoDefinition<DefinedTargets<TTargets>>;
   }
-  return { ...definition, targets: defineTargets(definition.targets) };
+  return { ...definition, targets: defineTargets(targets) };
 }
 
 function hasNormalizedTargets<TTargets extends Record<string, TargetInput>>(

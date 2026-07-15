@@ -1,11 +1,11 @@
 ---
 title: Diagnósticos
-description: Os códigos de diagnóstico DC001–DC105 emitidos pela validação.
+description: Diagnostics DCxxxx estáveis e acionáveis emitidos pela validação e captura.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-O validador do Democraft emite diagnósticos com códigos estáveis na faixa `DC0xx`. Eles rodam durante `validate` (estaticamente, sem navegador) e durante a captura (contra o app ativo). Um agente de IA gerando um `demo.ts` deve esperar vê-los e corrigi-los antes que a demo capture de forma limpa.
+O Democraft emite diagnostics `DCxxxx` estáveis durante a validação estática e a captura ao vivo. A saída legível inclui sugestões de correção; `--json` expõe os mesmos campos para ferramentas e coding agents.
 
 ## Como os diagnósticos aparecem
 
@@ -17,12 +17,9 @@ O validador do Democraft emite diagnósticos com códigos estáveis na faixa `DC
 
 | Faixa | Categoria |
 |-------|-----------|
-| `DC001`–`DC019` | Estrutura da demo (`id`, `title`, `source`, `targets`, `run` ausentes/inválidos). |
-| `DC020`–`DC039` | Alvos e locators (nome de alvo desconhecido, lista de locators vazia, não resolvível). |
-| `DC040`–`DC059` | Estrutura de cena e passo (cena vazia, tipo de passo desconhecido, campos obrigatórios ausentes). |
-| `DC060`–`DC079` | Durações e tempo (string de duração não parseável, hold não positivo). |
-| `DC080`–`DC099` | Falhas em tempo de captura (alvo não encontrado no DOM, asserção falhou, erro de navegação). |
-| `DC100`–`DC105` | Problemas em tempo de renderização (screenshot ausente, intervalo de frames inválido). |
+| `DC001`–`DC099` | Definição e falhas no callback do autor. |
+| `DC100`–`DC199` | Targets, cenas, steps, durações e renderers. |
+| `DC200`–`DC299` | Execução no navegador e falhas de captura. |
 
 ## Lendo um diagnóstico
 
@@ -30,10 +27,24 @@ Um diagnóstico tem:
 
 - **`code`** — o identificador `DC0xx`.
 - **`message`** — descrição legível por humanos.
+- **`path`** — localização semântica no `demo.ts`.
+- **`suggestion`** — uma ação concreta de correção.
+- **`docsUrl`** — documentação estável do código.
 - **`demoId`** / **`sceneId`** / **`stepId`** — onde na demo está o problema (quando aplicável).
-- **`target`** — o nome do alvo envolvido (para problemas de locator/asserção).
+- **`targetId`** — o nome do target envolvido (para problemas de locator/asserção).
 
 ## Códigos comuns
+
+- `DC001`: estrutura ou configuração inválida.
+- `DC002`: ID duplicado de cena ou step.
+- `DC003`: o callback `run` do autor lançou uma exceção.
+- `DC101`: referência a target desconhecido.
+- `DC102`: duração inválida.
+- `DC103`: cena inválida ou callback ausente.
+- `DC104`: step inválido.
+- `DC105`: renderer visual desconhecido.
+- `DC106`: target ou lista de locators inválida.
+- `DC201`: falha no navegador, assertion, resolução de target ou screenshot.
 
 <Callout type="info">
 A lista completa de códigos vive em `packages/schema/src/diagnostics.ts`. Códigos são estáveis entre versões — um diagnóstico que emite `DC042` hoje emitirá `DC042` após um upgrade. Novos códigos são apenas adicionados, nunca reutilizados.

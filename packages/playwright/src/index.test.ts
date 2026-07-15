@@ -361,20 +361,22 @@ describe("playwright runtime", () => {
 
     expect(manifest.diagnostics).toContainEqual(
       expect.objectContaining({
-        code: "MD201",
+        code: "DC201",
         details: {
           attemptedLocators: [
             { locator: { kind: "testId", id: "button" }, success: false },
           ],
         },
         message: 'Target "button" could not be resolved.',
+        path: "scenes.scene.steps.scene.browser-click-button.2.target",
+        suggestion: expect.stringContaining("locators"),
         stepId: "scene.browser-click-button.2",
         targetId: "button",
       }),
     );
     expect(manifest.diagnostics).toContainEqual(
       expect.objectContaining({
-        code: "MD201",
+        code: "DC201",
         stepId: "scene.assert-visible-button.3",
         targetId: "button",
       }),

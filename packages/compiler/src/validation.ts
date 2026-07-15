@@ -1,4 +1,8 @@
-import type { Diagnostic, DemoIR } from "@democraft/schema";
+import {
+  diagnosticDocsUrl,
+  type Diagnostic,
+  type DemoIR,
+} from "@democraft/schema";
 
 export function validateIR(ir: DemoIR): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
@@ -9,6 +13,8 @@ export function validateIR(ir: DemoIR): Diagnostic[] {
       code: "DC001",
       severity: "error",
       message: "Demo id, title, and source.baseUrl are required.",
+      path: "demo",
+      suggestion: "Provide non-empty id, title, and source.baseUrl fields.",
       demoId: ir.id,
     });
   }
@@ -19,6 +25,8 @@ export function validateIR(ir: DemoIR): Diagnostic[] {
         code: "DC106",
         severity: "error",
         message: "Target ids must be non-empty.",
+        path: `targets.${targetKey || "<empty>"}`,
+        suggestion: "Use a stable non-empty target key.",
         demoId: ir.id,
         targetId: target.id || targetKey,
       });
@@ -28,6 +36,8 @@ export function validateIR(ir: DemoIR): Diagnostic[] {
         code: "DC106",
         severity: "error",
         message: `Target "${target.id || targetKey}" must define at least one locator.`,
+        path: `targets.${targetKey}.locators`,
+        suggestion: "Add at least one locator such as byRole() or byTestId().",
         demoId: ir.id,
         targetId: target.id || targetKey,
       });
@@ -40,6 +50,8 @@ export function validateIR(ir: DemoIR): Diagnostic[] {
         code: "DC103",
         severity: "error",
         message: "Scene ids must be non-empty.",
+        path: "scenes",
+        suggestion: "Give every scene a stable non-empty id.",
         demoId: ir.id,
       });
     }
@@ -48,6 +60,8 @@ export function validateIR(ir: DemoIR): Diagnostic[] {
         code: "DC002",
         severity: "error",
         message: `Duplicate scene id "${scene.id}".`,
+        path: `scenes.${scene.id}`,
+        suggestion: "Rename one of the scenes so every scene id is unique.",
         demoId: ir.id,
         sceneId: scene.id,
       });
@@ -61,6 +75,8 @@ export function validateIR(ir: DemoIR): Diagnostic[] {
           code: "DC104",
           severity: "error",
           message: "Step ids must be non-empty.",
+          path: `scenes.${scene.id}.steps`,
+          suggestion: "Remove the empty id to generate one or provide a stable id.",
           demoId: ir.id,
           sceneId: scene.id,
         });
@@ -70,6 +86,8 @@ export function validateIR(ir: DemoIR): Diagnostic[] {
           code: "DC002",
           severity: "error",
           message: `Duplicate step id "${step.id}".`,
+          path: `scenes.${scene.id}.steps.${step.id}`,
+          suggestion: "Rename one of the steps so every step id is unique.",
           demoId: ir.id,
           sceneId: scene.id,
           stepId: step.id,
@@ -84,6 +102,8 @@ export function validateIR(ir: DemoIR): Diagnostic[] {
           code: "DC106",
           severity: "error",
           message: "Step target ids must be non-empty.",
+          path: `scenes.${scene.id}.steps.${step.id}.target`,
+          suggestion: "Use one of the target ids declared in targets.",
           demoId: ir.id,
           sceneId: scene.id,
           stepId: step.id,
@@ -93,6 +113,8 @@ export function validateIR(ir: DemoIR): Diagnostic[] {
           code: "DC101",
           severity: "error",
           message: `Unknown target "${target}".`,
+          path: `scenes.${scene.id}.steps.${step.id}.target`,
+          suggestion: unknownTargetSuggestion(target, Object.keys(ir.targets)),
           demoId: ir.id,
           sceneId: scene.id,
           stepId: step.id,
@@ -102,5 +124,15 @@ export function validateIR(ir: DemoIR): Diagnostic[] {
     }
   }
 
-  return diagnostics;
+  return diagnostics.map((diagnostic) => ({
+    ...diagnostic,
+    docsUrl: diagnostic.docsUrl ?? diagnosticDocsUrl(diagnostic.code),
+  }));
+}
+
+function unknownTargetSuggestion(target: string, targetIds: string[]): string {
+  if (targetIds.length === 0) {
+    return `Declare "${target}" in targets.`;
+  }
+  return `Declare "${target}" in targets or use one of: ${targetIds.join(", ")}.`;
 }

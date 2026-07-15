@@ -1,5 +1,10 @@
 import type { CapturedStep, DemoDefinition, DemoScene } from "@democraft/core";
-import { type DemoIR, type Diagnostic, schemaVersion } from "@democraft/schema";
+import {
+  diagnosticDocsUrl,
+  type DemoIR,
+  type Diagnostic,
+  schemaVersion,
+} from "@democraft/schema";
 import { createSceneCapture } from "./capture";
 import { normalizeScene } from "./normalize";
 import type {
@@ -23,6 +28,9 @@ export async function compileDemo(
       code: "DC001",
       severity: "error",
       message: "Config fps must be a finite number greater than 0.",
+      path: "config.fps",
+      suggestion: "Use a positive FPS such as 30 or 60.",
+      docsUrl: diagnosticDocsUrl("DC001"),
       demoId: definition.id,
     });
   }
@@ -45,6 +53,9 @@ export async function compileDemo(
           code: "DC103",
           severity: "error",
           message: `Scene "${id}" is missing a run callback.`,
+          path: `scenes.${id}`,
+          suggestion: "Pass a scene callback as the final argument.",
+          docsUrl: diagnosticDocsUrl("DC103"),
           demoId: definition.id,
           sceneId: id,
         });
@@ -60,9 +71,12 @@ export async function compileDemo(
     await definition.run({ demo });
   } catch (error) {
     diagnostics.push({
-      code: "DC001",
+      code: "DC003",
       severity: "error",
       message: error instanceof Error ? error.message : "Demo capture failed.",
+      path: "run",
+      suggestion: "Fix the exception thrown by the demo run callback.",
+      docsUrl: diagnosticDocsUrl("DC003"),
       demoId: definition.id,
     });
   }
