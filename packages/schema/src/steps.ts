@@ -76,6 +76,13 @@ export type OverlayCalloutStep = StepBase & {
   renderer?: string;
 };
 
+export type OverlayVisualStep = StepBase & {
+  kind: "overlay.visual";
+  visual: string;
+  props: Record<string, unknown>;
+  durationMs?: number;
+};
+
 export type CueStep = StepBase & {
   kind: "cue";
   name: string;
@@ -95,4 +102,5 @@ export type DemoStep =
   | TimelineTransitionStep
   | OverlayCaptionStep
   | OverlayCalloutStep
+  | OverlayVisualStep
   | CueStep;

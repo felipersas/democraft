@@ -138,6 +138,18 @@ function collectTracks(
         renderer: step.renderer,
       });
       break;
+    case "overlay.visual":
+      timeline.overlays.push({
+        id: `${renderStep.stepId}.overlay`,
+        stepId: renderStep.stepId,
+        sceneId: renderStep.sceneId,
+        kind: "visual",
+        visual: step.visual,
+        props: step.props,
+        fromFrame: renderStep.fromFrame,
+        durationInFrames: renderStep.durationInFrames,
+      });
+      break;
     default:
       break;
   }
@@ -172,6 +184,8 @@ function stepDurationMs(step: DemoStep): number {
         1800,
         `${step.title} ${step.description ?? ""}`.trim().length * 45,
       );
+    case "overlay.visual":
+      return step.durationMs ?? 1800;
     case "camera.establish":
       return 700;
     case "camera.focus":

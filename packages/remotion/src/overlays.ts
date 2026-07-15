@@ -1,5 +1,5 @@
 import React from "react";
-import { interpolate } from "remotion";
+import { interpolate, Sequence } from "remotion";
 import type { BoundingBox, OverlayTrack, RenderTimeline } from "@democraft/schema";
 import { SoftBlurIn } from "./components/remocn/soft-blur-in";
 import { active } from "./utils";
@@ -8,6 +8,7 @@ import type { CameraState } from "./camera";
 import type { StageLayout } from "./stage";
 
 export type VisualComponent<T> = React.FC<T>;
+export type GenericVisualComponent = React.ComponentType<Record<string, unknown>>;
 
 export type CaptionProps = {
   overlay: Extract<OverlayTrack, { kind: "caption" }>;
@@ -23,6 +24,7 @@ export type CalloutProps = {
 export type VisualRegistry = {
   captions: Record<string, VisualComponent<CaptionProps>>;
   callouts: Record<string, VisualComponent<CalloutProps>>;
+  visuals: Record<string, GenericVisualComponent>;
 };
 
 export function overlayOpacity(
@@ -80,8 +82,8 @@ export function OverlayLayer({
     ...timeline.overlays
       .filter((overlay) => active(overlay, frame))
       .map((overlay) => {
-        const opacity = overlayOpacity(overlay, frame);
         if (overlay.kind === "caption") {
+          const opacity = overlayOpacity(overlay, frame);
           const Component = resolveCaptionComponent(
             registry,
             overlay.renderer,
@@ -93,6 +95,21 @@ export function OverlayLayer({
           });
         }
 
+        if (overlay.kind === "visual") {
+          const Component = resolveVisualComponent(registry, overlay.visual);
+          return React.createElement(
+            Sequence,
+            {
+              key: overlay.id,
+              from: overlay.fromFrame,
+              durationInFrames: overlay.durationInFrames,
+              name: overlay.visual,
+            },
+            React.createElement(Component, overlay.props),
+          );
+        }
+
+        const opacity = overlayOpacity(overlay, frame);
         const rawBox = overlay.boundingBox ?? {
           x: 40,
           y: 40,
@@ -131,8 +148,17 @@ export function resolveCalloutComponent(
   throw unknownRenderer("callout", renderer, Object.keys(registry.callouts));
 }
 
+export function resolveVisualComponent(
+  registry: VisualRegistry,
+  visual: string,
+): GenericVisualComponent {
+  const component = registry.visuals[visual];
+  if (component) return component;
+  throw unknownRenderer("visual", visual, Object.keys(registry.visuals));
+}
+
 function unknownRenderer(
-  kind: "caption" | "callout",
+  kind: "caption" | "callout" | "visual",
   renderer: string,
   registered: string[],
 ): Error {
@@ -268,4 +294,5 @@ export const defaultVisualRegistry: VisualRegistry = {
     "motion.callout": Callout,
     "remocn.glass-callout": GlassCallout,
   },
+  visuals: {},
 };

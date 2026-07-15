@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { byTestId, defineDemo, defineTargets } from "@democraft/core";
-import type { Duration } from "@democraft/core";
+import type { Duration, VisualDefinition } from "@democraft/core";
 import type { DemoIR } from "@democraft/schema";
 import { schemaVersion } from "@democraft/schema";
 import {
@@ -162,6 +162,66 @@ describe("compiler", () => {
       kind: "timeline.hold",
       durationMs: 1000,
     });
+  });
+
+  it("captures declared visuals as serializable steps", async () => {
+    const title = { component: null } as VisualDefinition<{ text: string }>;
+    const result = await compileDemo(
+      defineDemo({
+        id: "visual-demo",
+        title: "Visual demo",
+        source: { baseUrl: "http://localhost:3000" },
+        visuals: { "local.title": title },
+        async run({ demo }) {
+          await demo.scene("intro", async (scene) => {
+            await scene.visual(
+              "local.title",
+              { text: "Hello" },
+              { duration: "1.5s" },
+            );
+          });
+        },
+      }),
+    );
+
+    expect(result.diagnostics).toEqual([]);
+    expect(result.ir.visuals).toEqual(["local.title"]);
+    expect(result.ir.scenes[0]?.steps[0]).toEqual({
+      id: "intro.overlay-visual.1",
+      kind: "overlay.visual",
+      visual: "local.title",
+      props: { text: "Hello" },
+      durationMs: 1500,
+    });
+    expect(inspectIR(result.ir)).toContain('Show visual "local.title"');
+    expect(JSON.parse(JSON.stringify(result.ir))).toEqual(result.ir);
+  });
+
+  it("diagnoses undeclared visuals and non-JSON props", async () => {
+    const title = { component: null } as VisualDefinition<{ value: unknown }>;
+    const result = await compileDemo(
+      defineDemo({
+        id: "visual-demo",
+        title: "Visual demo",
+        source: { baseUrl: "http://localhost:3000" },
+        visuals: { "local.title": title },
+        async run({ demo }) {
+          await demo.scene("intro", async (scene) => {
+            await scene.visual(
+              "local.missing" as "local.title",
+              { value: () => "not JSON" },
+            );
+          });
+        },
+      }),
+    );
+
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "DC107", severity: "error" }),
+        expect.objectContaining({ code: "DC108", severity: "error" }),
+      ]),
+    );
   });
 
   it("normalizes duration strings", () => {

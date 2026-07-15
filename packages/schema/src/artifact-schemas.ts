@@ -161,6 +161,15 @@ export const demoStepSchema = z.discriminatedUnion("kind", [
     })
     .passthrough(),
   z
+    .object({
+      ...stepBase,
+      kind: z.literal("overlay.visual"),
+      visual: z.string().min(1),
+      props: z.record(z.unknown()),
+      durationMs: nonNegativeFinite.optional(),
+    })
+    .passthrough(),
+  z
     .object({ ...stepBase, kind: z.literal("cue"), name: z.string().min(1) })
     .passthrough(),
 ]);
@@ -189,6 +198,7 @@ export const demoIRSchema: z.ZodType<DemoIR> = z
       })
       .passthrough(),
     targets: z.record(targetDefinitionSchema),
+    visuals: z.array(z.string().min(1)).optional(),
     scenes: z.array(demoSceneSchema),
   })
   .passthrough();
@@ -226,6 +236,7 @@ const stepKindSchema = z.enum([
   "timeline.transition",
   "overlay.caption",
   "overlay.callout",
+  "overlay.visual",
   "cue",
 ]);
 
@@ -328,6 +339,14 @@ const overlayTrackSchema = z.discriminatedUnion("kind", [
       description: z.string().optional(),
       boundingBox: boundingBoxSchema.optional(),
       renderer: z.string().optional(),
+    })
+    .passthrough(),
+  z
+    .object({
+      ...trackBase,
+      kind: z.literal("visual"),
+      visual: z.string().min(1),
+      props: z.record(z.unknown()),
     })
     .passthrough(),
 ]);

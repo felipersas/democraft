@@ -67,6 +67,17 @@ export type OverlayTrack =
       durationInFrames: number;
       boundingBox?: BoundingBox;
       renderer?: string;
+    }
+  | {
+      id: string;
+      stepId: string;
+      sceneId: string;
+      kind: "visual";
+      visual: string;
+      props: Record<string, unknown>;
+      renderer?: never;
+      fromFrame: number;
+      durationInFrames: number;
     };
 
 export type RenderTimeline = {

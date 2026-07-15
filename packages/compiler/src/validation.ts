@@ -7,6 +7,7 @@ import {
 export function validateIR(ir: DemoIR): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
   const sceneIds = new Set<string>();
+  const visualIds = new Set(ir.visuals ?? []);
 
   if (!ir.id || !ir.title || !ir.source.baseUrl) {
     diagnostics.push({
@@ -121,6 +122,37 @@ export function validateIR(ir: DemoIR): Diagnostic[] {
           targetId: target,
         });
       }
+
+      if (step.kind === "overlay.visual") {
+        if (!visualIds.has(step.visual)) {
+          diagnostics.push({
+            code: "DC107",
+            severity: "error",
+            message: `Unknown visual "${step.visual}".`,
+            path: `scenes.${scene.id}.steps.${step.id}.visual`,
+            suggestion:
+              visualIds.size === 0
+                ? `Declare "${step.visual}" in the demo visuals map.`
+                : `Use one of the declared visuals: ${[...visualIds].join(", ")}.`,
+            demoId: ir.id,
+            sceneId: scene.id,
+            stepId: step.id,
+          });
+        }
+        if (!isJsonValue(step.props)) {
+          diagnostics.push({
+            code: "DC108",
+            severity: "error",
+            message: `Visual "${step.visual}" props must be JSON-serializable.`,
+            path: `scenes.${scene.id}.steps.${step.id}.props`,
+            suggestion:
+              "Use only strings, numbers, booleans, null, arrays, and plain objects as visual props.",
+            demoId: ir.id,
+            sceneId: scene.id,
+            stepId: step.id,
+          });
+        }
+      }
     }
   }
 
@@ -128,6 +160,25 @@ export function validateIR(ir: DemoIR): Diagnostic[] {
     ...diagnostic,
     docsUrl: diagnostic.docsUrl ?? diagnosticDocsUrl(diagnostic.code),
   }));
+}
+
+function isJsonValue(value: unknown, seen = new Set<object>()): boolean {
+  if (value === null) return true;
+  if (["string", "boolean"].includes(typeof value)) return true;
+  if (typeof value === "number") return Number.isFinite(value);
+  if (typeof value !== "object") return false;
+  if (seen.has(value)) return false;
+  seen.add(value);
+  if (Array.isArray(value)) {
+    const valid = value.every((item) => isJsonValue(item, seen));
+    seen.delete(value);
+    return valid;
+  }
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) return false;
+  const valid = Object.values(value).every((item) => isJsonValue(item, seen));
+  seen.delete(value);
+  return valid;
 }
 
 function unknownTargetSuggestion(target: string, targetIds: string[]): string {

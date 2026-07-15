@@ -26,11 +26,12 @@ export {
   GlassCallout,
   OverlayLayer,
   type VisualComponent,
+  type GenericVisualComponent,
   type CaptionProps,
   type CalloutProps,
   type VisualRegistry,
 } from "./overlays";
 
-export { defineVisualRegistry, type VisualEntry } from "./registry";
+export { defineVisual, defineVisualRegistry, type VisualEntry } from "./registry";
 
 export { remocnAdapter, type DemocraftAdapter } from "./adapters/remocn";

@@ -5,6 +5,12 @@ import {
   type VisualComponent,
   type VisualRegistry,
 } from "./overlays";
+import type React from "react";
+
+type VisualDefinition<TProps> = {
+  readonly component: unknown;
+  readonly __visualProps?: (props: TProps) => TProps;
+};
 
 /**
  * A single visual registration — maps a renderer ID to a React component.
@@ -28,7 +34,19 @@ export type VisualEntry =
       kind: "callout";
       id: string;
       component: VisualComponent<CalloutProps>;
+    }
+  | {
+      kind: "visual";
+      id: string;
+      component: React.ComponentType<never>;
     };
+
+/** Declare any React/Remotion component while preserving its exact props. */
+export function defineVisual<TProps>(
+  component: React.ComponentType<TProps>,
+): VisualDefinition<TProps> {
+  return { component };
+}
 
 /**
  * Build a custom visual registry by extending the built-in defaults.
@@ -63,12 +81,16 @@ export function defineVisualRegistry(
   const registry: VisualRegistry = {
     captions: { ...defaultVisualRegistry.captions },
     callouts: { ...defaultVisualRegistry.callouts },
+    visuals: { ...defaultVisualRegistry.visuals },
   };
   for (const entry of entries) {
     if (entry.kind === "caption") {
       registry.captions[entry.id] = entry.component;
-    } else {
+    } else if (entry.kind === "callout") {
       registry.callouts[entry.id] = entry.component;
+    } else {
+      registry.visuals[entry.id] =
+        entry.component as React.ComponentType<Record<string, unknown>>;
     }
   }
   return registry;

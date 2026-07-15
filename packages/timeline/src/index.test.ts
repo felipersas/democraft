@@ -24,6 +24,13 @@ const ir: DemoIR = {
         { kind: "camera.establish", id: "intro.establish.2", target: "card" },
         { kind: "overlay.caption", id: "intro.caption.3", text: "Hello" },
         { kind: "timeline.hold", id: "intro.hold.4", durationMs: 1000 },
+        {
+          kind: "overlay.visual",
+          id: "intro.visual.5",
+          visual: "local.title",
+          props: { text: "Launch" },
+          durationMs: 1500,
+        },
       ],
     },
     {
@@ -123,7 +130,7 @@ describe("timeline", () => {
     expect(timeline.captureEnvironmentHash).toBe(
       manifest.captureEnvironmentHash,
     );
-    expect(timeline.durationInFrames).toBe(441);
+    expect(timeline.durationInFrames).toBe(531);
     expect(
       timeline.scenes.map((scene) => [
         scene.id,
@@ -131,8 +138,8 @@ describe("timeline", () => {
         scene.durationInFrames,
       ]),
     ).toEqual([
-      ["intro", 0, 228],
-      ["create", 228, 213],
+      ["intro", 0, 318],
+      ["create", 318, 213],
     ]);
     expect(timeline.camera).toEqual([
       expect.objectContaining({
@@ -153,8 +160,15 @@ describe("timeline", () => {
     ]);
     expect(timeline.overlays.map((overlay) => overlay.kind)).toEqual([
       "caption",
+      "visual",
       "callout",
     ]);
+    expect(timeline.overlays[1]).toMatchObject({
+      kind: "visual",
+      visual: "local.title",
+      props: { text: "Launch" },
+      durationInFrames: 90,
+    });
   });
 
   it("inspects timelines as readable text", () => {

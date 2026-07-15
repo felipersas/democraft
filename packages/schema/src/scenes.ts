@@ -37,5 +37,7 @@ export type DemoIR = {
   title: string;
   source: DemoSource;
   targets: Record<string, TargetDefinition>;
+  /** Visual IDs declared by the author module. Component functions stay out of IR. */
+  visuals?: string[];
   scenes: DemoSceneIR[];
 };

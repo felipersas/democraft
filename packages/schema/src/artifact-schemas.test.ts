@@ -235,6 +235,13 @@ describe("artifact schemas v1", () => {
         title: "Save",
         renderer: "",
       },
+      {
+        ...base,
+        id: "visual",
+        kind: "visual",
+        visual: "local.title",
+        props: { text: "Saved" },
+      },
     ];
 
     const parsed = parseRenderTimeline(fixture);
@@ -242,8 +249,13 @@ describe("artifact schemas v1", () => {
     expect(parsed.overlays.map((track) => track.kind)).toEqual([
       "caption",
       "callout",
+      "visual",
     ]);
-    expect(parsed.overlays.map((track) => track.renderer)).toEqual(["", ""]);
+    expect(parsed.overlays.map((track) => track.renderer)).toEqual([
+      "",
+      "",
+      undefined,
+    ]);
     expect(parseRenderTimeline(JSON.parse(JSON.stringify(parsed)))).toEqual(
       parsed,
     );

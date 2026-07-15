@@ -31,6 +31,7 @@ export type DemocraftAdapter = {
   visualRegistry?: {
     captions: Record<string, unknown>;
     callouts: Record<string, unknown>;
+    visuals?: Record<string, unknown>;
   };
 };
 
@@ -46,6 +47,17 @@ export type SceneStepOptions = {
 };
 
 export type Duration = `${number}ms` | `${number}s`;
+
+/** A renderer-owned component whose props are inferred without coupling core to React. */
+export type VisualDefinition<TProps = unknown> = {
+  readonly component: unknown;
+  /** Type-only marker used by `scene.visual`; never read at runtime. */
+  readonly __visualProps?: (props: TProps) => TProps;
+};
+
+export type VisualMap = Record<string, { readonly component: unknown }>;
+export type VisualProps<TVisual> =
+  TVisual extends VisualDefinition<infer TProps> ? TProps : never;
 
 export type TransitionOptions = SceneStepOptions & {
   type?: "cut" | "crossfade";
@@ -64,6 +76,10 @@ export type CalloutOptions = SceneStepOptions & {
 
 export type FocusOptions = SceneStepOptions & {
   padding?: number;
+};
+
+export type VisualOptions = SceneStepOptions & {
+  duration?: Duration;
 };
 
 export type CapturedStep =
@@ -92,9 +108,19 @@ export type CapturedStep =
       description?: string;
       renderer?: string;
     }
+  | {
+      kind: "overlay.visual";
+      id?: string;
+      visual: string;
+      props: unknown;
+      duration?: Duration;
+    }
   | { kind: "cue"; id?: string; name: string };
 
-export type DemoScene<TTargetId extends string = string> = {
+export type DemoScene<
+  TTargetId extends string = string,
+  TVisuals extends VisualMap = VisualMap,
+> = {
   goto(path: string, options?: SceneStepOptions): Promise<void>;
   click(target: TTargetId, options?: SceneStepOptions): Promise<void>;
   fill(
@@ -120,23 +146,32 @@ export type DemoScene<TTargetId extends string = string> = {
   transition(options?: TransitionOptions): Promise<void>;
   caption(text: string, options?: CaptionOptions): Promise<void>;
   callout(target: TTargetId, options: CalloutOptions): Promise<void>;
+  visual<TVisualId extends Extract<keyof TVisuals, string>>(
+    visual: TVisualId,
+    props: VisualProps<TVisuals[TVisualId]>,
+    options?: VisualOptions,
+  ): Promise<void>;
   cue(name: string, options?: SceneStepOptions): Promise<void>;
 };
 
-export type DemoCapture<TTargetId extends string = string> = {
+export type DemoCapture<
+  TTargetId extends string = string,
+  TVisuals extends VisualMap = VisualMap,
+> = {
   scene(
     id: string,
-    run: (scene: DemoScene<TTargetId>) => Promise<void> | void,
+    run: (scene: DemoScene<TTargetId, TVisuals>) => Promise<void> | void,
   ): Promise<void>;
   scene(
     id: string,
     metadata: SceneMetadata,
-    run: (scene: DemoScene<TTargetId>) => Promise<void> | void,
+    run: (scene: DemoScene<TTargetId, TVisuals>) => Promise<void> | void,
   ): Promise<void>;
 };
 
 export type DemoInput<
   TTargets extends Record<string, TargetInput> = Record<string, TargetInput>,
+  TVisuals extends VisualMap = Record<never, never>,
 > = {
   id: string;
   title: string;
@@ -146,12 +181,16 @@ export type DemoInput<
     initialPath?: string;
   };
   targets?: TTargets;
+  visuals?: TVisuals;
   run(args: {
-    demo: DemoCapture<Extract<keyof TTargets, string>>;
+    demo: DemoCapture<Extract<keyof TTargets, string>, TVisuals>;
   }): Promise<void> | void;
 };
 
-export type DemoDefinition<TTargets extends TargetMap = TargetMap> = Omit<
-  DemoInput<TTargets>,
+export type DemoDefinition<
+  TTargets extends TargetMap = TargetMap,
+  TVisuals extends VisualMap = VisualMap,
+> = Omit<
+  DemoInput<TTargets, TVisuals>,
   "targets"
 > & { targets: TTargets };

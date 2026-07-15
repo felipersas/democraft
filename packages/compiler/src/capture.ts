@@ -55,6 +55,14 @@ export function createSceneCapture(steps: CapturedStep[]): DemoScene {
         description: options.description,
         renderer: options.renderer,
       }),
+    visual: (visual, props, options) =>
+      push({
+        kind: "overlay.visual",
+        id: options?.id,
+        visual,
+        props,
+        duration: options?.duration,
+      }),
     cue: (name, options) => push({ kind: "cue", id: options?.id, name }),
   };
 }

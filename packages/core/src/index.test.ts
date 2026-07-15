@@ -6,7 +6,7 @@ import {
   defineTarget,
   defineTargets,
 } from "./index";
-import type { Duration } from "./index";
+import type { Duration, VisualDefinition } from "./index";
 
 describe("targets", () => {
   it("types supported durations and normalizes target-free demos", () => {
@@ -117,5 +117,36 @@ describe("targets", () => {
     };
 
     expect(defineDemo(input)).toBe(input);
+  });
+
+  it("infers visual ids and component props in the scene API", () => {
+    const launchTitle = { component: null } as VisualDefinition<{
+      text: string;
+      speed?: number;
+    }>;
+
+    const definition = defineDemo({
+      id: "visual-demo",
+      title: "Visual demo",
+      source: { baseUrl: "http://localhost:3000" },
+      visuals: { "local.launch-title": launchTitle },
+      async run({ demo }) {
+        await demo.scene("intro", async (scene) => {
+          await scene.visual(
+            "local.launch-title",
+            { text: "New analytics", speed: 1.2 },
+            { duration: "1.5s" },
+          );
+          // @ts-expect-error Visual props are inferred from the component.
+          await scene.visual("local.launch-title", { speed: 1.2 });
+          // @ts-expect-error Visual ids come from the demo visuals map.
+          await scene.visual("local.missing", { text: "Missing" });
+        });
+      },
+    });
+
+    expect(definition.visuals).toEqual({
+      "local.launch-title": launchTitle,
+    });
   });
 });

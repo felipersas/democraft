@@ -10,7 +10,9 @@ import {
   defaultVisualRegistry,
   resolveCalloutComponent,
   resolveCaptionComponent,
+  resolveVisualComponent,
 } from "./overlays";
+import { defineVisual, defineVisualRegistry } from "./registry";
 import type { RenderTimeline } from "@democraft/schema";
 
 describe("remotion", () => {
@@ -166,6 +168,24 @@ describe("remotion", () => {
     ).toThrow(
       'Unknown callout renderer "local.missing". Registered renderers: motion.callout, remocn.glass-callout.',
     );
+    expect(() =>
+      resolveVisualComponent(defaultVisualRegistry, "local.missing"),
+    ).toThrow(
+      'Unknown visual renderer "local.missing". Registered renderers: none.',
+    );
+  });
+
+  it("defines and resolves arbitrary typed visual components", () => {
+    const Title = ({ text }: { text: string }) => text;
+    const visual = defineVisual(Title);
+    const registry = defineVisualRegistry({
+      kind: "visual",
+      id: "local.title",
+      component: visual.component as typeof Title,
+    });
+
+    expect(visual.component).toBe(Title);
+    expect(resolveVisualComponent(registry, "local.title")).toBe(Title);
   });
 });
 

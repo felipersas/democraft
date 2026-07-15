@@ -87,14 +87,17 @@ export async function compileDemo(
     title: definition.title,
     source: definition.source,
     targets: definition.targets,
+    visuals: Object.keys(definition.visuals ?? {}),
     scenes: capturedScenes.map((scene) =>
       normalizeScene(definition.id, scene, diagnostics),
     ),
   };
-  ir.definitionHash = createDefinitionHash(ir);
+  const validationDiagnostics = validateIR(ir);
+  diagnostics.push(...validationDiagnostics);
+  if (!validationDiagnostics.some((diagnostic) => diagnostic.code === "DC108")) {
+    ir.definitionHash = createDefinitionHash(ir);
+  }
   ir.captureHash = createCaptureHash(ir);
-
-  diagnostics.push(...validateIR(ir));
 
   return {
     ir,

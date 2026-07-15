@@ -55,6 +55,24 @@ function normalizeStep(
         durationMs: durationMs ?? undefined,
       };
     }
+    case "overlay.visual": {
+      const durationMs = step.duration
+        ? parseDurationMs(step.duration)
+        : undefined;
+      if (step.duration && durationMs === null) {
+        diagnostics.push(invalidDuration(demoId, sceneId, id, step.duration));
+      }
+      return {
+        kind: step.kind,
+        id,
+        visual: step.visual,
+        props:
+          step.props && typeof step.props === "object" && !Array.isArray(step.props)
+            ? (step.props as Record<string, unknown>)
+            : { value: step.props },
+        durationMs: durationMs ?? undefined,
+      };
+    }
     default:
       return { ...step, id };
   }

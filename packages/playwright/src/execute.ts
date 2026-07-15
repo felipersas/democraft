@@ -194,6 +194,7 @@ export async function executeStep(
         }
         break;
       case "overlay.caption":
+      case "overlay.visual":
       case "timeline.hold":
       case "timeline.transition":
       case "cue":
@@ -287,7 +288,7 @@ export async function executeStep(
  * asserts, camera moves). These benefit from settling — wait for the page to
  * finish rendering before capturing, instead of a fixed delay.
  *
- * Steps NOT in this set (`timeline.hold`, `overlay.caption`, `overlay.callout`,
+ * Steps NOT in this set (`timeline.hold`, `overlay.caption`, `overlay.visual`,
  * `timeline.transition`, `cue`) are author-paced: their duration is part of
  * the narrative. They use {@link captureStepHoldMs} so the captured frame
  * matches the timing the author wrote.
@@ -308,6 +309,7 @@ export function stepIsActionDriven(step: DemoStep): boolean {
     case "timeline.hold":
     case "timeline.transition":
     case "overlay.caption":
+    case "overlay.visual":
     case "cue":
       return false;
   }
@@ -326,6 +328,8 @@ export function captureStepHoldMs(step: DemoStep): number {
         1800,
         `${step.title} ${step.description ?? ""}`.trim().length * 45,
       );
+    case "overlay.visual":
+      return step.durationMs ?? 1800;
     case "camera.establish":
       return 700;
     case "camera.focus":

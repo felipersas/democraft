@@ -5,6 +5,7 @@ import type {
   DemoDefinition,
   DemoInput,
   TargetInput,
+  VisualMap,
 } from "./types";
 
 export function defineConfig(config: DemoConfig): DemoConfig {
@@ -13,12 +14,13 @@ export function defineConfig(config: DemoConfig): DemoConfig {
 
 export function defineDemo<
   TTargets extends Record<string, TargetInput> = Record<never, never>,
+  TVisuals extends VisualMap = Record<never, never>,
 >(
-  definition: DemoInput<TTargets>,
-): DemoDefinition<DefinedTargets<TTargets>> {
+  definition: DemoInput<TTargets, TVisuals>,
+): DemoDefinition<DefinedTargets<TTargets>, TVisuals> {
   const targets = definition.targets ?? ({} as TTargets);
   if (definition.targets && hasNormalizedTargets(targets)) {
-    return definition as DemoDefinition<DefinedTargets<TTargets>>;
+    return definition as DemoDefinition<DefinedTargets<TTargets>, TVisuals>;
   }
   return { ...definition, targets: defineTargets(targets) };
 }

@@ -46,6 +46,8 @@ function describeStep(step: DemoStep): string {
       return `Show caption "${step.text}"`;
     case "overlay.callout":
       return `Show callout "${step.title}" on "${step.target}"`;
+    case "overlay.visual":
+      return `Show visual "${step.visual}"`;
     case "cue":
       return `Create cue "${step.name}"`;
   }

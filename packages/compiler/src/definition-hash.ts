@@ -11,18 +11,19 @@ export const CAPTURE_HASH_PREFIX = "capture-v1:sha256:";
  * excluded. Object keys are sorted recursively while array order is retained.
  */
 export function canonicalizeDefinition(
-  ir: Pick<DemoIR, "title" | "source" | "targets" | "scenes">,
+  ir: Pick<DemoIR, "title" | "source" | "targets" | "scenes" | "visuals">,
 ): string {
   return canonicalJson({
     title: ir.title,
     source: ir.source,
     targets: ir.targets,
+    visuals: ir.visuals,
     scenes: ir.scenes,
   });
 }
 
 export function createDefinitionHash(
-  ir: Pick<DemoIR, "title" | "source" | "targets" | "scenes">,
+  ir: Pick<DemoIR, "title" | "source" | "targets" | "scenes" | "visuals">,
 ): string {
   return `${DEFINITION_HASH_PREFIX}${sha256(canonicalizeDefinition(ir))}`;
 }
@@ -87,6 +88,8 @@ function captureStepProjection(step: DemoStep): Record<string, unknown> {
         title: step.title,
         description: step.description,
       };
+    case "overlay.visual":
+      return identity;
     case "cue":
       return identity;
   }
