@@ -11,7 +11,6 @@ const require = createRequire(import.meta.url);
 const COMPILER_MODULE_URL = pathToFileURL(
   require.resolve("@democraft/compiler"),
 ).href;
-const TSX_LOADER_URL = pathToFileURL(require.resolve("tsx")).href;
 
 const CHILD_SOURCE = String.raw`
 import { writeFileSync } from "node:fs";
@@ -37,7 +36,7 @@ export async function compileDemoModuleIsolated(
 ): Promise<CompilationResult> {
   const child = spawn(
     process.execPath,
-    ["--import", TSX_LOADER_URL, "--input-type=module", "--eval", CHILD_SOURCE],
+    ["--input-type=module", "--eval", CHILD_SOURCE],
     {
       cwd: options.cwd ?? process.cwd(),
       env: {
