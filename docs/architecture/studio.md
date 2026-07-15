@@ -15,8 +15,16 @@ The CLI:
 2. Captures via Playwright (`runDemo`)
 3. Resolves the timeline (`resolveTimeline`)
 4. Materializes data into `.democraft/studio-data/` (manifest, timeline, screenshots, recording)
-5. Launches `pnpm --filter @democraft/studio dev` with `DEMOCRAFT_STUDIO_DATA` set to the data dir
-6. Opens at `http://localhost:3000`
+5. Generates an ephemeral session token and launches `pnpm --filter @democraft/studio dev` bound to `127.0.0.1`, with the data dir and token passed only through the child environment
+6. Opens at `http://127.0.0.1:3000`
+
+The Studio intentionally does not listen on LAN interfaces: both the package
+`dev`/`start` scripts and the CLI bind `127.0.0.1`. Every API operation
+with side effects requires both an exact same-origin `Origin` and the ephemeral
+session token. The browser obtains that token through a same-origin endpoint and
+sends it in a request header; it is never placed in the Studio URL or CLI output.
+`localhost` and `::1` remain valid loopback origins for request validation, but
+the CLI uses the explicit IPv4 loopback address for deterministic binding.
 
 ## Workflow
 
@@ -95,7 +103,7 @@ Import from the right place:
 
 ## Configuration
 
-The studio reads from `.democraft/studio-data/` by default. Override with the `DEMOCRAFT_STUDIO_DATA` env var (set automatically by the `democraft studio` CLI command).
+The studio reads from `.democraft/studio-data/` by default. Override with the `DEMOCRAFT_STUDIO_DATA` env var (set automatically by the `democraft studio` CLI command). Direct `pnpm --filter @democraft/studio dev` launches remain bound to `127.0.0.1`, but do not configure mutation access; use the CLI so it can create the per-process `DEMOCRAFT_STUDIO_SESSION_TOKEN` securely.
 
 ## Why not Remotion Studio?
 
@@ -118,6 +126,11 @@ What we build ourselves:
 **`Studio data unavailable` in the browser** — Run `democraft studio <demo.ts>` from the workspace root. The CLI populates `.democraft/studio-data/`. If you launched the studio directly (`pnpm --filter @democraft/studio dev`) without running the CLI, no data exists.
 
 **Port 3000 already in use** — `democraft studio <demo.ts> --port 3001`.
+
+**Mutation returns 401/403/503** — Open the exact loopback URL printed by the
+CLI. A `401` indicates a missing/stale session token, `403` an invalid target or
+Origin, and `503` that the Studio was started directly without CLI session
+configuration.
 
 **Render fails with bundler error** — Check that `@democraft/remotion` is built (`pnpm --filter @democraft/remotion build`). The render API imports from its `dist/`.
 

@@ -14,7 +14,7 @@ Democraft é uma ferramenta local que abre aplicações autenticadas, lê `stora
 
 ### P1 — assets e path containment
 
-Qualquer rota que concatena paths de manifest precisa usar containment por `relative`, não apenas prefix string. Symlinks exigem decisão explícita: rejeitar via `realpath` fora da raiz ou documentar confiança local.
+Qualquer rota que concatena paths de manifest precisa usar containment por `relative`, não apenas prefix string. O Studio agora ancora roots gerenciadas na autoridade canônica recebida da CLI, resolve leituras e escritas por `realpath` e rejeita redirects por symlink. Outputs de captura explicitamente configurados continuam sendo a única raiz externa autorizada.
 
 ### P1 — execução de código de usuário
 
@@ -26,9 +26,17 @@ Screenshots, recording, trace e storage state podem conter PII, tokens e conteú
 
 **Mitigação.** Warning para output rastreado pelo Git, política de redaction, retenção opt-in, documentação de secrets e um comando de export que exclua trace/storage paths por default.
 
-### P2 — endpoints mutáveis do Studio
+### P2 — endpoints mutáveis do Studio (resolvido)
 
-O Studio deve bindar somente `127.0.0.1`, validar Origin e usar token aleatório da sessão para POST/cancel/recapture. CORS “não configurado” não substitui proteção CSRF.
+O CLI e os scripts `dev`/`start` do pacote agora bindam o Studio explicitamente
+em `127.0.0.1`. O CLI gera um token aleatório por processo e o transporta apenas
+no ambiente do filho. Todas as operações com
+efeito colateral validam target loopback, `Origin` exatamente igual e o token em
+header. A UI obtém o token por fetch same-origin; URLs e logs não o recebem.
+`open-folder`, antes um `GET` com efeito colateral, passou a `POST` protegido.
+GETs que expõem dados, assets, histórico ou SSE também rejeitam target
+não-loopback, mitigando DNS rebinding. CORS “não configurado” continua não sendo
+tratado como substituto de CSRF.
 
 ### P2 — JSON sem limites/schema
 
@@ -73,8 +81,8 @@ Para revelar a própria raiz, permitir `relative === ""`. Criar arquivos com per
 
 ## Checklist de hardening
 
-- [ ] rotas locais aceitam apenas paths sob roots permitidas;
-- [ ] bind loopback + token/Origin;
+- [x] rotas locais aceitam apenas paths sob roots permitidas;
+- [x] bind loopback + token/Origin;
 - [ ] schemas e limites em todas as entradas JSON;
 - [ ] logs e exports redigem segredos;
 - [ ] cleanup não remove fora de `.democraft`;

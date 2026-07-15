@@ -87,10 +87,15 @@ generation completa. Hardening por `realpath` contra symlinks continua na fase
 
 ### Fase 1C: hardening do Studio
 
-- containment de paths e `realpath`;
-- Origin/session token;
-- loopback documentado/testado;
-- histórico reconstruído do filesystem.
+**Implementada:** containment canônico de paths e roots gerenciadas; token de
+sessão com Origin exata; bind/target loopback documentado e testado; histórico
+terminal reconstruído do filesystem, com identidade estável, cache
+single-flight e memória limitada durante a seleção dos candidatos mais recentes.
+
+**Resíduos P2:** a reconstrução precisa enumerar os diretórios para garantir
+recência quando a ordem do filesystem é arbitrária; o materializador inicial da
+CLI e a escrita live de `timeline.json` ainda devem convergir para uma única
+transação de geração atômica.
 
 ### Resíduos de identidade/reload
 
