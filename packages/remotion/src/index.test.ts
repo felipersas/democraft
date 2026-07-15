@@ -6,6 +6,11 @@ import {
 } from "./index";
 import { cameraStateAt, stageMediaState } from "./composition";
 import { imageStyle } from "./stage";
+import {
+  defaultVisualRegistry,
+  resolveCalloutComponent,
+  resolveCaptionComponent,
+} from "./overlays";
 import type { RenderTimeline } from "@democraft/schema";
 
 describe("remotion", () => {
@@ -148,6 +153,19 @@ describe("remotion", () => {
     expect(style.transform).toBe("scale(1)");
     expect(style.maxWidth).toBe("none");
     expect(style.maxHeight).toBe("none");
+  });
+
+  it("rejects explicit renderer ids missing from the visual registry", () => {
+    expect(() =>
+      resolveCaptionComponent(defaultVisualRegistry, "local.missing"),
+    ).toThrow(
+      'Unknown caption renderer "local.missing". Registered renderers: motion.caption, remocn.kinetic-title.',
+    );
+    expect(() =>
+      resolveCalloutComponent(defaultVisualRegistry, "local.missing"),
+    ).toThrow(
+      'Unknown callout renderer "local.missing". Registered renderers: motion.callout, remocn.glass-callout.',
+    );
   });
 });
 

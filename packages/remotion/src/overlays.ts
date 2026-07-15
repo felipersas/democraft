@@ -82,8 +82,10 @@ export function OverlayLayer({
       .map((overlay) => {
         const opacity = overlayOpacity(overlay, frame);
         if (overlay.kind === "caption") {
-          const Component =
-            registry.captions[overlay.renderer ?? "motion.caption"] ?? Caption;
+          const Component = resolveCaptionComponent(
+            registry,
+            overlay.renderer,
+          );
           return React.createElement(Component, {
             key: overlay.id,
             opacity,
@@ -98,8 +100,7 @@ export function OverlayLayer({
           height: 0,
         };
         const box = transformedBox(rawBox, camera, stage);
-        const Component =
-          registry.callouts[overlay.renderer ?? "motion.callout"] ?? Callout;
+        const Component = resolveCalloutComponent(registry, overlay.renderer);
         return React.createElement(Component, {
           box,
           key: overlay.id,
@@ -107,6 +108,36 @@ export function OverlayLayer({
           overlay,
         });
       }),
+  );
+}
+
+export function resolveCaptionComponent(
+  registry: VisualRegistry,
+  renderer?: string,
+): VisualComponent<CaptionProps> {
+  if (!renderer) return registry.captions["motion.caption"] ?? Caption;
+  const component = registry.captions[renderer];
+  if (component) return component;
+  throw unknownRenderer("caption", renderer, Object.keys(registry.captions));
+}
+
+export function resolveCalloutComponent(
+  registry: VisualRegistry,
+  renderer?: string,
+): VisualComponent<CalloutProps> {
+  if (!renderer) return registry.callouts["motion.callout"] ?? Callout;
+  const component = registry.callouts[renderer];
+  if (component) return component;
+  throw unknownRenderer("callout", renderer, Object.keys(registry.callouts));
+}
+
+function unknownRenderer(
+  kind: "caption" | "callout",
+  renderer: string,
+  registered: string[],
+): Error {
+  return new Error(
+    `Unknown ${kind} renderer "${renderer}". Registered renderers: ${registered.sort().join(", ") || "none"}.`,
   );
 }
 

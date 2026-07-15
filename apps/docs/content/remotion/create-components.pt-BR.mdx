@@ -207,7 +207,7 @@ Para construir componentes, o pacote exporta:
 | `remocnAdapter(options?)` | A factory do adapter remocn. |
 
 <Callout type="warn" title="Experimental">
-Schemas de componentes (validação de props com zod) e presets de tema são planejados mas ainda não implementados. Hoje, a string `renderer` é opaque — o pipeline não valida se um renderer ID existe até o momento da renderização. Isso significa que um erro de digitação no nome do renderer cai silenciosamente no default sem erro.
+Schemas de componentes (validação de props com zod) e presets de tema são planejados mas ainda não implementados. Hoje, a string `renderer` é validada apenas no render. Um ID explícito desconhecido falha mostrando os renderers registrados; ele nunca cai silenciosamente no default.
 </Callout>
 
 ## Próximos passos
