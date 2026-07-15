@@ -20,20 +20,16 @@ export async function startFileWatcher(): Promise<void> {
 
   // Watch studio-data for capture/render outputs → hot-reload the studio.
   try {
-    const watcher = watch(
-      dir,
-      { recursive: true },
-      (_eventType, filename) => {
-        if (!filename) return;
-        // meta.json changes are driven by us; don't double-reload on them.
-        if (filename.endsWith("meta.json")) return;
-        if (!/\.(json|png|webm|mp4)$/.test(filename)) return;
-        clearTimeout(dataDebounce);
-        dataDebounce = setTimeout(() => {
-          publishReload();
-        }, 200);
-      },
-    );
+    const watcher = watch(dir, { recursive: true }, (_eventType, filename) => {
+      if (!filename) return;
+      // meta.json changes are driven by us; don't double-reload on them.
+      if (filename.endsWith("meta.json")) return;
+      if (!/\.(json|png|webm|mp4)$/.test(filename)) return;
+      clearTimeout(dataDebounce);
+      dataDebounce = setTimeout(() => {
+        publishReload();
+      }, 200);
+    });
     process.on("exit", () => watcher.close());
   } catch {
     started = false;
@@ -41,8 +37,8 @@ export async function startFileWatcher(): Promise<void> {
 
   // Watch demo.ts for live edits → re-resolve the timeline without re-capture.
   // This is the "Auto-reload on demo.ts change" + "Live edits without
-  // re-capture" roadmap item. Captions, pacing, overlay text flow into the
-  // preview instantly.
+  // re-capture" roadmap item. Only edits with the same captureHash are applied;
+  // capture-affecting or legacy-unknown edits request a re-capture instead.
   void watchDemoSource();
 }
 
@@ -53,26 +49,36 @@ async function watchDemoSource(): Promise<void> {
     const watcher = watch(meta.demoPath, () => {
       clearTimeout(demoDebounce);
       demoDebounce = setTimeout(async () => {
-        try {
-          const result = await reResolveTimeline({
-            meta,
-            dataDir: studioDataDir(),
-          });
-          if (!result) return;
-          if (result.structural) {
-            // Structural change — re-resolve is unsafe; tell the UI to
-            // re-capture. The file-watcher's own reload will also fire when
-            // timeline.json is rewritten, refreshing the stale badge.
-            publish("staleness", { kind: "structural" });
-          }
-          // timeline.json was rewritten → the data watcher fires `reload`.
-        } catch {
-          /* demo.ts may be mid-edit (syntax error); ignore transient failures */
-        }
+        await handleDemoSourceChange(studioDataDir());
       }, 400);
     });
     process.on("exit", () => watcher.close());
   } catch {
     /* demo.ts may not exist yet; the watcher is best-effort */
+  }
+}
+
+/** Re-read metadata for every change so recapture provenance is never stale. */
+export async function handleDemoSourceChange(dataDir: string): Promise<void> {
+  try {
+    const currentMeta = await readMeta(dataDir);
+    if (!currentMeta) {
+      throw new Error("Studio metadata disappeared during reload.");
+    }
+    const result = await reResolveTimeline({ meta: currentMeta, dataDir });
+    if (result?.structural) {
+      publish("staleness", {
+        kind: "structural",
+        detail: result.detail,
+      });
+    }
+  } catch (error) {
+    publish("staleness", {
+      kind: "failed",
+      detail:
+        error instanceof Error
+          ? `Live reload failed: ${error.message}`
+          : "Live reload failed.",
+    });
   }
 }

@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { runDemo } from "@democraft/playwright";
 import { readMeta, loadDemo } from "@/lib/staleness";
-import { materializeStudioData, updateMetaCapturedAt } from "@/lib/materialize";
+import {
+  materializeStudioData,
+  updateMetaAfterCapture,
+} from "@/lib/materialize";
 import { studioDataDir } from "@/lib/server-data";
 import { publish } from "@/lib/event-bus";
 import { compileDemo } from "@democraft/compiler";
@@ -34,6 +37,14 @@ export async function POST() {
   try {
     const demo = await loadDemo(meta.demoPath);
     const compilation = await compileDemo(demo);
+    const errors = compilation.diagnostics.filter(
+      (diagnostic) => diagnostic.severity === "error",
+    );
+    if (errors.length > 0) {
+      throw new Error(
+        `Static validation failed: ${errors.map((error) => error.message).join("; ")}`,
+      );
+    }
 
     publish("recapture-progress", { phase: "capturing" });
     manifest = await runDemo(compilation.ir, { outputDir: meta.captureDir });
@@ -48,7 +59,7 @@ export async function POST() {
       manifest,
       timeline,
     });
-    await updateMetaCapturedAt(dataDir, meta);
+    await updateMetaAfterCapture(dataDir, meta, compilation.ir);
   } catch (err) {
     publish("recapture-progress", {
       phase: "failed",

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1",
+  "demoId": "demo",
+  "recording": { "path": "recording.webm", "width": 1440, "height": 900 },
+  "steps": [
+    {
+      "stepId": "goto",
+      "sceneId": "intro",
+      "kind": "browser.goto",
+      "startedAtMs": 0,
+      "endedAtMs": 10
+    }
+  ],
+  "diagnostics": []
+}

@@ -4,7 +4,16 @@ import { spawn } from "node:child_process";
 import { compileDemo } from "@democraft/compiler";
 import { runDemo } from "@democraft/playwright";
 import { resolveTimeline } from "@democraft/timeline";
-import type { RecordedDemoManifest, StudioMeta } from "@democraft/schema";
+import {
+  compareCaptureCompatibility,
+  parseRecordedDemoManifest,
+  parseRecordedDemoManifestJson,
+  parseRenderTimeline,
+  parseStudioMeta,
+  schemaVersion,
+  type CaptureCompatibility,
+  type RecordedDemoManifest,
+} from "@democraft/schema";
 import { formatDiagnostics } from "./format";
 import { loadDemo } from "./loaders";
 
@@ -24,30 +33,40 @@ export async function launchStudio(
   const demo = await loadDemo(options.demoPath);
   const compilation = await compileDemo(demo);
 
-  if (
-    compilation.diagnostics.some((d) => d.severity === "error")
-  ) {
+  if (compilation.diagnostics.some((d) => d.severity === "error")) {
     throw new Error(
       `Static validation failed.\n${formatDiagnostics(compilation.diagnostics)}`,
     );
   }
 
   const root = options.workspaceRoot ?? process.cwd();
-  const captureDir =
-    options.outputDir
-      ? path.isAbsolute(options.outputDir)
-        ? options.outputDir
-        : path.resolve(root, options.outputDir)
-      : path.join(root, ".democraft", "runs", compilation.ir.id);
+  const captureDir = options.outputDir
+    ? path.isAbsolute(options.outputDir)
+      ? options.outputDir
+      : path.resolve(root, options.outputDir)
+    : path.join(root, ".democraft", "runs", compilation.ir.id);
   const dataDir = path.join(root, ".democraft", "studio-data");
   await mkdir(dataDir, { recursive: true });
 
   let manifest: RecordedDemoManifest;
-  const existingManifest = await readJsonSafe<RecordedDemoManifest>(
+  const existingManifest = await readArtifactIfExists(
     path.join(captureDir, "manifest.json"),
+    parseRecordedDemoManifestJson,
   );
+  const existingCompatibility = existingManifest
+    ? compareCaptureCompatibility(
+        {
+          demoId: compilation.ir.id,
+          captureHash: compilation.ir.captureHash,
+        },
+        existingManifest,
+      )
+    : undefined;
+  const existingAction = existingCompatibility
+    ? captureActionForCompatibility(existingCompatibility, options.noCapture)
+    : undefined;
 
-  if (existingManifest) {
+  if (existingManifest && existingAction === "reuse") {
     manifest = existingManifest;
     // Default: reuse the prior capture silently. Only announce when the
     // user explicitly skipped and we honored it, so they know we didn't run
@@ -58,8 +77,6 @@ export async function launchStudio(
       );
     }
   } else if (options.noCapture) {
-    // Forced skip but nothing to reuse — fail loudly rather than silently
-    // degrading into a full capture (the old behavior, which surprised users).
     throw new Error(
       `--no-capture was set but no prior capture exists at\n  ${path.join(
         captureDir,
@@ -68,7 +85,9 @@ export async function launchStudio(
     );
   } else {
     process.stderr.write(
-      `No prior capture found — running Playwright (this may take a while)…\n`,
+      existingManifest
+        ? "Existing capture is not known-compatible — running Playwright to refresh it…\n"
+        : "No prior capture found — running Playwright (this may take a while)…\n",
     );
     manifest = await runDemo(compilation.ir, {
       outputDir: captureDir,
@@ -76,8 +95,8 @@ export async function launchStudio(
     });
   }
 
-  const failedCapture = manifest.steps.some(
-    (step) => step.url?.startsWith("chrome-error://"),
+  const failedCapture = manifest.steps.some((step) =>
+    step.url?.startsWith("chrome-error://"),
   );
   if (failedCapture) {
     process.stderr.write(
@@ -107,6 +126,8 @@ export async function launchStudio(
     captureDir,
     workspaceRoot: root,
     demoId: compilation.ir.id,
+    definitionHash: compilation.ir.definitionHash,
+    captureHash: compilation.ir.captureHash,
     capturedAt: Date.now(),
   });
 
@@ -114,6 +135,21 @@ export async function launchStudio(
   const url = await startStudioServer({ port, dataDir, workspaceRoot: root });
 
   return { port, dataDir, url };
+}
+
+export function captureActionForCompatibility(
+  compatibility: CaptureCompatibility,
+  noCapture = false,
+): "reuse" | "capture" {
+  if (compatibility === "compatible") return "reuse";
+  if (noCapture) {
+    throw new Error(
+      compatibility === "unknown"
+        ? "--no-capture cannot reuse the existing legacy capture because compatibility is unknown. Run without --no-capture to capture it again."
+        : "--no-capture cannot reuse the existing capture because it is incompatible. Run without --no-capture to refresh it.",
+    );
+  }
+  return "capture";
 }
 
 /** Metadata persisted to studio-data/meta.json. The studio reads this to
@@ -125,15 +161,20 @@ async function writeMetaFile(args: {
   captureDir: string;
   workspaceRoot: string;
   demoId: string;
+  definitionHash?: string;
+  captureHash?: string;
   capturedAt: number;
 }): Promise<void> {
-  const meta: StudioMeta = {
+  const meta = parseStudioMeta({
+    schemaVersion,
     demoPath: args.demoPath,
     captureDir: args.captureDir,
     workspaceRoot: args.workspaceRoot,
     demoId: args.demoId,
+    definitionHash: args.definitionHash,
+    captureHash: args.captureHash,
     capturedAt: args.capturedAt,
-  };
+  });
   const { writeFile } = await import("node:fs/promises");
   await writeFile(
     path.join(args.dataDir, "meta.json"),
@@ -147,13 +188,15 @@ async function materializeStudioData(args: {
   manifest: RecordedDemoManifest;
   timeline: ReturnType<typeof resolveTimeline>;
 }): Promise<void> {
+  const manifest = parseRecordedDemoManifest(args.manifest);
+  const timeline = parseRenderTimeline(args.timeline);
   const screenshotsSrc = path.join(args.captureDir, "screenshots");
   const screenshotsDst = path.join(args.dataDir, "screenshots");
   await rm(screenshotsDst, { recursive: true, force: true });
   await mkdir(screenshotsDst, { recursive: true });
 
   if (await existsDir(screenshotsSrc)) {
-    for (const step of args.manifest.steps) {
+    for (const step of manifest.steps) {
       const name = `${step.sceneId}-${step.stepId}.png`;
       const src = path.join(screenshotsSrc, name);
       if (await existsFile(src)) {
@@ -162,7 +205,7 @@ async function materializeStudioData(args: {
     }
   }
 
-  const recordingRaw = args.manifest.recording?.path;
+  const recordingRaw = manifest.recording?.path;
   const recordingSrc = recordingRaw
     ? path.isAbsolute(recordingRaw)
       ? recordingRaw
@@ -176,11 +219,11 @@ async function materializeStudioData(args: {
   const { writeFile } = await import("node:fs/promises");
   await writeFile(
     path.join(args.dataDir, "manifest.json"),
-    `${JSON.stringify(args.manifest, null, 2)}\n`,
+    `${JSON.stringify(manifest, null, 2)}\n`,
   );
   await writeFile(
     path.join(args.dataDir, "timeline.json"),
-    `${JSON.stringify(args.timeline, null, 2)}\n`,
+    `${JSON.stringify(timeline, null, 2)}\n`,
   );
 }
 
@@ -192,13 +235,7 @@ async function startStudioServer(args: {
   return new Promise((resolve, reject) => {
     const child = spawn(
       "pnpm",
-      [
-        "--filter",
-        "@democraft/studio",
-        "dev",
-        "--port",
-        String(args.port),
-      ],
+      ["--filter", "@democraft/studio", "dev", "--port", String(args.port)],
       {
         cwd: args.workspaceRoot,
         stdio: ["inherit", "pipe", "inherit"],
@@ -224,7 +261,10 @@ async function startStudioServer(args: {
     child.stdout?.on("data", (chunk: Buffer) => {
       const text = chunk.toString();
       process.stdout.write(chunk);
-      if (!resolved && (text.includes("- Local:") || text.includes("Ready in"))) {
+      if (
+        !resolved &&
+        (text.includes("- Local:") || text.includes("Ready in"))
+      ) {
         resolved = true;
         resolve(url);
       }
@@ -267,11 +307,21 @@ async function existsDir(p: string): Promise<boolean> {
   }
 }
 
-async function readJsonSafe<T>(p: string): Promise<T | undefined> {
+async function readArtifactIfExists<T>(
+  p: string,
+  parse: (json: string) => T,
+): Promise<T | undefined> {
   try {
     const text = await readFile(p, "utf8");
-    return JSON.parse(text) as T;
-  } catch {
-    return undefined;
+    return parse(text);
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      (error as NodeJS.ErrnoException).code === "ENOENT"
+    ) {
+      return undefined;
+    }
+    throw error;
   }
 }

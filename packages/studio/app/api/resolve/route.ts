@@ -30,11 +30,17 @@ export async function POST() {
         { status: 404 },
       );
     }
+    if (result.structural) {
+      return NextResponse.json({
+        structural: true,
+        detail: result.detail,
+      });
+    }
     // The file-watcher fires `reload` when timeline.json changes; nudge it in
     // case the watcher debounces too aggressively for a manual trigger.
     publish("reload", {});
     return NextResponse.json({
-      structural: result.structural,
+      structural: false,
       durationInFrames: result.timeline.durationInFrames,
     });
   } catch (err) {

@@ -4,6 +4,7 @@ import { createSceneCapture } from "./capture";
 import { normalizeScene } from "./normalize";
 import type { CapturedScene, CompilationResult } from "./types";
 import { validateIR } from "./validation";
+import { createCaptureHash, createDefinitionHash } from "./definition-hash";
 
 export async function compileDemo(
   definition: DemoDefinition,
@@ -61,6 +62,8 @@ export async function compileDemo(
       normalizeScene(definition.id, scene, diagnostics),
     ),
   };
+  ir.definitionHash = createDefinitionHash(ir);
+  ir.captureHash = createCaptureHash(ir);
 
   diagnostics.push(...validateIR(ir));
 

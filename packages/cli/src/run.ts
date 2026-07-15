@@ -6,11 +6,19 @@ import { runDemo } from "@democraft/playwright";
 import { renderPreviewHtml } from "@democraft/preview";
 import {
   createProductDemoVideoProps,
+  completeRenderArtifact,
+  createRenderArtifact,
+  failRenderArtifact,
   renderDemoVideo,
   type DemoMediaMode,
 } from "@democraft/remotion";
 import { inspectTimeline, resolveTimeline } from "@democraft/timeline";
-import type { RecordedDemoManifest, RenderTimeline } from "@democraft/schema";
+import {
+  assertCaptureCompatibility,
+  parseRecordedDemoManifestJson,
+  parseRenderTimelineJson,
+  type RecordedDemoManifest,
+} from "@democraft/schema";
 import { parseArgs } from "./args";
 import { formatDiagnostics, formatTargets, formatTargetsJson } from "./format";
 import { fail, help, ok } from "./help";
@@ -22,7 +30,7 @@ import {
 } from "./loaders";
 import { userResolve, workspaceRoot } from "./paths";
 import { launchStudio } from "./studio";
-import type { CliResult } from "./types";
+import type { CliResult, ParsedArgs } from "./types";
 
 export async function runCli(argv = process.argv.slice(2)): Promise<CliResult> {
   const args = parseArgs(argv);
@@ -50,6 +58,9 @@ export async function runCli(argv = process.argv.slice(2)): Promise<CliResult> {
   ) {
     return fail(`Unknown command "${args.command}".\n\n${help()}`);
   }
+
+  const numericError = validateNumericArgs(args);
+  if (numericError) return fail(numericError);
 
   if (!["preview", "render"].includes(args.command) && !args.demoPath) {
     return fail(`Missing demo module path.\n\n${help()}`);
@@ -89,12 +100,13 @@ export async function runCli(argv = process.argv.slice(2)): Promise<CliResult> {
       );
     }
 
-    const manifest = JSON.parse(
+    const manifest = parseRecordedDemoManifestJson(
       await readFile(userResolve(args.manifestPath), "utf8"),
-    ) as RecordedDemoManifest;
-    const timeline = JSON.parse(
+    );
+    const timeline = parseRenderTimelineJson(
       await readFile(userResolve(args.timelinePath), "utf8"),
-    ) as RenderTimeline;
+    );
+    assertCaptureCompatibility(timeline, manifest);
     const outputFile =
       args.outputFile ?? `.democraft/previews/${timeline.demoId}.html`;
     const absoluteOutputFile = userResolve(outputFile);
@@ -140,36 +152,70 @@ export async function runCli(argv = process.argv.slice(2)): Promise<CliResult> {
       );
     }
 
-    const manifest = JSON.parse(
+    const manifest = parseRecordedDemoManifestJson(
       await readFile(userResolve(args.manifestPath), "utf8"),
-    ) as RecordedDemoManifest;
-    const timeline = JSON.parse(
+    );
+    const timeline = parseRenderTimelineJson(
       await readFile(userResolve(args.timelinePath), "utf8"),
-    ) as RenderTimeline;
-    const outputFile =
-      args.outputFile ?? `.democraft/renders/${timeline.demoId}.mp4`;
+    );
+    assertCaptureCompatibility(timeline, manifest);
     const recording = await resolveRequestedRecording(
       manifest,
       args.useRecording,
     );
     if (recording.error) return fail(recording.error);
 
-    await renderDemoVideo({
-      manifest,
-      mediaMode: args.useRecording ? "recording" : "screenshots",
-      timeline,
-      outputFile: userResolve(outputFile),
-      recordingFile: recording.file,
-      screenshotSrcByStepId: await buildScreenshotDataUrls(
-        manifest,
-        args.manifestPath,
-      ),
-      scale: args.scale,
-      crf: args.crf,
-      entryPath: args.entryPath ? userResolve(args.entryPath) : undefined,
-    });
+    const mediaMode: DemoMediaMode = args.useRecording
+      ? "recording"
+      : "screenshots";
+    const artifact = args.outputFile
+      ? undefined
+      : await createRenderArtifact({
+          rootDirectory: resolve(workspaceRoot(), ".democraft/renders"),
+          demoId: timeline.demoId,
+          definitionHash: timeline.definitionHash ?? manifest.definitionHash,
+          captureHash: timeline.captureHash ?? manifest.captureHash,
+          render: {
+            fps: timeline.fps,
+            durationInFrames: timeline.durationInFrames,
+            mediaMode,
+            scale: args.scale,
+            crf: args.crf,
+          },
+          source: {
+            manifestPath: userResolve(args.manifestPath),
+            timelinePath: userResolve(args.timelinePath),
+          },
+        });
+    const renderOutputFile = artifact
+      ? artifact.temporaryOutputFile
+      : userResolve(args.outputFile!);
 
-    return ok(`Render written to ${outputFile}\n`);
+    try {
+      await renderDemoVideo({
+        manifest,
+        mediaMode,
+        timeline,
+        outputFile: renderOutputFile,
+        recordingFile: recording.file,
+        screenshotSrcByStepId: await buildScreenshotDataUrls(
+          manifest,
+          args.manifestPath,
+        ),
+        scale: args.scale,
+        crf: args.crf,
+        entryPath: args.entryPath ? userResolve(args.entryPath) : undefined,
+      });
+      if (artifact) await completeRenderArtifact(artifact);
+    } catch (error) {
+      if (artifact) await failRenderArtifact(artifact, error);
+      throw error;
+    }
+
+    if (!artifact) return ok(`Render written to ${args.outputFile}\n`);
+    return ok(
+      `Render written to ${artifact.outputFile}\nRender ID: ${artifact.metadata.renderId}\nMetadata: ${artifact.metadataPath}\n`,
+    );
   }
 
   const demoPath = args.demoPath;
@@ -226,9 +272,9 @@ export async function runCli(argv = process.argv.slice(2)): Promise<CliResult> {
       };
     }
 
-    const manifest = JSON.parse(
+    const manifest = parseRecordedDemoManifestJson(
       await readFile(userResolve(manifestPath), "utf8"),
-    ) as RecordedDemoManifest;
+    );
     const timeline = resolveTimeline(compilation.ir, manifest, {
       fps: args.fps,
     });
@@ -268,6 +314,31 @@ export async function runCli(argv = process.argv.slice(2)): Promise<CliResult> {
       ? `${JSON.stringify(manifest, null, 2)}\n`
       : `Captured ${manifest.demoId}\nManifest: ${args.outputDir ?? `.democraft/runs/${manifest.demoId}`}/manifest.json\n`,
   );
+}
+
+function validateNumericArgs(args: ParsedArgs): string | undefined {
+  if (args.fps !== undefined && (!Number.isFinite(args.fps) || args.fps <= 0)) {
+    return "Invalid --fps: expected a finite number greater than 0.";
+  }
+  if (
+    args.scale !== undefined &&
+    (!Number.isFinite(args.scale) || args.scale <= 0)
+  ) {
+    return "Invalid --scale: expected a finite number greater than 0.";
+  }
+  if (
+    args.crf !== undefined &&
+    (!Number.isFinite(args.crf) || args.crf < 0 || args.crf > 51)
+  ) {
+    return "Invalid --crf: expected a finite number from 0 to 51.";
+  }
+  if (
+    args.port !== undefined &&
+    (!Number.isInteger(args.port) || args.port < 1 || args.port > 65535)
+  ) {
+    return "Invalid --port: expected an integer from 1 to 65535.";
+  }
+  return undefined;
 }
 
 async function resolveRequestedRecording(

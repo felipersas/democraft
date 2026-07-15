@@ -1,5 +1,16 @@
 // --- Server-side ---
 export { renderDemoVideo, type RenderDemoVideoOptions } from "./server";
+export {
+  cancelRenderArtifact,
+  completeRenderArtifact,
+  createRenderArtifact,
+  failRenderArtifact,
+  renderSlug,
+  type CreateRenderArtifactOptions,
+  type RenderArtifact,
+  type RenderArtifactMetadata,
+  type RenderArtifactStatus,
+} from "./artifacts";
 export { compositionId } from "./constants";
 
 // --- Client-side composition ---

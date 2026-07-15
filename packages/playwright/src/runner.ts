@@ -1,12 +1,14 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type {
-  DemoIR,
-  Diagnostic,
-  RecordedDemoManifest,
-  RecordedStep,
+import {
+  parseDemoIR,
+  parseRecordedDemoManifest,
+  schemaVersion,
+  type DemoIR,
+  type Diagnostic,
+  type RecordedDemoManifest,
+  type RecordedStep,
 } from "@democraft/schema";
-import { schemaVersion } from "@democraft/schema";
 import { defaultBindings } from "./bindings";
 import { executeStep } from "./execute";
 import { DEFAULT_SETTLE_STRATEGY } from "./types";
@@ -29,13 +31,18 @@ export async function runDemoWithBindings(
   bindings: PlaywrightBindings,
   options: RunDemoOptions = {},
 ): Promise<RecordedDemoManifest> {
+  ir = parseDemoIR(ir);
+  const environment = options.environment ?? {};
+  const viewport = environment.viewport ?? { width: 1920, height: 1080 };
+  const deviceScaleFactor = environment.deviceScaleFactor ?? 2;
+  assertPositiveFinite("viewport.width", viewport.width);
+  assertPositiveFinite("viewport.height", viewport.height);
+  assertPositiveFinite("deviceScaleFactor", deviceScaleFactor);
+
   const outputDir = options.outputDir ?? join(".democraft", "runs", ir.id);
   const screenshotsPath = join(outputDir, "screenshots");
   const diagnostics: Diagnostic[] = [];
   const steps: RecordedStep[] = [];
-  const environment = options.environment ?? {};
-  const viewport = environment.viewport ?? { width: 1920, height: 1080 };
-  const deviceScaleFactor = environment.deviceScaleFactor ?? 2;
   // Resolve the settle strategy: defaults to DOM+visual settling (captures after
   // the page quiets down), `false` disables it (legacy fixed-hold behavior).
   const settleStrategy = resolveSettleStrategy(environment.settle);
@@ -97,9 +104,11 @@ export async function runDemoWithBindings(
       ?.video?.()
       ?.path()
       .catch(() => undefined);
-    const manifest: RecordedDemoManifest = {
+    const manifest = parseRecordedDemoManifest({
       schemaVersion,
       demoId: ir.id,
+      definitionHash: ir.definitionHash,
+      captureHash: ir.captureHash,
       capture: {
         width: viewport.width,
         height: viewport.height,
@@ -116,7 +125,7 @@ export async function runDemoWithBindings(
       screenshotsPath,
       steps,
       diagnostics,
-    };
+    });
 
     await writeFile(
       join(outputDir, "manifest.json"),
@@ -125,6 +134,12 @@ export async function runDemoWithBindings(
     return manifest;
   } finally {
     await browser.close();
+  }
+}
+
+function assertPositiveFinite(name: string, value: number): void {
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new RangeError(`${name} must be a finite number greater than 0.`);
   }
 }
 

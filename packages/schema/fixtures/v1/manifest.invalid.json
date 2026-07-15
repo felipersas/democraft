@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1",
+  "demoId": "demo",
+  "steps": [
+    {
+      "stepId": "goto",
+      "sceneId": "intro",
+      "kind": "browser.goto",
+      "startedAtMs": "not-a-number",
+      "endedAtMs": 10
+    }
+  ],
+  "diagnostics": []
+}

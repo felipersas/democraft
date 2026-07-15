@@ -2,10 +2,12 @@ import { stat } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 import { compileDemo } from "@democraft/compiler";
 import type { DemoDefinition } from "@democraft/core";
-import type {
-  RecordedDemoManifest,
-  Staleness,
-  StudioMeta,
+import {
+  compareCaptureCompatibility,
+  parseStudioMetaJson,
+  type RecordedDemoManifest,
+  type Staleness,
+  type StudioMeta,
 } from "@democraft/schema";
 import { readJson } from "./server-data";
 import { existsFile } from "./fs";
@@ -15,19 +17,26 @@ import path from "node:path";
 // rewrites `import()` expressions it can see; wrapping it in a Function makes
 // the call invisible to the bundler, so Node's native resolver (with the tsx
 // ESM loader registered via NODE_OPTIONS) handles the .ts import at runtime.
-const nativeImport = new Function(
-  "specifier",
-  "return import(specifier)",
-) as (specifier: string) => Promise<unknown>;
+const nativeImport = new Function("specifier", "return import(specifier)") as (
+  specifier: string,
+) => Promise<unknown>;
 
 /**
  * Loads a demo module the same way the CLI does — dynamic import of the
  * default export. The tsx loader (registered via NODE_OPTIONS by the CLI)
  * transpiles the .ts on the fly.
  */
-export async function loadDemo(demoPath: string): Promise<DemoDefinition> {
-  const moduleUrl = pathToFileURL(demoPath).href;
-  const imported = (await nativeImport(moduleUrl)) as {
+export async function loadDemo(
+  demoPath: string,
+  options: { version?: string | number } = {},
+): Promise<DemoDefinition> {
+  const file = await stat(demoPath);
+  const moduleUrl = new URL(pathToFileURL(demoPath));
+  moduleUrl.searchParams.set(
+    "democraft-version",
+    String(options.version ?? `${file.mtimeMs}-${file.size}`),
+  );
+  const imported = (await nativeImport(moduleUrl.href)) as {
     default?: DemoDefinition;
   };
   if (!imported.default) {
@@ -40,11 +49,10 @@ export async function loadDemo(demoPath: string): Promise<DemoDefinition> {
  * Computes how stale the current capture is relative to the live demo.ts.
  *
  * - `failed`: the manifest has chrome-error:// pages (app was down at capture).
- * - `structural`: re-compiling demo.ts yields a different IR id — the steps,
- *   scenes, targets, or captions changed. Re-capture needed (new screenshots).
- * - `content`: the IR id matches but demo.ts's mtime is newer than the
- *   manifest's — cosmetic edit (whitespace/comments). Re-resolve is safe but
- *   the capture itself is still valid.
+ * - `structural`: human identity or capture compatibility differs (or cannot
+ *   be established for a legacy capture). Re-capture needed.
+ * - `content`: the complete author definition changed while captureHash stayed
+ *   compatible, or only the file mtime changed. Re-resolve is safe.
  * - `fresh`: nothing changed.
  *
  * Returns `fresh` when meta or manifest is missing (studio has no baseline to
@@ -70,23 +78,58 @@ export async function computeStaleness(args: {
     };
   }
 
-  // Re-compile the demo and compare the content-derived id. If it changed,
-  // the demo's structure changed (steps/targets/captions) → re-capture needed.
   try {
     const demo = await loadDemo(meta.demoPath);
     const compilation = await compileDemo(demo);
-    if (compilation.ir.id !== manifest.demoId) {
+    const errors = compilation.diagnostics.filter(
+      (diagnostic) => diagnostic.severity === "error",
+    );
+    if (errors.length > 0) {
+      return {
+        kind: "failed",
+        detail: `Demo compilation failed: ${errors.map((error) => error.message).join("; ")}`,
+      };
+    }
+    if (compilation.ir.id !== meta.demoId) {
+      return {
+        kind: "structural",
+        detail: "The demo's human id changed. Re-capture is required.",
+      };
+    }
+
+    const compatibility = compareCaptureCompatibility(
+      { demoId: compilation.ir.id, captureHash: compilation.ir.captureHash },
+      manifest,
+    );
+    if (compatibility === "unknown") {
       return {
         kind: "structural",
         detail:
-          "demo.ts changed structurally since capture. Re-capture to refresh screenshots.",
+          "Capture predates compatibility hashes. Re-capture once before reusing screenshots.",
       };
     }
-    // Same IR — check whether the file was touched at all (cosmetic edit).
+    if (compatibility === "incompatible") {
+      return {
+        kind: "structural",
+        detail:
+          "Demo identity or capture-affecting fields changed. Re-capture to refresh screenshots.",
+      };
+    }
+    if (
+      compilation.ir.definitionHash &&
+      manifest.definitionHash &&
+      compilation.ir.definitionHash !== manifest.definitionHash
+    ) {
+      return {
+        kind: "content",
+        detail:
+          "Presentation-only fields changed. Re-resolve can reuse the existing screenshots.",
+      };
+    }
+
     const demoMtime = (await stat(meta.demoPath)).mtimeMs;
-    const manifestMtime = (
-      await stat(path.join(args.dataDir, "manifest.json"))
-    ).mtimeMs;
+    const manifestMtime = (await stat(path.join(args.dataDir, "manifest.json")))
+      .mtimeMs;
     if (demoMtime > manifestMtime) {
       return {
         kind: "content",
@@ -96,10 +139,9 @@ export async function computeStaleness(args: {
     }
     return { kind: "fresh" };
   } catch {
-    // demo.ts unresolvable (moved/deleted) — can't determine staleness.
     return {
-      kind: "fresh",
-      detail: "Could not read demo.ts to check staleness.",
+      kind: "failed",
+      detail: "Could not compile demo.ts to check capture compatibility.",
     };
   }
 }
@@ -108,7 +150,7 @@ export async function computeStaleness(args: {
 export async function readMeta(
   dataDir: string,
 ): Promise<StudioMeta | undefined> {
-  return readJson<StudioMeta>(path.join(dataDir, "meta.json"));
+  return readJson(path.join(dataDir, "meta.json"), parseStudioMetaJson);
 }
 
 export { existsFile };

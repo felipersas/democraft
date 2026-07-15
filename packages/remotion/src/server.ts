@@ -18,6 +18,18 @@ import {
 } from "./media";
 import { compositionId } from "./constants";
 
+export {
+  cancelRenderArtifact,
+  completeRenderArtifact,
+  createRenderArtifact,
+  failRenderArtifact,
+  renderSlug,
+  type CreateRenderArtifactOptions,
+  type RenderArtifact,
+  type RenderArtifactMetadata,
+  type RenderArtifactStatus,
+} from "./artifacts";
+
 export type RenderDemoVideoOptions = {
   manifest: RecordedDemoManifest;
   timeline: RenderTimeline;

@@ -12,6 +12,7 @@ export function RenderPanel() {
   const {
     status,
     renderJobs,
+    renderError,
     enqueueRender,
     clearFinishedRenders,
     captionOverrides,
@@ -34,7 +35,8 @@ export function RenderPanel() {
   };
 
   const hasFinished = renderJobs.some(
-    (j) => j.status === "done" || j.status === "failed" || j.status === "cancelled",
+    (j) =>
+      j.status === "done" || j.status === "failed" || j.status === "cancelled",
   );
 
   return (
@@ -90,6 +92,12 @@ export function RenderPanel() {
         Add to queue
       </Button>
 
+      {renderError && (
+        <div role="alert" className="text-[10px] text-red-400/90 leading-snug">
+          {renderError}
+        </div>
+      )}
+
       {hasCaptionEdits && !applyCaptionsToRender && (
         <div className="text-[10px] text-[var(--color-fg-dim)] leading-snug">
           Caption edits won&apos;t apply to renders unless you enable it in the
@@ -125,7 +133,9 @@ export function RenderPanel() {
         </div>
       ) : (
         <div className="text-[10px] text-[var(--color-fg-dim)] text-center py-1">
-          No renders queued. Click <span className="text-[var(--color-fg-muted)]">Add to queue</span> to start.
+          No renders queued. Click{" "}
+          <span className="text-[var(--color-fg-muted)]">Add to queue</span> to
+          start.
         </div>
       )}
     </div>

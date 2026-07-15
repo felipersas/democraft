@@ -13,7 +13,36 @@ export function validateIR(ir: DemoIR): Diagnostic[] {
     });
   }
 
+  for (const [targetKey, target] of Object.entries(ir.targets)) {
+    if (!targetKey || !target.id) {
+      diagnostics.push({
+        code: "DC106",
+        severity: "error",
+        message: "Target ids must be non-empty.",
+        demoId: ir.id,
+        targetId: target.id || targetKey,
+      });
+    }
+    if (!Array.isArray(target.locators) || target.locators.length === 0) {
+      diagnostics.push({
+        code: "DC106",
+        severity: "error",
+        message: `Target "${target.id || targetKey}" must define at least one locator.`,
+        demoId: ir.id,
+        targetId: target.id || targetKey,
+      });
+    }
+  }
+
   for (const scene of ir.scenes) {
+    if (!scene.id) {
+      diagnostics.push({
+        code: "DC103",
+        severity: "error",
+        message: "Scene ids must be non-empty.",
+        demoId: ir.id,
+      });
+    }
     if (sceneIds.has(scene.id)) {
       diagnostics.push({
         code: "DC002",
@@ -27,6 +56,15 @@ export function validateIR(ir: DemoIR): Diagnostic[] {
 
     const stepIds = new Set<string>();
     for (const step of scene.steps) {
+      if (!step.id) {
+        diagnostics.push({
+          code: "DC104",
+          severity: "error",
+          message: "Step ids must be non-empty.",
+          demoId: ir.id,
+          sceneId: scene.id,
+        });
+      }
       if (stepIds.has(step.id)) {
         diagnostics.push({
           code: "DC002",
@@ -39,8 +77,18 @@ export function validateIR(ir: DemoIR): Diagnostic[] {
       }
       stepIds.add(step.id);
 
-      const target = "target" in step ? step.target : undefined;
-      if (target && !ir.targets[target]) {
+      const hasTarget = "target" in step;
+      const target = hasTarget ? step.target : undefined;
+      if (hasTarget && !target) {
+        diagnostics.push({
+          code: "DC106",
+          severity: "error",
+          message: "Step target ids must be non-empty.",
+          demoId: ir.id,
+          sceneId: scene.id,
+          stepId: step.id,
+        });
+      } else if (target && !ir.targets[target]) {
         diagnostics.push({
           code: "DC101",
           severity: "error",

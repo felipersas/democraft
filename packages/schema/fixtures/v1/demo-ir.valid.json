@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1",
+  "id": "demo",
+  "title": "Demo",
+  "source": { "baseUrl": "http://localhost:3000" },
+  "targets": {
+    "save": {
+      "id": "save",
+      "locators": [{ "kind": "role", "role": "button", "name": "Save" }]
+    }
+  },
+  "scenes": [
+    {
+      "id": "intro",
+      "pacing": "normal",
+      "importance": "primary",
+      "steps": [{ "id": "goto", "kind": "browser.goto", "path": "/" }]
+    }
+  ]
+}

@@ -12,6 +12,7 @@ import type {
   StudioData,
   StudioStatus,
 } from "./types";
+import { readApiError } from "./api-error";
 
 const StudioContext = React.createContext<StudioContextValue | null>(null);
 
@@ -25,6 +26,7 @@ const DEFAULT_LAYER_STATE: LayerState = {
 export function StudioProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = React.useState<StudioStatus>({ kind: "loading" });
   const [renderJobs, setRenderJobs] = React.useState<RenderJob[]>([]);
+  const [renderError, setRenderError] = React.useState<string | null>(null);
   const [loop, setLoop] = React.useState(true);
   const playerRef = React.useRef<PlayerRef | null>(null);
   const dataVersionRef = React.useRef(0);
@@ -37,9 +39,9 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     React.useState<CaptionOverrides>({});
   const [applyCaptionsToRender, setApplyCaptionsToRender] =
     React.useState(false);
-  const [renderRange, setRenderRange] = React.useState<
-    [number, number] | null
-  >(null);
+  const [renderRange, setRenderRange] = React.useState<[number, number] | null>(
+    null,
+  );
   const [applyRenderRange, setApplyRenderRange] = React.useState(true);
 
   const fetchData = React.useCallback(async () => {
@@ -87,33 +89,36 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
       // of truth for whether the sub-range applies.
       const merged: RenderOptions = {
         ...options,
-        frameRange: applyRenderRange ? renderRange ?? undefined : undefined,
+        frameRange: applyRenderRange ? (renderRange ?? undefined) : undefined,
       };
+      setRenderError(null);
       try {
         const res = await fetch("/api/render", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify(merged),
         });
-        if (!res.ok) return;
+        if (!res.ok) {
+          setRenderError(await readApiError(res, "Render request failed."));
+          return;
+        }
         await refreshJobs();
-      } catch {
-        /* surfaced via queue status */
+      } catch (error) {
+        setRenderError(
+          error instanceof Error ? error.message : "Render request failed.",
+        );
       }
     },
     [refreshJobs, applyRenderRange, renderRange],
   );
 
-  const cancelRender = React.useCallback(
-    (jobId: string) => {
-      void fetch("/api/render/cancel", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ jobId }),
-      });
-    },
-    [],
-  );
+  const cancelRender = React.useCallback((jobId: string) => {
+    void fetch("/api/render/cancel", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jobId }),
+    });
+  }, []);
 
   const clearFinishedRenders = React.useCallback(() => {
     void fetch("/api/render/jobs", { method: "DELETE" });
@@ -149,9 +154,12 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
 
   // ----- Caption overrides -------------------------------------------------------
 
-  const setCaptionText = React.useCallback((overlayId: string, text: string) => {
-    setCaptionOverrides((prev) => ({ ...prev, [overlayId]: text }));
-  }, []);
+  const setCaptionText = React.useCallback(
+    (overlayId: string, text: string) => {
+      setCaptionOverrides((prev) => ({ ...prev, [overlayId]: text }));
+    },
+    [],
+  );
 
   const resetCaption = React.useCallback((overlayId: string) => {
     setCaptionOverrides((prev) => {
@@ -223,6 +231,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
       setLoop,
       reload,
       renderJobs,
+      renderError,
       enqueueRender,
       cancelRender,
       clearFinishedRenders,
@@ -250,6 +259,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
       setLoop,
       reload,
       renderJobs,
+      renderError,
       enqueueRender,
       cancelRender,
       clearFinishedRenders,

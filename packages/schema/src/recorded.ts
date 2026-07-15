@@ -31,6 +31,10 @@ export type RecordedStep = {
 export type RecordedDemoManifest = {
   schemaVersion: typeof schemaVersion;
   demoId: string;
+  /** Versioned SHA-256 of the complete compiled author definition. */
+  definitionHash?: string;
+  /** Versioned hash used to decide whether screenshots can be reused. */
+  captureHash?: string;
   /**
    * Capture dimensions and device pixel ratio. Used by the renderer to
    * compute the stage layout so screenshots map 1:1 to the render frame.

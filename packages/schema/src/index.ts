@@ -6,4 +6,7 @@ export * from "./scenes";
 export * from "./recorded";
 export * from "./timeline";
 export * from "./studio";
+export * from "./identity";
 export * from "./schemas";
+export * from "./artifacts";
+export * from "./artifact-schemas";

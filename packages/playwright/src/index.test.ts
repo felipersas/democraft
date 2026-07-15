@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DemoIR, Locator } from "@democraft/schema";
 import { schemaVersion } from "@democraft/schema";
 import {
@@ -9,8 +9,11 @@ import {
   runDemoWithBindings,
   type PlaywrightBindings,
 } from "./index";
+import type { PageLike } from "./types";
 
 const tempDirs: string[] = [];
+const DEFINITION_HASH = `definition-v1:sha256:${"a".repeat(64)}`;
+const CAPTURE_HASH = `capture-v1:sha256:${"b".repeat(64)}`;
 
 afterEach(async () => {
   await Promise.all(
@@ -108,6 +111,77 @@ describe("playwright runtime", () => {
       await readFile(join(outputDir, "manifest.json"), "utf8"),
     );
     expect(manifestJson.demoId).toBe("demo");
+    expect(manifestJson.definitionHash).toBe(DEFINITION_HASH);
+    expect(manifestJson.captureHash).toBe(CAPTURE_HASH);
+  });
+
+  it("rejects invalid IR before launching a browser or writing a manifest", async () => {
+    const outputDir = await mkdtemp(join(tmpdir(), "democraft-"));
+    tempDirs.push(outputDir);
+    const launch = vi.fn(createBindings(createMockPage({})).chromium.launch);
+    const invalid = { ...createIR([]), id: "" };
+
+    await expect(
+      runDemoWithBindings(invalid, { chromium: { launch } }, { outputDir }),
+    ).rejects.toThrow("$.id");
+    expect(launch).not.toHaveBeenCalled();
+    await expect(readFile(join(outputDir, "manifest.json"))).rejects.toThrow();
+  });
+
+  it.each([
+    [{ width: 0, height: 600 }, "viewport.width"],
+    [{ width: 800, height: Number.NaN }, "viewport.height"],
+  ])("rejects invalid viewport before launch", async (viewport, message) => {
+    const outputDir = await mkdtemp(join(tmpdir(), "democraft-"));
+    tempDirs.push(outputDir);
+    const launch = vi.fn(createBindings(createMockPage({})).chromium.launch);
+
+    await expect(
+      runDemoWithBindings(
+        createIR([{ kind: "testId", id: "button" }]),
+        { chromium: { launch } },
+        { outputDir, environment: { viewport } },
+      ),
+    ).rejects.toThrow(message);
+    expect(launch).not.toHaveBeenCalled();
+    await expect(readFile(join(outputDir, "manifest.json"))).rejects.toThrow();
+  });
+
+  it("rejects invalid deviceScaleFactor before launch", async () => {
+    const outputDir = await mkdtemp(join(tmpdir(), "democraft-"));
+    tempDirs.push(outputDir);
+    const launch = vi.fn(createBindings(createMockPage({})).chromium.launch);
+
+    await expect(
+      runDemoWithBindings(
+        createIR([{ kind: "testId", id: "button" }]),
+        { chromium: { launch } },
+        { outputDir, environment: { deviceScaleFactor: 0 } },
+      ),
+    ).rejects.toThrow("deviceScaleFactor");
+    expect(launch).not.toHaveBeenCalled();
+    await expect(readFile(join(outputDir, "manifest.json"))).rejects.toThrow();
+  });
+
+  it("validates the produced manifest before writing or returning it", async () => {
+    const outputDir = await mkdtemp(join(tmpdir(), "democraft-"));
+    tempDirs.push(outputDir);
+    const page = createMockPage({
+      testId: {
+        visible: true,
+        text: "Created",
+        box: { x: 1, y: 2, width: Number.NaN, height: 4 },
+      },
+    });
+
+    await expect(
+      runDemoWithBindings(
+        createIR([{ kind: "testId", id: "button" }]),
+        createBindings(page),
+        { outputDir, timeoutMs: 10, environment: { settle: false } },
+      ),
+    ).rejects.toThrow("boundingBox.width");
+    await expect(readFile(join(outputDir, "manifest.json"))).rejects.toThrow();
   });
 
   it("records assertion diagnostics without throwing opaque errors", async () => {
@@ -203,7 +277,8 @@ describe("playwright runtime", () => {
     const evaluateCalls: string[] = [];
     const fakePage = {
       url: () => "http://localhost:3000/x",
-      evaluate: async <T>(_fn: () => T | Promise<T>): Promise<T> => {
+      evaluate: async <T>(fn: () => T | Promise<T>): Promise<T> => {
+        void fn;
         evaluateCalls.push("evaluate");
         // The settle gate reads the mutation counter (which our helper does in
         // the page). The mock can't run the real MutationObserver, so it models
@@ -215,7 +290,7 @@ describe("playwright runtime", () => {
     };
 
     const start = Date.now();
-    await waitForSettled(fakePage as any, {
+    await waitForSettled(fakePage as unknown as PageLike, {
       ...DEFAULT_SETTLE_STRATEGY,
       idleWindowMs: 60,
       timeoutMs: 2000,
@@ -241,7 +316,7 @@ describe("playwright runtime", () => {
     };
 
     const start = Date.now();
-    await waitForSettled(fakePage as any, {
+    await waitForSettled(fakePage as unknown as PageLike, {
       ...DEFAULT_SETTLE_STRATEGY,
       idleWindowMs: 50,
       timeoutMs: 300,
@@ -266,7 +341,7 @@ describe("playwright runtime", () => {
     };
 
     const start = Date.now();
-    await waitForSettled(fakePage as any, {
+    await waitForSettled(fakePage as unknown as PageLike, {
       ...DEFAULT_SETTLE_STRATEGY,
       idleWindowMs: 50,
       timeoutMs: 2000,
@@ -283,6 +358,8 @@ function createIR(locators: Locator[]): DemoIR {
   return {
     schemaVersion,
     id: "demo",
+    definitionHash: DEFINITION_HASH,
+    captureHash: CAPTURE_HASH,
     title: "Demo",
     source: { baseUrl: "http://localhost:3000" },
     targets: {

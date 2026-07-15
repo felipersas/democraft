@@ -6,6 +6,7 @@ export const diagnosticCodes = {
   invalidScene: "DC103",
   invalidStep: "DC104",
   unknownRenderer: "DC105",
+  invalidTarget: "DC106",
 } as const;
 
 export type DiagnosticSeverity = "info" | "warning" | "error";

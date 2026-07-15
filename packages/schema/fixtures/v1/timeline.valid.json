@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "1",
+  "demoId": "demo",
+  "fps": 60,
+  "durationInFrames": 1,
+  "scenes": [
+    {
+      "id": "intro",
+      "fromFrame": 0,
+      "durationInFrames": 1,
+      "steps": [
+        {
+          "stepId": "goto",
+          "sceneId": "intro",
+          "kind": "browser.goto",
+          "fromFrame": 0,
+          "durationInFrames": 1
+        }
+      ]
+    }
+  ],
+  "camera": [],
+  "cursor": [],
+  "overlays": []
+}

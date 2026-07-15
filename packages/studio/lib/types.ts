@@ -71,6 +71,7 @@ export type StudioContextValue = {
 
   /** Render queue. */
   renderJobs: RenderJob[];
+  renderError: string | null;
   enqueueRender: (options?: RenderOptions) => Promise<void>;
   cancelRender: (jobId: string) => void;
   clearFinishedRenders: () => void;

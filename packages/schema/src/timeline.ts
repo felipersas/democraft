@@ -72,6 +72,10 @@ export type OverlayTrack =
 export type RenderTimeline = {
   schemaVersion: typeof schemaVersion;
   demoId: string;
+  /** Versioned SHA-256 of the author definition used for this timeline. */
+  definitionHash?: string;
+  /** Versioned hash of the capture-compatible definition projection. */
+  captureHash?: string;
   fps: number;
   durationInFrames: number;
   scenes: RenderScene[];

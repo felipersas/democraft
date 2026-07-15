@@ -1,0 +1,49 @@
+import { describe, expect, it } from "vitest";
+import {
+  assertCaptureCompatibility,
+  compareCaptureCompatibility,
+} from "./identity";
+
+describe("capture identity", () => {
+  it("distinguishes compatible, incompatible, and legacy identities", () => {
+    expect(
+      compareCaptureCompatibility(
+        { demoId: "demo", captureHash: "capture-v1:sha256:same" },
+        { demoId: "demo", captureHash: "capture-v1:sha256:same" },
+      ),
+    ).toBe("compatible");
+    expect(
+      compareCaptureCompatibility(
+        { demoId: "demo", captureHash: "capture-v1:sha256:a" },
+        { demoId: "demo", captureHash: "capture-v1:sha256:b" },
+      ),
+    ).toBe("incompatible");
+    expect(
+      compareCaptureCompatibility(
+        { demoId: "demo", captureHash: "capture-v1:sha256:a" },
+        { demoId: "demo" },
+      ),
+    ).toBe("unknown");
+  });
+
+  it("rejects demo and capture mismatches but accepts legacy artifacts", () => {
+    expect(() =>
+      assertCaptureCompatibility(
+        { demoId: "first", captureHash: "same" },
+        { demoId: "second", captureHash: "same" },
+      ),
+    ).toThrow("Demo artifact mismatch");
+    expect(() =>
+      assertCaptureCompatibility(
+        { demoId: "demo", captureHash: "first" },
+        { demoId: "demo", captureHash: "second" },
+      ),
+    ).toThrow("Capture artifact mismatch");
+    expect(() =>
+      assertCaptureCompatibility(
+        { demoId: "demo", captureHash: "current" },
+        { demoId: "demo" },
+      ),
+    ).not.toThrow();
+  });
+});

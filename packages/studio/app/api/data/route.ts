@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { loadStudioData, studioDataDir } from "@/lib/server-data";
 import { existsDir } from "@/lib/fs";
+import { ArtifactValidationError } from "@democraft/schema";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,18 @@ export async function GET() {
       { status: 404 },
     );
   }
-  const data = await loadStudioData();
+  let data;
+  try {
+    data = await loadStudioData();
+  } catch (error) {
+    if (error instanceof ArtifactValidationError) {
+      return NextResponse.json(
+        { error: error.message, kind: error.kind, issues: error.issues },
+        { status: 422 },
+      );
+    }
+    throw error;
+  }
   if (!data) {
     return NextResponse.json(
       {

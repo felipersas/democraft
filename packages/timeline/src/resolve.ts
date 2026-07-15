@@ -1,4 +1,5 @@
 import {
+  assertCaptureCompatibility,
   type BoundingBox,
   type DemoIR,
   type DemoStep,
@@ -15,7 +16,16 @@ export function resolveTimeline(
   manifest: RecordedDemoManifest,
   options: ResolveTimelineOptions = {},
 ): RenderTimeline {
+  assertCaptureCompatibility(
+    { demoId: ir.id, captureHash: ir.captureHash },
+    manifest,
+  );
   const fps = options.fps ?? 60;
+  if (!Number.isFinite(fps) || fps <= 0) {
+    throw new RangeError(
+      `Timeline fps must be a finite number greater than 0.`,
+    );
+  }
   const recordedByStepId = new Map(
     manifest.steps.map((step) => [step.stepId, step]),
   );
@@ -23,6 +33,9 @@ export function resolveTimeline(
   const timeline: RenderTimeline = {
     schemaVersion,
     demoId: ir.id,
+    definitionHash: ir.definitionHash,
+    captureHash:
+      ir.captureHash && manifest.captureHash ? ir.captureHash : undefined,
     fps,
     durationInFrames: 0,
     scenes: [],

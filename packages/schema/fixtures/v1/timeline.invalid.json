@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "1",
+  "demoId": "demo",
+  "fps": 0,
+  "durationInFrames": 1,
+  "scenes": [],
+  "camera": [],
+  "cursor": [],
+  "overlays": []
+}

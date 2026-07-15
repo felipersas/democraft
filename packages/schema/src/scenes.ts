@@ -27,6 +27,13 @@ export type DemoSceneIR = {
 export type DemoIR = {
   schemaVersion: typeof schemaVersion;
   id: string;
+  /**
+   * Versioned SHA-256 of the complete canonical author definition.
+   * `id` remains the stable, human-authored demo identifier.
+   */
+  definitionHash?: string;
+  /** Versioned hash of the subset that can affect capture artifacts. */
+  captureHash?: string;
   title: string;
   source: DemoSource;
   targets: Record<string, TargetDefinition>;

@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "1",
+  "demoId": "demo",
+  "definitionHash": "definition-v1:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "captureHash": "capture-v1:sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "capture": { "width": 1920, "height": 1080, "deviceScaleFactor": 2 },
+  "recording": { "path": "recording.webm", "width": 1920, "height": 1080 },
+  "tracePath": "trace.zip",
+  "screenshotsPath": "screenshots",
+  "steps": [
+    {
+      "stepId": "click",
+      "sceneId": "intro",
+      "kind": "browser.click",
+      "startedAtMs": 0,
+      "endedAtMs": 10,
+      "url": "http://localhost:3000/",
+      "targetSnapshot": {
+        "targetId": "save",
+        "attemptedLocators": [
+          {
+            "locator": { "kind": "role", "role": "button", "name": "Save" },
+            "success": true
+          }
+        ],
+        "successfulLocator": {
+          "kind": "role",
+          "role": "button",
+          "name": "Save"
+        },
+        "boundingBox": { "x": 1, "y": 2, "width": 3, "height": 4 },
+        "visible": true,
+        "resolutionDurationMs": 1
+      }
+    }
+  ],
+  "diagnostics": [
+    { "code": "DC101", "severity": "warning", "message": "Example" }
+  ]
+}

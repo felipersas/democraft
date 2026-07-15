@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "renderId": "demo-2026-01-01-id",
+  "demoId": "demo",
+  "status": "completed",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "startedAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:01.000Z",
+  "finishedAt": "2026-01-01T00:00:01.000Z",
+  "output": { "video": "video.mp4" },
+  "render": {
+    "fps": 60,
+    "durationInFrames": 1,
+    "mediaMode": "screenshots"
+  }
+}

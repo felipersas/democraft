@@ -6,6 +6,8 @@ import { inspectTimeline, resolveTimeline } from "./index";
 const ir: DemoIR = {
   schemaVersion,
   id: "demo",
+  definitionHash: "definition-hash",
+  captureHash: "capture-v1:sha256:same",
   title: "Demo",
   source: { baseUrl: "http://localhost:3000" },
   targets: {
@@ -45,6 +47,8 @@ const ir: DemoIR = {
 const manifest: RecordedDemoManifest = {
   schemaVersion,
   demoId: "demo",
+  definitionHash: "definition-v1:sha256:captured",
+  captureHash: "capture-v1:sha256:same",
   steps: [
     {
       stepId: "intro.goto.1",
@@ -113,6 +117,8 @@ describe("timeline", () => {
   it("resolves deterministic frame ranges and tracks", () => {
     const timeline = resolveTimeline(ir, manifest, { fps: 60 });
 
+    expect(timeline.definitionHash).toBe("definition-hash");
+    expect(timeline.captureHash).toBe("capture-v1:sha256:same");
     expect(timeline.durationInFrames).toBe(441);
     expect(
       timeline.scenes.map((scene) => [
@@ -155,6 +161,15 @@ describe("timeline", () => {
     expect(text).toContain("Camera tracks: 2");
   });
 
+  it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY])(
+    "rejects invalid fps %s",
+    (fps) => {
+      expect(() => resolveTimeline(ir, manifest, { fps })).toThrow(
+        "fps must be a finite number greater than 0",
+      );
+    },
+  );
+
   it("uses snappy presentation pacing regardless of capture duration", () => {
     // A slow capture (page took 1.3s to respond during capture) must NOT
     // inflate the step's on-screen duration. The settle gate ensures the
@@ -177,6 +192,35 @@ describe("timeline", () => {
     // 650ms planned → 39 frames @60fps, NOT the 1300ms (78 frames) it took
     // to capture. Presentation pacing stays snappy.
     expect(clickStep?.durationInFrames).toBe(39);
+  });
+
+  it("rejects mismatched demo and capture identities", () => {
+    expect(() => resolveTimeline(ir, { ...manifest, demoId: "other" })).toThrow(
+      "Demo artifact mismatch",
+    );
+    expect(() =>
+      resolveTimeline(ir, {
+        ...manifest,
+        captureHash: "capture-v1:sha256:other",
+      }),
+    ).toThrow("Capture artifact mismatch");
+  });
+
+  it("allows definition drift when capture identity remains compatible", () => {
+    expect(() =>
+      resolveTimeline(
+        { ...ir, definitionHash: "definition-v1:sha256:new" },
+        { ...manifest, definitionHash: "definition-v1:sha256:old" },
+      ),
+    ).not.toThrow();
+  });
+
+  it("accepts legacy manifests without a capture hash for reading", () => {
+    const timeline = resolveTimeline(ir, {
+      ...manifest,
+      captureHash: undefined,
+    });
+    expect(timeline.captureHash).toBeUndefined();
   });
 });
 

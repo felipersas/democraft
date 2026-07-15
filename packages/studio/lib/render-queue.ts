@@ -9,15 +9,20 @@
  */
 
 import { makeCancelSignal, type CancelSignal } from "@remotion/renderer";
-import { renderDemoVideo } from "@democraft/remotion/server";
+import {
+  createRenderArtifact,
+  renderDemoVideo,
+} from "@democraft/remotion/server";
 import { loadStudioData } from "./server-data";
 import { publish } from "./event-bus";
 import { applyCaptionOverrides } from "./captions";
 import { makeId } from "./id";
 import { loadScreenshotDataUris } from "./render-assets";
 import { findRemotionEntry } from "./remotion-entry";
+import { assertRenderArtifactsCompatible } from "./render-identity";
+import { runRenderArtifactLifecycle } from "./render-lifecycle";
 import path from "node:path";
-import { mkdir } from "node:fs/promises";
+import type { StudioRenderRequest } from "@democraft/schema";
 
 // Render types come from the single source of truth in types/render.ts,
 // shared with the client. Re-export for backward compatibility with anything
@@ -28,15 +33,9 @@ export type {
   RenderJobOptions,
   RenderJobStatus,
 } from "./types/render";
-import type {
-  CaptionOverrides,
-  RenderJob,
-  RenderJobOptions,
-} from "./types/render";
+import type { RenderJob } from "./types/render";
 
-export type EnqueueRequest = RenderJobOptions & {
-  captionOverrides?: CaptionOverrides;
-};
+export type EnqueueRequest = StudioRenderRequest;
 
 const jobs = new Map<string, RenderJob>();
 const jobOrder: string[] = [];
@@ -134,7 +133,15 @@ async function processQueue(): Promise<void> {
         .map((id) => jobs.get(id)!)
         .find((j) => j && j.status === "pending");
       if (!next) break;
-      await runJob(next);
+      try {
+        await runJob(next);
+      } catch (error) {
+        next.status = "failed";
+        next.error =
+          error instanceof Error ? error.message : "Render preparation failed.";
+        next.finishedAt = Date.now();
+        emit(next);
+      }
     }
   } finally {
     processing = false;
@@ -146,6 +153,19 @@ async function runJob(job: RenderJob): Promise<void> {
   if (!data) {
     job.status = "failed";
     job.error = "Studio data not loaded. Capture a demo first.";
+    job.finishedAt = Date.now();
+    emit(job);
+    return;
+  }
+
+  try {
+    assertRenderArtifactsCompatible(data.manifest, data.timeline);
+  } catch (error) {
+    job.status = "failed";
+    job.error =
+      error instanceof Error
+        ? error.message
+        : "Render inputs are incompatible.";
     job.finishedAt = Date.now();
     emit(job);
     return;
@@ -164,29 +184,43 @@ async function runJob(job: RenderJob): Promise<void> {
         }
       : data.timeline;
 
-  const screenshotSrcByStepId = await loadScreenshotDataUris(
-    data.manifest,
-    data.dataDir,
-  );
-
-  const outputDir = RENDERS_DIR();
-  await mkdir(outputDir, { recursive: true });
-  const outputFile = path.join(
-    outputDir,
-    `${data.timeline.demoId}-${Date.now()}.mp4`,
-  );
-
-  const { cancelSignal, cancel } = makeCancelSignal();
-  activeCancel = cancel;
-
-  // The entry.js path is resolved by the route layer historically; resolve it
-  // here too so the queue is self-contained. Pass the job's entryPath override
-  // (from --entry or the enqueue request) to support custom visual registries.
-  const entryPath = findRemotionEntry(job.options.entryPath);
+  let artifact: Awaited<ReturnType<typeof createRenderArtifact>>;
+  try {
+    artifact = await createRenderArtifact({
+      rootDirectory: RENDERS_DIR(),
+      demoId: data.timeline.demoId,
+      definitionHash:
+        data.timeline.definitionHash ?? data.manifest.definitionHash,
+      captureHash: data.timeline.captureHash ?? data.manifest.captureHash,
+      render: {
+        fps: data.timeline.fps,
+        durationInFrames: data.timeline.durationInFrames,
+        mediaMode: "screenshots",
+        width: job.options.width,
+        height: job.options.height,
+        scale: job.options.scale,
+        crf: job.options.crf,
+        frameRange: job.options.frameRange,
+      },
+      source: {
+        manifestPath: path.join(data.dataDir, "manifest.json"),
+        timelinePath: path.join(data.dataDir, "timeline.json"),
+      },
+    });
+  } catch (error) {
+    job.status = "failed";
+    job.error =
+      error instanceof Error
+        ? error.message
+        : "Could not create the render artifact.";
+    job.finishedAt = Date.now();
+    emit(job);
+    return;
+  }
 
   job.status = "rendering";
   job.startedAt = Date.now();
-  job.outputPath = outputFile;
+  job.outputPath = artifact.outputFile;
   emit(job);
 
   publish("render-progress", {
@@ -195,16 +229,6 @@ async function runJob(job: RenderJob): Promise<void> {
   });
 
   let cancelled = false;
-  const cancelGuard: CancelSignal = (cb: () => void) => {
-    // Track whether cancel fired so we can classify the rejection without
-    // relying on @remotion/renderer's private isUserCancelledRender export.
-    const wrap = () => {
-      cancelled = true;
-      cb();
-    };
-    cancelSignal(wrap);
-  };
-
   const frameRange = job.options.frameRange;
   // Effective frame count drives the "x/y frames" display. When a sub-range
   // is set, show only the frames actually being rendered.
@@ -213,28 +237,54 @@ async function runJob(job: RenderJob): Promise<void> {
     : timeline.durationInFrames;
 
   try {
-    await renderDemoVideo({
-      manifest: data.manifest,
-      mediaMode: "screenshots",
-      timeline,
-      screenshotSrcByStepId,
-      outputFile,
-      entryPath,
-      width: job.options.width,
-      height: job.options.height,
-      scale: job.options.scale,
-      crf: job.options.crf,
-      cancelSignal: cancelGuard,
-      frameRange,
-      onProgress: (p) => {
-        job.progress = p.progress;
-        job.progressDetail = {
-          renderedFrames: p.renderedFrames,
-          totalFrames,
-          etaMs: Math.max(0, p.renderEstimatedTime - Date.now()),
-          stage: p.stitchStage,
+    await runRenderArtifactLifecycle({
+      artifact,
+      isCancelled: () => cancelled,
+      prepare: async () => {
+        const { cancelSignal, cancel } = makeCancelSignal();
+        activeCancel = cancel;
+        const cancelGuard: CancelSignal = (cb: () => void) => {
+          cancelSignal(() => {
+            cancelled = true;
+            cb();
+          });
         };
-        emit(job);
+        return {
+          screenshotSrcByStepId: await loadScreenshotDataUris(
+            data.manifest,
+            data.dataDir,
+          ),
+          // Resolve inside the managed lifecycle: a bad custom entry now leaves
+          // terminal metadata instead of an orphaned "rendering" artifact.
+          entryPath: findRemotionEntry(job.options.entryPath),
+          cancelGuard,
+        };
+      },
+      render: async ({ screenshotSrcByStepId, entryPath, cancelGuard }) => {
+        await renderDemoVideo({
+          manifest: data.manifest,
+          mediaMode: "screenshots",
+          timeline,
+          screenshotSrcByStepId,
+          outputFile: artifact.temporaryOutputFile,
+          entryPath,
+          width: job.options.width,
+          height: job.options.height,
+          scale: job.options.scale,
+          crf: job.options.crf,
+          cancelSignal: cancelGuard,
+          frameRange,
+          onProgress: (p) => {
+            job.progress = p.progress;
+            job.progressDetail = {
+              renderedFrames: p.renderedFrames,
+              totalFrames,
+              etaMs: Math.max(0, p.renderEstimatedTime - Date.now()),
+              stage: p.stitchStage,
+            };
+            emit(job);
+          },
+        });
       },
     });
     job.status = "done";
