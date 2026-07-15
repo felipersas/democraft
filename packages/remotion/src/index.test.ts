@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { compositionId } from "./index";
 import { cameraStateAt, stageMediaState } from "./composition";
+import { imageStyle } from "./stage";
 import type { RenderTimeline } from "@democraft/schema";
 
 describe("remotion", () => {
@@ -76,5 +77,30 @@ describe("remotion", () => {
     expect(mid.focusY).toBeCloseTo((start.focusY + end.focusY) / 2, 5);
     expect(end.focusX).toBeCloseTo(1040, 5);
     expect(end.focusY).toBeCloseTo(220, 5);
+  });
+
+  it("renders screenshots at native resolution so camera zoom stays sharp", () => {
+    // A capture at 1440×900 with deviceScaleFactor 2 yields 2880×1800 PNGs.
+    // The <Img> must be sized at the native resolution (2880×1800) and scaled
+    // down via transform — otherwise the browser rasterizes it at 1440×900
+    // first and the camera's zoom amplifies an already-downscaled bitmap
+    // (pixelation). This test pins the regression-prevention contract.
+    const style = imageStyle(1, {
+      width: 1440,
+      height: 900,
+      deviceScaleFactor: 2,
+    });
+    expect(style.width).toBe(2880); // 1440 × 2
+    expect(style.height).toBe(1800); // 900 × 2
+    expect(style.transform).toBe("scale(0.5)"); // 1 / dsf → visually 1440×900
+    expect(style.transformOrigin).toBe("0 0");
+  });
+
+  it("falls back to CSS dimensions when deviceScaleFactor is absent", () => {
+    // Legacy captures without deviceScaleFactor keep the old behavior.
+    const style = imageStyle(1, { width: 1440, height: 900 });
+    expect(style.width).toBe(1440);
+    expect(style.height).toBe(900);
+    expect(style.transform).toBe("scale(1)");
   });
 });

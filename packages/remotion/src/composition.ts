@@ -9,7 +9,12 @@ import {
   defaultVisualRegistry,
   type VisualRegistry,
 } from "./overlays";
-import { Backdrop, StageMedia, stageLayout, type CaptureDimensions } from "./stage";
+import {
+  Backdrop,
+  StageMedia,
+  stageLayout,
+  type CaptureDimensions,
+} from "./stage";
 import { compositionId } from "./constants";
 
 // Re-exported so existing imports (e.g. tests) keep working from this module.
@@ -67,6 +72,7 @@ export function ProductDemoVideo(props: ProductDemoVideoProps) {
     ? {
         width: props.manifest.capture.width,
         height: props.manifest.capture.height,
+        deviceScaleFactor: props.manifest.capture.deviceScaleFactor,
       }
     : undefined;
   const stage = stageLayout(width, height, capture);

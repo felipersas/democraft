@@ -16,10 +16,18 @@ export type StageLayout = {
  * frame. Defaults to 1920×1080 to match the Remotion composition; older
  * captures that used 1440×900 pass their own dimensions via the manifest's
  * `capture` field.
+ *
+ * `deviceScaleFactor` records the pixel density the screenshot was captured
+ * at (Playwright `deviceScaleFactor`, default 2). The native PNG resolution is
+ * `width × height × deviceScaleFactor`. The renderer renders the `<Img>` at
+ * native resolution (with a compensating scale) so camera zoom amplifies a
+ * full-resolution bitmap instead of an already-downscaled one — preventing
+ * pixelation on focus shots. Defaults to 1 when absent (legacy captures).
  */
 export type CaptureDimensions = {
   width: number;
   height: number;
+  deviceScaleFactor?: number;
 };
 
 /** Default capture dimensions when the manifest doesn't specify any. */
@@ -56,11 +64,22 @@ export function imageStyle(
   opacity: number,
   capture: CaptureDimensions = DEFAULT_CAPTURE,
 ): React.CSSProperties {
+  const dsf = capture.deviceScaleFactor ?? 1;
+  // Render the <Img> at the screenshot's NATIVE resolution
+  // (width × dsf), then scale it back down to CSS dimensions so it visually
+  // fills the 1440×900 stage. The browser rasterizes the element at native
+  // resolution (2880×1800 for dsf 2) on its own compositing layer; when the
+  // parent's camera transform then zooms in (matrix scale up to ~1.3), it
+  // samples from that high-resolution bitmap instead of an already-downscaled
+  // 1440×900 one. This is what keeps focus shots sharp rather than pixelated.
   return {
     position: "absolute",
-    inset: 0,
-    width: capture.width,
-    height: capture.height,
+    top: 0,
+    left: 0,
+    width: capture.width * dsf,
+    height: capture.height * dsf,
+    transform: `scale(${1 / dsf})`,
+    transformOrigin: "0 0",
     objectFit: "contain",
     opacity,
   };
