@@ -36,6 +36,7 @@ export function resolveTimeline(
     definitionHash: ir.definitionHash,
     captureHash:
       ir.captureHash && manifest.captureHash ? ir.captureHash : undefined,
+    captureEnvironmentHash: manifest.captureEnvironmentHash,
     fps,
     durationInFrames: 0,
     scenes: [],

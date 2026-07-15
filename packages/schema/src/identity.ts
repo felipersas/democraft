@@ -1,6 +1,7 @@
 export type CaptureIdentity = {
   demoId: string;
   captureHash?: string;
+  captureEnvironmentHash?: string;
 };
 
 export type CaptureCompatibility = "compatible" | "incompatible" | "unknown";
@@ -11,9 +12,20 @@ export function compareCaptureCompatibility(
 ): CaptureCompatibility {
   if (current.demoId !== captured.demoId) return "incompatible";
   if (!current.captureHash || !captured.captureHash) return "unknown";
-  return current.captureHash === captured.captureHash
-    ? "compatible"
-    : "incompatible";
+  if (current.captureHash !== captured.captureHash) return "incompatible";
+  if (
+    Boolean(current.captureEnvironmentHash) !==
+    Boolean(captured.captureEnvironmentHash)
+  ) {
+    return "unknown";
+  }
+  if (
+    current.captureEnvironmentHash &&
+    current.captureEnvironmentHash !== captured.captureEnvironmentHash
+  ) {
+    return "incompatible";
+  }
+  return "compatible";
 }
 
 /**
@@ -36,6 +48,15 @@ export function assertCaptureCompatibility(
   ) {
     throw new Error(
       `Capture artifact mismatch for demo "${current.demoId}": screenshots must be captured again.`,
+    );
+  }
+  if (
+    current.captureEnvironmentHash &&
+    captured.captureEnvironmentHash &&
+    current.captureEnvironmentHash !== captured.captureEnvironmentHash
+  ) {
+    throw new Error(
+      `Capture environment mismatch for demo "${current.demoId}": screenshots must be captured again.`,
     );
   }
 }

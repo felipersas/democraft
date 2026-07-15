@@ -1,6 +1,4 @@
-import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { compileDemo } from "@democraft/compiler";
 import { resolveTimeline } from "@democraft/timeline";
 import {
   compareCaptureCompatibility,
@@ -8,9 +6,15 @@ import {
   type RenderTimeline,
   type StudioMeta,
 } from "@democraft/schema";
-import { loadDemo } from "./staleness";
 import { readJson } from "./server-data";
-import { trustedDataDirectory, trustedDemoPath } from "./studio-path-authority";
+import {
+  trustedCaptureEnvironmentHash,
+  trustedDataDirectory,
+  trustedDemoPath,
+  trustedWorkspaceRoot,
+} from "./studio-path-authority";
+import { compileDemoModuleIsolated } from "./compile-demo-isolated";
+import { writeFileContainedAtomic } from "./safe-write";
 import {
   resolveExistingPathWithin,
   resolveWritePathWithin,
@@ -47,8 +51,9 @@ export async function reResolveTimeline(args: {
   if (!manifest) return null;
 
   const demoPath = await trustedDemoPath();
-  const demo = await loadDemo(demoPath);
-  const compilation = await compileDemo(demo);
+  const compilation = await compileDemoModuleIsolated(demoPath, {
+    cwd: await trustedWorkspaceRoot(),
+  });
   const errors = compilation.diagnostics.filter(
     (diagnostic) => diagnostic.severity === "error",
   );
@@ -66,7 +71,11 @@ export async function reResolveTimeline(args: {
   }
 
   const compatibility = compareCaptureCompatibility(
-    { demoId: compilation.ir.id, captureHash: compilation.ir.captureHash },
+    {
+      demoId: compilation.ir.id,
+      captureHash: compilation.ir.captureHash,
+      captureEnvironmentHash: trustedCaptureEnvironmentHash(),
+    },
     manifest,
   );
   if (compatibility !== "compatible") {
@@ -88,7 +97,12 @@ export async function reResolveTimeline(args: {
     path.join(dataDir, "timeline.json"),
     "Studio timeline",
   );
-  await writeFile(timelinePath, `${JSON.stringify(timeline, null, 2)}\n`);
+  await writeFileContainedAtomic(
+    dataDir,
+    timelinePath,
+    `${JSON.stringify(timeline, null, 2)}\n`,
+    "Studio timeline",
+  );
 
   return { timeline, structural: false };
 }

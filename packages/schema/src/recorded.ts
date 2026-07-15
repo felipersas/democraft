@@ -39,6 +39,8 @@ export type RecordedDemoManifest = {
   definitionHash?: string;
   /** Versioned hash used to decide whether screenshots can be reused. */
   captureHash?: string;
+  /** Effective browser/runtime environment used to produce this capture. */
+  captureEnvironmentHash?: string;
   /**
    * Capture dimensions and device pixel ratio. Used by the renderer to
    * compute the stage layout so screenshots map 1:1 to the render frame.

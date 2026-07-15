@@ -19,6 +19,7 @@ const fixtures = new URL("../fixtures/v1/", import.meta.url);
 const HASHES = {
   definition: `definition-v1:sha256:${"a".repeat(64)}`,
   capture: `capture-v1:sha256:${"b".repeat(64)}`,
+  environment: `capture-env-v1:sha256:${"c".repeat(64)}`,
 };
 
 describe("artifact schemas v1", () => {
@@ -29,6 +30,7 @@ describe("artifact schemas v1", () => {
       demoId: "demo",
       definitionHash: HASHES.definition,
       captureHash: HASHES.capture,
+      captureEnvironmentHash: HASHES.environment,
       status: "completed",
       createdAt: "2026-07-15T12:00:00.000Z",
       startedAt: "2026-07-15T12:00:00.100Z",
@@ -270,6 +272,12 @@ describe("artifact schemas v1", () => {
         captureHash: "capture-v1:sha256:short",
       }),
     ).toThrow("$.captureHash");
+    expect(() =>
+      parseRenderTimeline({
+        ...timeline,
+        captureEnvironmentHash: "capture-env-v1:sha256:short",
+      }),
+    ).toThrow("$.captureEnvironmentHash");
     const metadata = JSON.parse(
       await readFile(new URL("render-metadata.valid.json", fixtures), "utf8"),
     );

@@ -25,6 +25,7 @@ afterEach(async () => {
   delete process.env.DEMOCRAFT_STUDIO_DATA;
   delete process.env.DEMOCRAFT_STUDIO_WORKSPACE_ROOT;
   delete process.env.DEMOCRAFT_STUDIO_DEMO_PATH;
+  delete process.env.DEMOCRAFT_STUDIO_CAPTURE_ENVIRONMENT_HASH;
 });
 
 describe("studio timeline re-resolution", () => {
@@ -136,6 +137,7 @@ async function createCapturedFixture() {
   process.env.DEMOCRAFT_STUDIO_DATA = await realpath(dataDir);
   process.env.DEMOCRAFT_STUDIO_WORKSPACE_ROOT = await realpath(dataDir);
   process.env.DEMOCRAFT_STUDIO_DEMO_PATH = await realpath(demoPath);
+  process.env.DEMOCRAFT_STUDIO_CAPTURE_ENVIRONMENT_HASH = `capture-env-v1:sha256:${"e".repeat(64)}`;
   const compilation = await compileDemo(
     await loadDemo(demoPath, { version: "baseline" }),
   );
@@ -144,6 +146,8 @@ async function createCapturedFixture() {
     demoId: compilation.ir.id,
     definitionHash: compilation.ir.definitionHash,
     captureHash: compilation.ir.captureHash,
+    captureEnvironmentHash:
+      process.env.DEMOCRAFT_STUDIO_CAPTURE_ENVIRONMENT_HASH,
     steps: [],
     diagnostics: [],
   };

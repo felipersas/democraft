@@ -76,6 +76,8 @@ export type RenderTimeline = {
   definitionHash?: string;
   /** Versioned hash of the capture-compatible definition projection. */
   captureHash?: string;
+  /** Environment identity inherited from the recorded capture. */
+  captureEnvironmentHash?: string;
   fps: number;
   durationInFrames: number;
   scenes: RenderScene[];

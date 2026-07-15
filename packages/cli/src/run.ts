@@ -175,6 +175,8 @@ export async function runCli(argv = process.argv.slice(2)): Promise<CliResult> {
           demoId: timeline.demoId,
           definitionHash: timeline.definitionHash ?? manifest.definitionHash,
           captureHash: timeline.captureHash ?? manifest.captureHash,
+          captureEnvironmentHash:
+            timeline.captureEnvironmentHash ?? manifest.captureEnvironmentHash,
           render: {
             fps: timeline.fps,
             durationInFrames: timeline.durationInFrames,

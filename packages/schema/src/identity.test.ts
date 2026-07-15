@@ -46,4 +46,26 @@ describe("capture identity", () => {
       ),
     ).not.toThrow();
   });
+
+  it("requires matching environment hashes when either side knows the environment", () => {
+    const base = { demoId: "demo", captureHash: "same" };
+    expect(
+      compareCaptureCompatibility(
+        { ...base, captureEnvironmentHash: "environment-a" },
+        base,
+      ),
+    ).toBe("unknown");
+    expect(
+      compareCaptureCompatibility(
+        { ...base, captureEnvironmentHash: "environment-a" },
+        { ...base, captureEnvironmentHash: "environment-b" },
+      ),
+    ).toBe("incompatible");
+    expect(
+      compareCaptureCompatibility(
+        { ...base, captureEnvironmentHash: "environment-a" },
+        { ...base, captureEnvironmentHash: "environment-a" },
+      ),
+    ).toBe("compatible");
+  });
 });

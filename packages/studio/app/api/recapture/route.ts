@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
 import { redactCaptureErrorMessage, runDemo } from "@democraft/playwright";
-import { readMeta, loadDemo } from "@/lib/staleness";
+import { readMeta } from "@/lib/staleness";
 import {
   buildMetaAfterCapture,
   materializeStudioData,
 } from "@/lib/materialize";
 import { studioDataDir } from "@/lib/server-data";
 import { publish } from "@/lib/event-bus";
-import { compileDemo } from "@democraft/compiler";
 import { resolveTimeline } from "@democraft/timeline";
 import path from "node:path";
 import {
@@ -16,11 +15,13 @@ import {
 } from "../../../lib/path-boundary";
 import { authorizeStudioMutation } from "../../../lib/request-security";
 import {
+  trustedCaptureHeadless,
   trustedDemoPath,
   trustedExplicitCaptureDirectory,
   trustedWorkspaceRoot,
 } from "../../../lib/studio-path-authority";
 import { mkdir } from "node:fs/promises";
+import { compileDemoModuleIsolated } from "../../../lib/compile-demo-isolated";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -67,8 +68,10 @@ async function performRecapture() {
   let manifest;
   try {
     const demoPath = await trustedDemoPath();
-    const demo = await loadDemo(demoPath);
-    const compilation = await compileDemo(demo);
+    const workspaceRoot = await trustedWorkspaceRoot();
+    const compilation = await compileDemoModuleIsolated(demoPath, {
+      cwd: workspaceRoot,
+    });
     const errors = compilation.diagnostics.filter(
       (diagnostic) => diagnostic.severity === "error",
     );
@@ -79,7 +82,6 @@ async function performRecapture() {
     }
 
     publish("recapture-progress", { phase: "capturing" });
-    const workspaceRoot = await trustedWorkspaceRoot();
     const managedCaptureRoot = await resolveWritePathWithin(
       workspaceRoot,
       path.join(workspaceRoot, ".democraft", "runs"),
@@ -105,6 +107,7 @@ async function performRecapture() {
     manifest = await runDemo(compilation.ir, {
       outputDir: explicitOutput ? captureDir : undefined,
       captureRootDir: managedCaptureRoot,
+      headless: trustedCaptureHeadless(),
       onArtifactCreated: (artifact) => {
         captureDir = artifact.outputDir;
       },
@@ -119,7 +122,12 @@ async function performRecapture() {
       captureDir,
       manifest,
       timeline,
-      meta: buildMetaAfterCapture(meta, compilation.ir, captureDir),
+      meta: buildMetaAfterCapture(
+        meta,
+        compilation.ir,
+        captureDir,
+        manifest.captureEnvironmentHash,
+      ),
     });
   } catch (err) {
     const message = redactCaptureErrorMessage(

@@ -49,6 +49,7 @@ const manifest: RecordedDemoManifest = {
   demoId: "demo",
   definitionHash: "definition-v1:sha256:captured",
   captureHash: "capture-v1:sha256:same",
+  captureEnvironmentHash: `capture-env-v1:sha256:${"e".repeat(64)}`,
   steps: [
     {
       stepId: "intro.goto.1",
@@ -119,6 +120,9 @@ describe("timeline", () => {
 
     expect(timeline.definitionHash).toBe("definition-hash");
     expect(timeline.captureHash).toBe("capture-v1:sha256:same");
+    expect(timeline.captureEnvironmentHash).toBe(
+      manifest.captureEnvironmentHash,
+    );
     expect(timeline.durationInFrames).toBe(441);
     expect(
       timeline.scenes.map((scene) => [

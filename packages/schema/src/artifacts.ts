@@ -7,6 +7,7 @@ export type RenderArtifactMetadata = {
   demoId: string;
   definitionHash?: string;
   captureHash?: string;
+  captureEnvironmentHash?: string;
   status: RenderArtifactStatus;
   createdAt: string;
   startedAt: string;
@@ -43,6 +44,7 @@ export type CaptureArtifactMetadata = {
   demoId: string;
   definitionHash?: string;
   captureHash?: string;
+  captureEnvironmentHash?: string;
   status: CaptureArtifactStatus;
   createdAt: string;
   updatedAt: string;

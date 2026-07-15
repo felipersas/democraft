@@ -47,6 +47,8 @@ describe("CLI Studio path boundaries", () => {
         workspaceRoot: "/workspace",
         demoPath: "/external/demo.ts",
         explicitCaptureDir: "/captures/exact",
+        captureHeadless: true,
+        captureEnvironmentHash: `capture-env-v1:sha256:${"a".repeat(64)}`,
       },
       "secret",
     );
@@ -56,6 +58,8 @@ describe("CLI Studio path boundaries", () => {
       DEMOCRAFT_STUDIO_WORKSPACE_ROOT: "/workspace",
       DEMOCRAFT_STUDIO_DEMO_PATH: "/external/demo.ts",
       DEMOCRAFT_STUDIO_EXPLICIT_CAPTURE_DIR: "/captures/exact",
+      DEMOCRAFT_STUDIO_CAPTURE_HEADLESS: "true",
+      DEMOCRAFT_STUDIO_CAPTURE_ENVIRONMENT_HASH: `capture-env-v1:sha256:${"a".repeat(64)}`,
       DEMOCRAFT_STUDIO_SESSION_TOKEN: "secret",
     });
   });

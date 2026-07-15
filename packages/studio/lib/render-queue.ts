@@ -220,6 +220,9 @@ async function runJob(job: RenderJob): Promise<void> {
       definitionHash:
         data.timeline.definitionHash ?? data.manifest.definitionHash,
       captureHash: data.timeline.captureHash ?? data.manifest.captureHash,
+      captureEnvironmentHash:
+        data.timeline.captureEnvironmentHash ??
+        data.manifest.captureEnvironmentHash,
       render: {
         fps: data.timeline.fps,
         durationInFrames: data.timeline.durationInFrames,

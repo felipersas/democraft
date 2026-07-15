@@ -1,6 +1,5 @@
 import { stat } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
-import { compileDemo } from "@democraft/compiler";
 import type { DemoDefinition } from "@democraft/core";
 import {
   compareCaptureCompatibility,
@@ -13,7 +12,12 @@ import { readJson } from "./server-data";
 import { existsFile } from "./fs";
 import path from "node:path";
 import { resolveExistingPathWithin } from "./path-boundary";
-import { trustedDemoPath } from "./studio-path-authority";
+import {
+  trustedCaptureEnvironmentHash,
+  trustedDemoPath,
+  trustedWorkspaceRoot,
+} from "./studio-path-authority";
+import { compileDemoModuleIsolated } from "./compile-demo-isolated";
 
 // Native dynamic import that bypasses webpack's static analysis. webpack
 // rewrites `import()` expressions it can see; wrapping it in a Function makes
@@ -91,8 +95,9 @@ export async function computeStaleness(args: {
 
   try {
     const demoPath = await trustedDemoPath();
-    const demo = await loadDemo(demoPath);
-    const compilation = await compileDemo(demo);
+    const compilation = await compileDemoModuleIsolated(demoPath, {
+      cwd: await trustedWorkspaceRoot(),
+    });
     const errors = compilation.diagnostics.filter(
       (diagnostic) => diagnostic.severity === "error",
     );
@@ -110,7 +115,11 @@ export async function computeStaleness(args: {
     }
 
     const compatibility = compareCaptureCompatibility(
-      { demoId: compilation.ir.id, captureHash: compilation.ir.captureHash },
+      {
+        demoId: compilation.ir.id,
+        captureHash: compilation.ir.captureHash,
+        captureEnvironmentHash: trustedCaptureEnvironmentHash(),
+      },
       manifest,
     );
     if (compatibility === "unknown") {

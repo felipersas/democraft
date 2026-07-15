@@ -199,6 +199,7 @@ export function buildMetaAfterCapture(
   meta: StudioMeta,
   ir: Pick<DemoIR, "id" | "definitionHash" | "captureHash">,
   captureDir = meta.captureDir,
+  captureEnvironmentHash?: string,
 ): StudioMeta {
   return parseStudioMeta({
     ...meta,
@@ -207,6 +208,8 @@ export function buildMetaAfterCapture(
     demoId: ir.id,
     definitionHash: ir.definitionHash,
     captureHash: ir.captureHash,
+    captureEnvironmentHash:
+      captureEnvironmentHash ?? meta.captureEnvironmentHash,
     capturedAt: Date.now(),
   });
 }

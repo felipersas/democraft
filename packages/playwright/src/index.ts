@@ -9,6 +9,11 @@ export type {
   SettleStrategy,
 } from "./types";
 export { DEFAULT_SETTLE_STRATEGY } from "./types";
+export {
+  CAPTURE_ENVIRONMENT_HASH_PREFIX,
+  resolveCaptureEnvironment,
+  type CaptureRuntimeIdentity,
+} from "./environment-fingerprint";
 export { runDemo, runDemoWithBindings } from "./runner";
 export { resolveTarget } from "./locator";
 export {

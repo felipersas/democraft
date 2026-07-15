@@ -25,6 +25,7 @@ export type CreateRenderArtifactOptions = {
   demoId: string;
   definitionHash?: string;
   captureHash?: string;
+  captureEnvironmentHash?: string;
   render: RenderArtifactMetadata["render"];
   source?: RenderArtifactMetadata["source"];
 };
@@ -60,6 +61,7 @@ export async function createRenderArtifact(
       demoId: options.demoId,
       definitionHash: options.definitionHash,
       captureHash: options.captureHash,
+      captureEnvironmentHash: options.captureEnvironmentHash,
       status: "rendering",
       createdAt: timestamp,
       startedAt: timestamp,

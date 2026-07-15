@@ -50,6 +50,7 @@ export type CreateCaptureArtifactOptions = {
   demoId: string;
   definitionHash?: string;
   captureHash?: string;
+  captureEnvironmentHash?: string;
   environment: CaptureEnvironmentMetadata;
   /** Internal/test tuning; production defaults use a 30s renewable lease. */
   lockOptions?: CaptureLeaseOptions;
@@ -331,7 +332,8 @@ export async function isReusableCaptureDirectory(
       return (
         metadata.status === "completed" &&
         metadata.demoId === demoId &&
-        metadata.captureRunId === manifest.captureRunId
+        metadata.captureRunId === manifest.captureRunId &&
+        metadata.captureEnvironmentHash === manifest.captureEnvironmentHash
       );
     } catch (error) {
       return isNodeError(error, "ENOENT");
@@ -535,6 +537,7 @@ function buildInitialMetadata(
     demoId: options.demoId,
     definitionHash: options.definitionHash,
     captureHash: options.captureHash,
+    captureEnvironmentHash: options.captureEnvironmentHash,
     status: "created",
     createdAt,
     updatedAt: createdAt,

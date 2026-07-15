@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { compileDemo } from "@democraft/compiler";
 import { publish } from "@/lib/event-bus";
 import { materializeStudioData } from "@/lib/materialize";
+import { compileDemoModuleIsolated } from "../../../lib/compile-demo-isolated";
 
 const capture = vi.hoisted(() => {
   let resolve!: (value: unknown) => void;
@@ -35,6 +35,7 @@ vi.mock("../../../lib/path-boundary", async (importOriginal) => ({
   ),
 }));
 vi.mock("../../../lib/studio-path-authority", () => ({
+  trustedCaptureHeadless: vi.fn(() => true),
   trustedDemoPath: vi.fn(async () => "/workspace/demo.ts"),
   trustedWorkspaceRoot: vi.fn(async () => "/workspace"),
   trustedExplicitCaptureDirectory: vi.fn(() => "/workspace/explicit"),
@@ -44,8 +45,8 @@ vi.mock("@/lib/materialize", () => ({
   materializeStudioData: vi.fn(async () => undefined),
   updateMetaAfterCapture: vi.fn(async () => undefined),
 }));
-vi.mock("@democraft/compiler", () => ({
-  compileDemo: vi.fn(async () => ({
+vi.mock("../../../lib/compile-demo-isolated", () => ({
+  compileDemoModuleIsolated: vi.fn(async () => ({
     ir: { id: "demo" },
     diagnostics: [],
   })),
@@ -85,7 +86,7 @@ describe("POST /api/recapture", () => {
   });
 
   it("redacts secrets from JSON and SSE failures", async () => {
-    vi.mocked(compileDemo).mockRejectedValueOnce(
+    vi.mocked(compileDemoModuleIsolated).mockRejectedValueOnce(
       new Error("Failed https://user:pass@example.test?token=abc&safe=ok"),
     );
     const response = await POST(request());

@@ -48,6 +48,9 @@ const definitionHashSchema = z
   .string()
   .regex(/^definition-v1:sha256:[a-f0-9]{64}$/);
 const captureHashSchema = z.string().regex(/^capture-v1:sha256:[a-f0-9]{64}$/);
+const captureEnvironmentHashSchema = z
+  .string()
+  .regex(/^capture-env-v1:sha256:[a-f0-9]{64}$/);
 const schemaVersionSchema = z.literal("1");
 const nonNegativeFinite = z.number().finite().nonnegative();
 const positiveFinite = z.number().finite().positive();
@@ -246,6 +249,7 @@ export const recordedDemoManifestSchema: z.ZodType<RecordedDemoManifest> = z
     captureRunId: z.string().min(1).optional(),
     definitionHash: definitionHashSchema.optional(),
     captureHash: captureHashSchema.optional(),
+    captureEnvironmentHash: captureEnvironmentHashSchema.optional(),
     capture: z
       .object({
         width: positiveInteger,
@@ -334,6 +338,7 @@ export const renderTimelineSchema: z.ZodType<RenderTimeline> = z
     demoId: z.string().min(1),
     definitionHash: definitionHashSchema.optional(),
     captureHash: captureHashSchema.optional(),
+    captureEnvironmentHash: captureEnvironmentHashSchema.optional(),
     fps: positiveFinite,
     durationInFrames: nonNegativeInteger,
     scenes: z.array(
@@ -390,6 +395,7 @@ export const renderArtifactMetadataSchema: z.ZodType<RenderArtifactMetadata> = z
     demoId: z.string().min(1),
     definitionHash: definitionHashSchema.optional(),
     captureHash: captureHashSchema.optional(),
+    captureEnvironmentHash: captureEnvironmentHashSchema.optional(),
     status: z.enum(["rendering", "completed", "failed", "cancelled"]),
     createdAt: z.string().datetime(),
     startedAt: z.string().datetime(),
@@ -474,6 +480,7 @@ export const captureArtifactMetadataSchema: z.ZodType<CaptureArtifactMetadata> =
       demoId: z.string().min(1),
       definitionHash: definitionHashSchema.optional(),
       captureHash: captureHashSchema.optional(),
+      captureEnvironmentHash: captureEnvironmentHashSchema.optional(),
       status: z.enum([
         "created",
         "running",
@@ -566,6 +573,7 @@ export const studioMetaSchema: z.ZodType<StudioMeta> = z
     demoId: z.string().min(1),
     definitionHash: definitionHashSchema.optional(),
     captureHash: captureHashSchema.optional(),
+    captureEnvironmentHash: captureEnvironmentHashSchema.optional(),
     capturedAt: nonNegativeFinite,
   })
   .passthrough();

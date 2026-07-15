@@ -11,7 +11,10 @@ import {
 } from "@democraft/schema";
 import { defaultBindings } from "./bindings";
 import { executeStep } from "./execute";
-import { DEFAULT_SETTLE_STRATEGY } from "./types";
+import {
+  resolveCaptureEnvironment,
+  resolveSettleStrategy,
+} from "./environment-fingerprint";
 import {
   cancelCaptureArtifact,
   CaptureAbortError,
@@ -28,7 +31,6 @@ import type {
   PageLike,
   PlaywrightBindings,
   RunDemoOptions,
-  SettleStrategy,
 } from "./types";
 
 export async function runDemo(
@@ -44,10 +46,12 @@ export async function runDemoWithBindings(
   options: RunDemoOptions = {},
 ): Promise<RecordedDemoManifest> {
   ir = parseDemoIR(ir);
-  const environment = options.environment ?? {};
-  const viewport = environment.viewport ?? { width: 1920, height: 1080 };
-  const deviceScaleFactor = environment.deviceScaleFactor ?? 2;
-  const timeoutMs = options.timeoutMs ?? 8000;
+  const configuredEnvironment = options.environment ?? {};
+  const resolvedEnvironment = await resolveCaptureEnvironment(options);
+  const environment = resolvedEnvironment.environment;
+  const viewport = environment.viewport;
+  const deviceScaleFactor = environment.deviceScaleFactor;
+  const timeoutMs = environment.timeoutMs;
   assertPositiveFinite("viewport.width", viewport.width);
   assertPositiveFinite("viewport.height", viewport.height);
   assertPositiveFinite("deviceScaleFactor", deviceScaleFactor);
@@ -61,15 +65,8 @@ export async function runDemoWithBindings(
     demoId: ir.id,
     definitionHash: ir.definitionHash,
     captureHash: ir.captureHash,
-    environment: {
-      headless: options.headless ?? true,
-      viewport,
-      deviceScaleFactor,
-      locale: environment.locale ?? "en-US",
-      timezone: environment.timezone ?? "UTC",
-      settle: settleStrategy ?? false,
-      timeoutMs,
-    },
+    captureEnvironmentHash: resolvedEnvironment.captureEnvironmentHash,
+    environment,
   });
   const diagnostics: Diagnostic[] = [];
   const steps: RecordedStep[] = [];
@@ -93,15 +90,15 @@ export async function runDemoWithBindings(
     throwIfAborted(options.signal);
 
     browser = await bindings.chromium.launch({
-      headless: options.headless ?? true,
+      headless: environment.headless,
     });
     throwIfAborted(options.signal);
     context = await browser.newContext({
       viewport,
       deviceScaleFactor,
-      locale: environment.locale ?? "en-US",
-      timezoneId: environment.timezone ?? "UTC",
-      storageState: environment.storageState,
+      locale: environment.locale,
+      timezoneId: environment.timezone,
+      storageState: configuredEnvironment.storageState,
       recordVideo: { dir: artifact.directory, size: viewport },
     });
     let executionFailed = false;
@@ -183,6 +180,7 @@ export async function runDemoWithBindings(
       captureRunId: artifact.captureRunId,
       definitionHash: ir.definitionHash,
       captureHash: ir.captureHash,
+      captureEnvironmentHash: resolvedEnvironment.captureEnvironmentHash,
       capture: {
         width: viewport.width,
         height: viewport.height,
@@ -243,23 +241,4 @@ function publicArtifactPath(target: string): string {
   return fromCwd && !fromCwd.startsWith("..") && !isAbsolute(fromCwd)
     ? fromCwd
     : absolute;
-}
-
-/**
- * Resolve the user-provided settle option into a fully-specified strategy (or
- * `undefined` when disabled).
- *
- * - `undefined` (omitted) → {@link DEFAULT_SETTLE_STRATEGY} (DOM + visual,
- *   350ms idle window, 4s timeout). Capture settles automatically — no author
- *   configuration needed.
- * - `false` → `undefined` (settling disabled; falls back to the fixed hold).
- * - partial `SettleStrategy` → merged over the defaults so callers can tune a
- *   single knob (e.g. `{ idleWindowMs: 600 }`) without restating the rest.
- */
-function resolveSettleStrategy(
-  settle: SettleStrategy | false | undefined,
-): Required<SettleStrategy> | undefined {
-  if (settle === false) return undefined;
-  if (settle === undefined) return { ...DEFAULT_SETTLE_STRATEGY };
-  return { ...DEFAULT_SETTLE_STRATEGY, ...settle };
 }

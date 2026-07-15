@@ -45,6 +45,9 @@ describe("render artifacts", () => {
     expect(second.metadata.captureHash).toBe(
       `capture-v1:sha256:${"b".repeat(64)}`,
     );
+    expect(second.metadata.captureEnvironmentHash).toBe(
+      `capture-env-v1:sha256:${"c".repeat(64)}`,
+    );
     await expect(access(first.metadataPath)).resolves.toBeUndefined();
   });
 
@@ -147,6 +150,7 @@ function baseOptions(rootDirectory: string) {
     demoId: "checkout",
     definitionHash: `definition-v1:sha256:${"a".repeat(64)}`,
     captureHash: `capture-v1:sha256:${"b".repeat(64)}`,
+    captureEnvironmentHash: `capture-env-v1:sha256:${"c".repeat(64)}`,
     render: {
       fps: 60,
       durationInFrames: 120,

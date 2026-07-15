@@ -16,6 +16,7 @@ import { compileDemo } from "@democraft/compiler";
 import {
   resolveLatestCompletedCapture,
   resolveRecordedScreenshotPath,
+  resolveCaptureEnvironment,
   isReusableCaptureDirectory,
   runDemo,
 } from "@democraft/playwright";
@@ -60,6 +61,9 @@ export async function launchStudio(
   const demo = await loadDemo(options.demoPath);
   const demoPath = await realpath(userResolve(options.demoPath));
   const compilation = await compileDemo(demo);
+  const captureEnvironment = await resolveCaptureEnvironment({
+    headless: options.headless,
+  });
 
   if (compilation.diagnostics.some((d) => d.severity === "error")) {
     throw new Error(
@@ -110,6 +114,7 @@ export async function launchStudio(
         {
           demoId: compilation.ir.id,
           captureHash: compilation.ir.captureHash,
+          captureEnvironmentHash: captureEnvironment.captureEnvironmentHash,
         },
         existingManifest,
       )
@@ -186,6 +191,7 @@ export async function launchStudio(
     demoId: compilation.ir.id,
     definitionHash: compilation.ir.definitionHash,
     captureHash: compilation.ir.captureHash,
+    captureEnvironmentHash: manifest.captureEnvironmentHash,
     capturedAt: Date.now(),
   });
 
@@ -196,6 +202,8 @@ export async function launchStudio(
     workspaceRoot: root,
     demoPath,
     explicitCaptureDir,
+    captureHeadless: captureEnvironment.environment.headless,
+    captureEnvironmentHash: captureEnvironment.captureEnvironmentHash,
   });
 
   return { port, dataDir: canonicalDataDir, url };
@@ -228,6 +236,7 @@ async function writeMetaFile(args: {
   demoId: string;
   definitionHash?: string;
   captureHash?: string;
+  captureEnvironmentHash?: string;
   capturedAt: number;
 }): Promise<void> {
   const meta = parseStudioMeta({
@@ -239,6 +248,7 @@ async function writeMetaFile(args: {
     demoId: args.demoId,
     definitionHash: args.definitionHash,
     captureHash: args.captureHash,
+    captureEnvironmentHash: args.captureEnvironmentHash,
     capturedAt: args.capturedAt,
   });
   await writeAtomicTarget(
@@ -315,6 +325,8 @@ async function startStudioServer(args: {
   workspaceRoot: string;
   demoPath: string;
   explicitCaptureDir?: string;
+  captureHeadless: boolean;
+  captureEnvironmentHash: string;
 }): Promise<string> {
   return new Promise((resolve, reject) => {
     const sessionToken = randomBytes(32).toString("base64url");
@@ -365,6 +377,8 @@ export function studioServerEnvironment(
     workspaceRoot: string;
     demoPath: string;
     explicitCaptureDir?: string;
+    captureHeadless: boolean;
+    captureEnvironmentHash: string;
   },
   sessionToken: string,
 ): NodeJS.ProcessEnv {
@@ -374,6 +388,8 @@ export function studioServerEnvironment(
     DEMOCRAFT_STUDIO_WORKSPACE_ROOT: args.workspaceRoot,
     DEMOCRAFT_STUDIO_DEMO_PATH: args.demoPath,
     DEMOCRAFT_STUDIO_EXPLICIT_CAPTURE_DIR: args.explicitCaptureDir ?? "",
+    DEMOCRAFT_STUDIO_CAPTURE_HEADLESS: String(args.captureHeadless),
+    DEMOCRAFT_STUDIO_CAPTURE_ENVIRONMENT_HASH: args.captureEnvironmentHash,
     DEMOCRAFT_STUDIO_SESSION_TOKEN: sessionToken,
     // Register the tsx loader so Studio can import the authorized .ts demo.
     NODE_OPTIONS: [process.env.NODE_OPTIONS, "--import tsx"]

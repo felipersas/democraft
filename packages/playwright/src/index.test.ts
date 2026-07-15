@@ -113,6 +113,15 @@ describe("playwright runtime", () => {
     expect(manifestJson.demoId).toBe("demo");
     expect(manifestJson.definitionHash).toBe(DEFINITION_HASH);
     expect(manifestJson.captureHash).toBe(CAPTURE_HASH);
+    expect(manifestJson.captureEnvironmentHash).toMatch(
+      /^capture-env-v1:sha256:[a-f0-9]{64}$/,
+    );
+    const metadataJson = JSON.parse(
+      await readFile(join(outputDir, "metadata.json"), "utf8"),
+    );
+    expect(metadataJson.captureEnvironmentHash).toBe(
+      manifestJson.captureEnvironmentHash,
+    );
   });
 
   it("rejects invalid IR before launching a browser or writing a manifest", async () => {

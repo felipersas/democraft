@@ -21,6 +21,7 @@ afterEach(async () => {
   delete process.env.DEMOCRAFT_STUDIO_DATA;
   delete process.env.DEMOCRAFT_STUDIO_WORKSPACE_ROOT;
   delete process.env.DEMOCRAFT_STUDIO_DEMO_PATH;
+  delete process.env.DEMOCRAFT_STUDIO_CAPTURE_ENVIRONMENT_HASH;
 });
 
 describe("studio staleness", () => {
@@ -65,6 +66,16 @@ describe("studio staleness", () => {
   it("requires recapture for capture-affecting changes", async () => {
     const fixture = await capturedFixture();
     await writeDemo(fixture.demoPath, { path: "/changed" });
+
+    await expect(staleness(fixture)).resolves.toMatchObject({
+      kind: "structural",
+      detail: expect.stringContaining("capture-affecting"),
+    });
+  });
+
+  it("requires recapture when the effective capture environment changes", async () => {
+    const fixture = await capturedFixture();
+    process.env.DEMOCRAFT_STUDIO_CAPTURE_ENVIRONMENT_HASH = `capture-env-v1:sha256:${"f".repeat(64)}`;
 
     await expect(staleness(fixture)).resolves.toMatchObject({
       kind: "structural",
@@ -136,6 +147,7 @@ async function capturedFixture(): Promise<Fixture> {
 
 async function authorizeDemo(demoPath: string): Promise<void> {
   process.env.DEMOCRAFT_STUDIO_DEMO_PATH = await realpath(demoPath);
+  process.env.DEMOCRAFT_STUDIO_CAPTURE_ENVIRONMENT_HASH = `capture-env-v1:sha256:${"e".repeat(64)}`;
 }
 
 function staleness(fixture: Fixture) {
@@ -163,6 +175,8 @@ function manifestFor(ir: DemoIR): RecordedDemoManifest {
     demoId: ir.id,
     definitionHash: ir.definitionHash,
     captureHash: ir.captureHash,
+    captureEnvironmentHash:
+      process.env.DEMOCRAFT_STUDIO_CAPTURE_ENVIRONMENT_HASH,
     steps: [],
     diagnostics: [],
   };

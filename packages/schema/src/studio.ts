@@ -23,6 +23,8 @@ export type StudioMeta = {
   definitionHash?: string;
   /** Capture compatibility identity of the current manifest. */
   captureHash?: string;
+  /** Effective environment identity of the current capture. */
+  captureEnvironmentHash?: string;
   /** Epoch ms when the current capture was materialized. */
   capturedAt: number;
 };
