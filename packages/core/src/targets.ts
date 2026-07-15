@@ -1,9 +1,5 @@
 import type { TargetDefinition } from "@democraft/schema";
-import type { TargetInput } from "./types";
-
-export type DefinedTargets<TTargets extends Record<string, TargetInput>> = {
-  [TTargetId in keyof TTargets]: TargetDefinition;
-};
+import type { DefinedTargets, TargetInput } from "./types";
 
 export function defineTarget(target: TargetDefinition): TargetDefinition {
   return target;

@@ -6,14 +6,14 @@ description: Referência para o formato DemoDefinition e o construtor defineDemo
 import { Callout } from "fumadocs-ui/components/callout";
 import { TypeTable } from "fumadocs-ui/components/type-table";
 
-`defineDemo` declara uma demo. É uma função identidade — seu único trabalho é lhe dar type-checking e suporte do editor para o formato `DemoDefinition`.
+`defineDemo` declara e normaliza uma demo. Coloque targets e config diretamente na definição para o fluxo mais simples em um arquivo; separá-los é uma organização opcional para demos maiores.
 
 ## Assinatura
 
 ```ts
-function defineDemo<TTargets extends TargetMap>(
-  definition: DemoDefinition<TTargets>,
-): DemoDefinition<TTargets>;
+function defineDemo<TTargets extends Record<string, TargetInput>>(
+  definition: DemoInput<TTargets>,
+): DemoDefinition<DefinedTargets<TTargets>>;
 ```
 
 ## DemoDefinition
@@ -46,8 +46,7 @@ function defineDemo<TTargets extends TargetMap>(
 ## Exemplo mínimo
 
 ```ts title="demo.ts"
-import { defineDemo } from "@democraft/core";
-import targets from "./targets";
+import { byTestId, defineDemo } from "@democraft/core";
 
 export default defineDemo({
   id: "create-project-live",
@@ -56,7 +55,9 @@ export default defineDemo({
     baseUrl: "http://localhost:4173",
     initialPath: "/dashboard",
   },
-  targets,
+  targets: {
+    dashboard: byTestId("dashboard"),
+  },
   async run({ demo }) {
     await demo.scene("intro", async (scene) => {
       await scene.goto("/dashboard");
@@ -85,21 +86,25 @@ O argumento `demo` para `run` é um `DemoCapture`. Ele tem um único método sob
 await demo.scene("intro", async (scene) => { /* ... */ });
 
 // com metadados
-await demo.scene("intro", { title: "Introduction" }, async (scene) => { /* ... */ });
+await demo.scene("intro", { purpose: "Apresentar o produto" }, async (scene) => { /* ... */ });
 ```
 
 ## defineConfig (opcional)
 
-Crie configurações reutilizáveis com `defineConfig` e anexe-as à demo pelo campo `config`:
+Para uma demo em um único arquivo, coloque a configuração diretamente na definição:
 
 ```ts
-const config = defineConfig({ fps: 30 });
-
 export default defineDemo({
-  config,
-  // ...
+  id: "save-profile",
+  title: "Save profile",
+  config: { fps: 30 },
+  source: { baseUrl: "http://localhost:3000" },
+  targets: {},
+  async run() {},
 });
 ```
+
+`defineConfig` continua disponível quando várias demos compartilham intencionalmente as mesmas configurações.
 
 <TypeTable
   type={{

@@ -10,8 +10,7 @@ Esta é a menor demo útil do Democraft: uma cena, um goto, um establish e uma l
 ## O arquivo de demo
 
 ```ts title="demo.ts"
-import { defineDemo } from "@democraft/core";
-import targets from "./targets";
+import { byTestId, defineDemo } from "@democraft/core";
 
 export default defineDemo({
   id: "basic-walkthrough",
@@ -20,7 +19,9 @@ export default defineDemo({
     baseUrl: "http://localhost:4173",
     initialPath: "/",
   },
-  targets,
+  targets: {
+    hero: byTestId("hero"),
+  },
   async run({ demo }) {
     await demo.scene("landing", async (scene) => {
       await scene.goto("/");
@@ -32,15 +33,7 @@ export default defineDemo({
 });
 ```
 
-## O arquivo de alvos
-
-```ts title="targets.ts"
-import { byTestId, defineTargets } from "@democraft/core";
-
-export default defineTargets({
-  hero: byTestId("hero"),
-});
-```
+Essa é a demo completa. Um `targets.ts` ou arquivo de configuração separado não é necessário. Você pode extraí-los depois, quando uma demo maior realmente se beneficiar dessa organização.
 
 ## O que isso produz
 

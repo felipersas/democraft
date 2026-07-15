@@ -10,8 +10,7 @@ This is the smallest useful Democraft demo: one scene, a goto, an establish, and
 ## The demo file
 
 ```ts title="demo.ts"
-import { defineDemo } from "@democraft/core";
-import targets from "./targets";
+import { byTestId, defineDemo } from "@democraft/core";
 
 export default defineDemo({
   id: "basic-walkthrough",
@@ -20,7 +19,9 @@ export default defineDemo({
     baseUrl: "http://localhost:4173",
     initialPath: "/",
   },
-  targets,
+  targets: {
+    hero: byTestId("hero"),
+  },
   async run({ demo }) {
     await demo.scene("landing", async (scene) => {
       await scene.goto("/");
@@ -32,15 +33,7 @@ export default defineDemo({
 });
 ```
 
-## The targets file
-
-```ts title="targets.ts"
-import { byTestId, defineTargets } from "@democraft/core";
-
-export default defineTargets({
-  hero: byTestId("hero"),
-});
-```
+That is the complete demo. A separate `targets.ts` or config file is not required. You can extract them later when a larger demo benefits from shared organization.
 
 ## What this produces
 

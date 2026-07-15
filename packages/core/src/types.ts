@@ -6,6 +6,9 @@ import type {
 
 export type TargetInput =
   Omit<TargetDefinition, "id"> | TargetDefinition | Locator;
+export type DefinedTargets<TTargets extends Record<string, TargetInput>> = {
+  [TTargetId in keyof TTargets]: TargetDefinition;
+};
 export type TargetMap<TTargetId extends string = string> = Record<
   TTargetId,
   TargetDefinition
@@ -130,7 +133,9 @@ export type DemoCapture<TTargetId extends string = string> = {
   ): Promise<void>;
 };
 
-export type DemoDefinition<TTargets extends TargetMap = TargetMap> = {
+export type DemoInput<
+  TTargets extends Record<string, TargetInput> = Record<string, TargetInput>,
+> = {
   id: string;
   title: string;
   config?: DemoConfig;
@@ -139,5 +144,10 @@ export type DemoDefinition<TTargets extends TargetMap = TargetMap> = {
     initialPath?: string;
   };
   targets: TTargets;
-  run(args: { demo: DemoCapture<TargetId<TTargets>> }): Promise<void> | void;
+  run(args: {
+    demo: DemoCapture<Extract<keyof TTargets, string>>;
+  }): Promise<void> | void;
 };
+
+export type DemoDefinition<TTargets extends TargetMap = TargetMap> =
+  DemoInput<TTargets>;

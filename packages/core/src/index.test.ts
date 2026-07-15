@@ -59,4 +59,39 @@ describe("targets", () => {
 
     expect(definition.targets.save.id).toBe("save");
   });
+
+  it("normalizes inline targets in a single-file definition", () => {
+    const definition = defineDemo({
+      id: "save-profile",
+      title: "Save profile",
+      source: { baseUrl: "http://localhost:3000" },
+      targets: { save: byRole("button", { name: "Save" }) },
+      async run({ demo }) {
+        await demo.scene("save", async (scene) => {
+          await scene.click("save");
+          // @ts-expect-error Target "missing" is not declared by this demo.
+          await scene.click("missing");
+        });
+      },
+    });
+
+    expectTypeOf<keyof typeof definition.targets>().toEqualTypeOf<"save">();
+    expect(definition.targets.save).toEqual({
+      id: "save",
+      locators: [{ kind: "role", role: "button", name: "Save" }],
+    });
+  });
+
+  it("keeps pre-normalized definitions unchanged", () => {
+    const targets = defineTargets({ dashboard: byTestId("dashboard") });
+    const input = {
+      id: "dashboard",
+      title: "Dashboard",
+      source: { baseUrl: "http://localhost:3000" },
+      targets,
+      async run() {},
+    };
+
+    expect(defineDemo(input)).toBe(input);
+  });
 });

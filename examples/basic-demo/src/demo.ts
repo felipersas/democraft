@@ -1,5 +1,4 @@
-import { defineDemo } from "@democraft/core";
-import targets from "./targets";
+import { byLabel, byRole, byTestId, defineDemo } from "@democraft/core";
 
 export default defineDemo({
   id: "create-project",
@@ -8,7 +7,14 @@ export default defineDemo({
     baseUrl: "http://localhost:3000",
     initialPath: "/dashboard",
   },
-  targets,
+  targets: {
+    dashboard: byTestId("dashboard"),
+    "new-project-button": byRole("button", { name: "New project" }),
+    "create-project-dialog": byRole("dialog", { name: "Create project" }),
+    "project-name-input": byLabel("Project name"),
+    "create-project-button": byRole("button", { name: "Create" }),
+    "project-card": byTestId("project-card"),
+  },
   async run({ demo }) {
     await demo.scene("introduction", async (scene) => {
       await scene.goto("/dashboard");
