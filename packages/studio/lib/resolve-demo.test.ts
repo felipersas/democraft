@@ -49,6 +49,30 @@ describe("studio timeline re-resolution", () => {
     ).toMatchObject({ definitionHash: result.timeline.definitionHash });
   });
 
+  it("uses definition fps unless the launch options override it", async () => {
+    const fixture = await createCapturedFixture();
+    await writeDemo(fixture.meta.demoPath, { fps: 24 });
+
+    const configured = await reResolveTimeline({
+      meta: fixture.meta,
+      dataDir: fixture.dataDir,
+    });
+    const overridden = await reResolveTimeline({
+      meta: fixture.meta,
+      dataDir: fixture.dataDir,
+      fps: 30,
+    });
+
+    expect(configured).toMatchObject({
+      structural: false,
+      timeline: { fps: 24 },
+    });
+    expect(overridden).toMatchObject({
+      structural: false,
+      timeline: { fps: 30 },
+    });
+  });
+
   it("does not rewrite the timeline for incompatible capture changes", async () => {
     const fixture = await createCapturedFixture();
     await writeDemo(fixture.meta.demoPath, { path: "/changed" });
@@ -169,13 +193,14 @@ async function createCapturedFixture() {
 
 async function writeDemo(
   demoPath: string,
-  options: { title?: string; path?: string; invalid?: boolean },
+  options: { title?: string; path?: string; invalid?: boolean; fps?: number },
 ): Promise<void> {
   await writeFile(
     demoPath,
     `export default {
   id: "demo",
   title: ${JSON.stringify(options.title ?? "Demo")},
+  ${options.fps === undefined ? "" : `config: {fps: ${options.fps}},`}
   source: {baseUrl: "http://localhost:3000"},
   targets: {button: {id: "button", locators: [{kind: "testId", id: "button"}]}},
   async run({demo}) {

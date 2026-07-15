@@ -97,8 +97,18 @@ export async function compileDemoModuleIsolated(
   }
   return {
     ir: parseDemoIR(payload.result.ir),
+    config: parseCompiledConfig(payload.result.config),
     diagnostics: diagnosticSchema.array().parse(payload.result.diagnostics),
   };
+}
+
+function parseCompiledConfig(value: unknown): CompilationResult["config"] {
+  if (!value || typeof value !== "object" || !("fps" in value)) return {};
+  const fps = value.fps;
+  if (typeof fps !== "number" || !Number.isFinite(fps) || fps <= 0) {
+    throw new Error("Isolated compiler returned an invalid config fps.");
+  }
+  return { fps };
 }
 
 function isSuccess(

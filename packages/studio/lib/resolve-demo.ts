@@ -89,7 +89,7 @@ export async function reResolveTimeline(args: {
   }
 
   const timeline = resolveTimeline(compilation.ir, manifest, {
-    fps: args.fps,
+    fps: args.fps ?? compilation.config.fps,
   });
 
   const timelinePath = await resolveWritePathWithin(

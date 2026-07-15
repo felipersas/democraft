@@ -1,5 +1,5 @@
-import type { CapturedStep } from "@democraft/core";
-import type { Diagnostic, DemoIR } from "@democraft/schema";
+import type { CapturedStep, DemoConfig } from "@democraft/core";
+import type { Diagnostic, DemoIR, OperationResult } from "@democraft/schema";
 
 export type CapturedScene = {
   id: string;
@@ -11,5 +11,9 @@ export type CapturedScene = {
 
 export type CompilationResult = {
   ir: DemoIR;
+  config: Pick<DemoConfig, "fps">;
   diagnostics: Diagnostic[];
 };
+
+export type CompiledDemo = Omit<CompilationResult, "diagnostics">;
+export type CompilationOperationResult = OperationResult<CompiledDemo>;

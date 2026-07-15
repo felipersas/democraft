@@ -6,7 +6,14 @@ import type {
 
 export type TargetInput =
   Omit<TargetDefinition, "id"> | TargetDefinition | Locator;
-export type TargetMap = Record<string, TargetDefinition>;
+export type TargetMap<TTargetId extends string = string> = Record<
+  TTargetId,
+  TargetDefinition
+>;
+export type TargetId<TTargets extends TargetMap> = Extract<
+  keyof TTargets,
+  string
+>;
 
 /**
  * A Democraft adapter bundles optional extensions to the rendering pipeline.
@@ -82,54 +89,55 @@ export type CapturedStep =
     }
   | { kind: "cue"; id?: string; name: string };
 
-export type DemoScene = {
+export type DemoScene<TTargetId extends string = string> = {
   goto(path: string, options?: SceneStepOptions): Promise<void>;
-  click(target: string, options?: SceneStepOptions): Promise<void>;
+  click(target: TTargetId, options?: SceneStepOptions): Promise<void>;
   fill(
-    target: string,
+    target: TTargetId,
     value: string,
     options?: SceneStepOptions,
   ): Promise<void>;
   select(
-    target: string,
+    target: TTargetId,
     value: string,
     options?: SceneStepOptions,
   ): Promise<void>;
-  expectVisible(target: string, options?: SceneStepOptions): Promise<void>;
+  expectVisible(target: TTargetId, options?: SceneStepOptions): Promise<void>;
   expectText(
-    target: string,
+    target: TTargetId,
     text: string,
     options?: SceneStepOptions,
   ): Promise<void>;
   expectUrl(path: string, options?: SceneStepOptions): Promise<void>;
-  establish(target?: string, options?: SceneStepOptions): Promise<void>;
-  focus(target: string, options?: FocusOptions): Promise<void>;
+  establish(target?: TTargetId, options?: SceneStepOptions): Promise<void>;
+  focus(target: TTargetId, options?: FocusOptions): Promise<void>;
   hold(duration: string, options?: SceneStepOptions): Promise<void>;
   transition(options?: TransitionOptions): Promise<void>;
   caption(text: string, options?: CaptionOptions): Promise<void>;
-  callout(target: string, options: CalloutOptions): Promise<void>;
+  callout(target: TTargetId, options: CalloutOptions): Promise<void>;
   cue(name: string, options?: SceneStepOptions): Promise<void>;
 };
 
-export type DemoCapture = {
+export type DemoCapture<TTargetId extends string = string> = {
   scene(
     id: string,
-    run: (scene: DemoScene) => Promise<void> | void,
+    run: (scene: DemoScene<TTargetId>) => Promise<void> | void,
   ): Promise<void>;
   scene(
     id: string,
     metadata: SceneMetadata,
-    run: (scene: DemoScene) => Promise<void> | void,
+    run: (scene: DemoScene<TTargetId>) => Promise<void> | void,
   ): Promise<void>;
 };
 
-export type DemoDefinition = {
+export type DemoDefinition<TTargets extends TargetMap = TargetMap> = {
   id: string;
   title: string;
+  config?: DemoConfig;
   source: {
     baseUrl: string;
     initialPath?: string;
   };
-  targets: TargetMap;
-  run(args: { demo: DemoCapture }): Promise<void> | void;
+  targets: TTargets;
+  run(args: { demo: DemoCapture<TargetId<TTargets>> }): Promise<void> | void;
 };

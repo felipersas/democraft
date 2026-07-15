@@ -21,3 +21,7 @@ export type Diagnostic = {
   targetId?: string;
   details?: Record<string, unknown>;
 };
+
+export type OperationResult<T> =
+  | { ok: true; value: T; diagnostics: Diagnostic[] }
+  | { ok: false; diagnostics: Diagnostic[] };

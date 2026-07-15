@@ -11,7 +11,9 @@ import { TypeTable } from "fumadocs-ui/components/type-table";
 ## Signature
 
 ```ts
-function defineDemo(definition: DemoDefinition): DemoDefinition;
+function defineDemo<TTargets extends TargetMap>(
+  definition: DemoDefinition<TTargets>,
+): DemoDefinition<TTargets>;
 ```
 
 ## DemoDefinition
@@ -22,9 +24,10 @@ function defineDemo(definition: DemoDefinition): DemoDefinition;
     type: `{
   id: string;
   title: string;
+  config?: DemoConfig;
   source: { baseUrl: string; initialPath?: string };
-  targets: Record<string, TargetDefinition>;
-  run: (args: { demo: DemoCapture }) => Promise<void> | void;
+  targets: TTargets;
+  run: (args: { demo: DemoCapture<keyof TTargets> }) => Promise<void> | void;
 }`,
     description: "The top-level demo shape.",
   }}
@@ -34,9 +37,10 @@ function defineDemo(definition: DemoDefinition): DemoDefinition;
 |-------|------|----------|-------------|
 | `id` | `string` | Yes | Stable identifier. Renaming invalidates the capture cache. |
 | `title` | `string` | Yes | Human-readable name. |
+| `config` | `DemoConfig` | No | Reusable config attached to this demo. |
 | `source.baseUrl` | `string` | Yes | Origin of the target app. Must be live during capture. |
 | `source.initialPath` | `string` | No | Starting path. Defaults to the first scene's `goto`. |
-| `targets` | `Record<string, TargetDefinition>` | Yes | Named element contracts. See [locators](../locators). |
+| `targets` | `TTargets` | Yes | Named element contracts. Literal keys become the allowed target IDs in scene methods. See [locators](../locators). |
 | `run` | `({ demo }) => Promise<void> \| void` | Yes | Drives the capture via `demo.scene(...)`. |
 
 ## Minimal example
@@ -86,7 +90,16 @@ await demo.scene("intro", { title: "Introduction" }, async (scene) => { /* ... *
 
 ## defineConfig (optional)
 
-For project-level settings that apply across demos:
+Create reusable settings with `defineConfig`, then attach them to a demo through its `config` field:
+
+```ts
+const config = defineConfig({ fps: 30 });
+
+export default defineDemo({
+  config,
+  // ...
+});
+```
 
 <TypeTable
   type={{

@@ -2,7 +2,11 @@ import type { CapturedStep, DemoDefinition, DemoScene } from "@democraft/core";
 import { type DemoIR, type Diagnostic, schemaVersion } from "@democraft/schema";
 import { createSceneCapture } from "./capture";
 import { normalizeScene } from "./normalize";
-import type { CapturedScene, CompilationResult } from "./types";
+import type {
+  CapturedScene,
+  CompilationOperationResult,
+  CompilationResult,
+} from "./types";
 import { validateIR } from "./validation";
 import { createCaptureHash, createDefinitionHash } from "./definition-hash";
 
@@ -11,6 +15,17 @@ export async function compileDemo(
 ): Promise<CompilationResult> {
   const diagnostics: Diagnostic[] = [];
   const capturedScenes: CapturedScene[] = [];
+  const fps = definition.config?.fps;
+  const hasValidFps = fps === undefined || (Number.isFinite(fps) && fps > 0);
+
+  if (!hasValidFps) {
+    diagnostics.push({
+      code: "DC001",
+      severity: "error",
+      message: "Config fps must be a finite number greater than 0.",
+      demoId: definition.id,
+    });
+  }
 
   const demo = {
     async scene(
@@ -67,5 +82,19 @@ export async function compileDemo(
 
   diagnostics.push(...validateIR(ir));
 
-  return { ir, diagnostics };
+  return {
+    ir,
+    config: fps === undefined || !hasValidFps ? {} : { fps },
+    diagnostics,
+  };
+}
+
+export async function compileDemoResult(
+  definition: DemoDefinition,
+): Promise<CompilationOperationResult> {
+  const { ir, config, diagnostics } = await compileDemo(definition);
+  if (diagnostics.some((diagnostic) => diagnostic.severity === "error")) {
+    return { ok: false, diagnostics };
+  }
+  return { ok: true, value: { ir, config }, diagnostics };
 }

@@ -278,7 +278,7 @@ export async function runCli(argv = process.argv.slice(2)): Promise<CliResult> {
       await readFile(userResolve(manifestPath), "utf8"),
     );
     const timeline = resolveTimeline(compilation.ir, manifest, {
-      fps: args.fps,
+      fps: args.fps ?? compilation.config.fps,
     });
     const output = args.json
       ? `${JSON.stringify(timeline, null, 2)}\n`

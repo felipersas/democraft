@@ -230,6 +230,29 @@ describe("cli", () => {
     expect(result.stdout).toContain("Scene: intro");
   });
 
+  it("uses definition fps unless the CLI overrides it", async () => {
+    const demoPath = await writeDemoFixture(24);
+    const manifestPath = await writeManifestFixture("/tmp/demo.webm", null);
+
+    const configured = await runCli([
+      "timeline",
+      demoPath,
+      "--manifest",
+      manifestPath,
+    ]);
+    const overridden = await runCli([
+      "timeline",
+      demoPath,
+      "--manifest",
+      manifestPath,
+      "--fps",
+      "30",
+    ]);
+
+    expect(configured.stdout).toContain("demo @ 24fps");
+    expect(overridden.stdout).toContain("demo @ 30fps");
+  });
+
   it("writes timeline json to an output file", async () => {
     const demoPath = await writeDemoFixture();
     const manifestPath = await writeManifestFixture("/tmp/demo.webm", null);
@@ -588,7 +611,7 @@ describe("cli", () => {
   });
 });
 
-async function writeDemoFixture(): Promise<string> {
+async function writeDemoFixture(fps?: number): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "democraft-cli-"));
   tempDirs.push(dir);
   const demoPath = join(dir, "demo.mjs");
@@ -610,6 +633,7 @@ const targets = defineTargets({
 export default defineDemo({
   id: "demo",
   title: "Demo",
+  ${fps === undefined ? "" : `config: {fps: ${fps}},`}
   source: {baseUrl: "http://localhost:3000"},
   targets,
   async run({demo}) {

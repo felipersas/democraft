@@ -11,7 +11,9 @@ import { TypeTable } from "fumadocs-ui/components/type-table";
 ## Assinatura
 
 ```ts
-function defineDemo(definition: DemoDefinition): DemoDefinition;
+function defineDemo<TTargets extends TargetMap>(
+  definition: DemoDefinition<TTargets>,
+): DemoDefinition<TTargets>;
 ```
 
 ## DemoDefinition
@@ -22,9 +24,10 @@ function defineDemo(definition: DemoDefinition): DemoDefinition;
     type: `{
   id: string;
   title: string;
+  config?: DemoConfig;
   source: { baseUrl: string; initialPath?: string };
-  targets: Record<string, TargetDefinition>;
-  run: (args: { demo: DemoCapture }) => Promise<void> | void;
+  targets: TTargets;
+  run: (args: { demo: DemoCapture<keyof TTargets> }) => Promise<void> | void;
 }`,
     description: "O formato de topo da demo.",
   }}
@@ -34,9 +37,10 @@ function defineDemo(definition: DemoDefinition): DemoDefinition;
 |-------|------|-------------|-----------|
 | `id` | `string` | Sim | Identificador estável. Renomear invalida o cache de captura. |
 | `title` | `string` | Sim | Nome legível por humanos. |
+| `config` | `DemoConfig` | Não | Configuração reutilizável anexada a esta demo. |
 | `source.baseUrl` | `string` | Sim | Origem do app-alvo. Precisa estar ativo durante a captura. |
 | `source.initialPath` | `string` | Não | Caminho inicial. Padrão: o `goto` da primeira cena. |
-| `targets` | `Record<string, TargetDefinition>` | Sim | Contratos de elementos nomeados. Veja [locators](../locators). |
+| `targets` | `TTargets` | Sim | Contratos de elementos nomeados. As chaves literais se tornam os IDs aceitos pelos métodos de cena. Veja [locators](../locators). |
 | `run` | `({ demo }) => Promise<void> \| void` | Sim | Conduz a captura via `demo.scene(...)`. |
 
 ## Exemplo mínimo
@@ -86,7 +90,16 @@ await demo.scene("intro", { title: "Introduction" }, async (scene) => { /* ... *
 
 ## defineConfig (opcional)
 
-Para configurações de nível de projeto que se aplicam entre demos:
+Crie configurações reutilizáveis com `defineConfig` e anexe-as à demo pelo campo `config`:
+
+```ts
+const config = defineConfig({ fps: 30 });
+
+export default defineDemo({
+  config,
+  // ...
+});
+```
 
 <TypeTable
   type={{

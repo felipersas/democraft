@@ -4,6 +4,7 @@ import type { DemoIR } from "@democraft/schema";
 import { schemaVersion } from "@democraft/schema";
 import {
   compileDemo,
+  compileDemoResult,
   createCaptureHash,
   createDefinitionHash,
   inspectIR,
@@ -18,6 +19,79 @@ const targets = defineTargets({
 });
 
 describe("compiler", () => {
+  it("carries serializable definition config without changing the IR", async () => {
+    const result = await compileDemo(
+      defineDemo({
+        id: "configured-demo",
+        title: "Configured demo",
+        config: { fps: 30 },
+        source: { baseUrl: "http://localhost:3000" },
+        targets,
+        async run() {},
+      }),
+    );
+
+    expect(result.config).toEqual({ fps: 30 });
+    expect(result.ir).not.toHaveProperty("config");
+  });
+
+  it("rejects invalid definition fps", async () => {
+    const result = await compileDemo(
+      defineDemo({
+        id: "configured-demo",
+        title: "Configured demo",
+        config: { fps: 0 },
+        source: { baseUrl: "http://localhost:3000" },
+        targets,
+        async run() {},
+      }),
+    );
+
+    expect(result.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "DC001",
+        severity: "error",
+        message: "Config fps must be a finite number greater than 0.",
+      }),
+    );
+  });
+
+  it("returns a discriminated operation result", async () => {
+    const valid = await compileDemoResult(
+      defineDemo({
+        id: "valid-demo",
+        title: "Valid demo",
+        source: { baseUrl: "http://localhost:3000" },
+        targets,
+        async run() {},
+      }),
+    );
+    const invalid = await compileDemoResult(
+      defineDemo({
+        id: "invalid-demo",
+        title: "Invalid demo",
+        source: { baseUrl: "http://localhost:3000" },
+        targets,
+        async run({ demo }) {
+          await demo.scene("broken", async (scene) => {
+            await scene.click("missing" as never);
+          });
+        },
+      }),
+    );
+
+    expect(valid).toMatchObject({
+      ok: true,
+      value: { ir: { id: "valid-demo" }, config: {} },
+      diagnostics: [],
+    });
+    expect(invalid).toMatchObject({
+      ok: false,
+      diagnostics: [expect.objectContaining({ code: "DC101" })],
+    });
+    expect(invalid).not.toHaveProperty("value");
+  });
+
   it("captures scenes and generates stable step IDs", async () => {
     const result = await compileDemo(
       defineDemo({
@@ -64,7 +138,8 @@ describe("compiler", () => {
         targets,
         async run({ demo }) {
           await demo.scene("broken", async (scene) => {
-            await scene.click("missing");
+            // Runtime validation still protects JavaScript and widened inputs.
+            await scene.click("missing" as never);
           });
         },
       }),

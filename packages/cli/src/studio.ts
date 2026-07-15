@@ -170,7 +170,7 @@ export async function launchStudio(
   }
 
   const timeline = resolveTimeline(compilation.ir, manifest, {
-    fps: options.fps,
+    fps: options.fps ?? compilation.config.fps,
   });
   const meta = parseStudioMeta({
     schemaVersion,
