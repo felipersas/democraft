@@ -117,12 +117,11 @@ render metadata. A legacy artifact with no capture identity remains readable
 but is `unknown`, never promoted to known-compatible from a newer IR and never
 silently reused by Studio launch.
 
-Remaining boundary work belongs to P1: `captureHash` does not fingerprint the
-capture environment, and the long-lived Studio process cache-busts only the
-demo entry module, not its transitive ESM imports. No safe existing isolation
-mechanism was found in the repository, so this plan deliberately does not add
-an ad hoc loader; worker/child-process or module-graph isolation should be
-designed and tested separately.
+The remaining P1 boundary work is implemented without changing the meaning of
+`captureHash`: new captures carry a separate `captureEnvironmentHash`, and the
+long-lived Studio compiles demo modules in a short-lived child process so every
+transitive ESM graph is fresh. Legacy artifacts remain readable and become
+`unknown` rather than silently environment-compatible.
 
 Capture lifecycle advanced in P1B: managed capture runs now have unique crypto
 IDs, versioned terminal metadata, atomic manifest writes, cooperative

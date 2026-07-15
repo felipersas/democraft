@@ -26,6 +26,11 @@ sends it in a request header; it is never placed in the Studio URL or CLI output
 `localhost` and `::1` remain valid loopback origins for request validation, but
 the CLI uses the explicit IPv4 loopback address for deterministic binding.
 
+Studio compilation is process-isolated. Staleness checks, re-resolve and
+re-capture compile the authorized demo in a short-lived child process, so edits
+to transitive ESM imports are visible without retaining their module cache in
+the long-lived Next.js server.
+
 ## Workflow
 
 Edit `demo.ts` → run `democraft studio` (or re-run `democraft capture` while studio is running) → the studio auto-reloads via SSE. Tweak transport, scrub the timeline, click **Render MP4** to produce a video file. The render uses the same `renderDemoVideo` pipeline as the headless `democraft render` command.

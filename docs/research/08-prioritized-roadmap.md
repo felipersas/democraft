@@ -99,15 +99,16 @@ transação de geração atômica.
 
 ### Resíduos de identidade/reload
 
-- Definir um fingerprint de ambiente de captura (viewport/DPR, locale,
-  timezone, storage/settle e runtime) antes de tratar `captureHash` como chave
-  de cache portátil.
-- Isolar o carregamento da definição para que imports ESM transitivos sejam
-  recarregados. Hoje o cache-buster versiona somente o módulo de entrada; Node
-  mantém dependências transitivas no cache do processo longo do Studio. O
-  repositório não possui um loader/isolamento seguro já disponível. A correção
-  deve usar worker/child process ou empacotamento explícito do grafo, não um
-  loader ad hoc.
+**Implementados:** `captureHash` continua representando apenas a definição e um
+`captureEnvironmentHash` separado identifica viewport/DPR, locale, timezone,
+settle, timeout, digest do storage state e runtime Node/plataforma/engine. A
+ausência desse novo hash mantém artefatos legados legíveis, mas com
+compatibilidade `unknown` quando comparados a uma captura nova.
+
+O Studio agora compila a definição em um processo filho curto. Cada operação de
+staleness, re-resolve ou recapture recebe um grafo ESM novo, inclusive para
+imports transitivos, e retorna ao processo longo apenas IR + diagnostics
+validados.
 
 ## P2 — operação e DX
 
