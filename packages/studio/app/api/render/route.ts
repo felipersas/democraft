@@ -13,6 +13,10 @@ import {
   authorizeStudioLoopbackRequest,
   authorizeStudioMutation,
 } from "../../../lib/request-security";
+import {
+  readJsonBodyLimited,
+  RequestBodyTooLargeError,
+} from "../../../lib/request-body";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -23,8 +27,11 @@ export async function POST(req: Request) {
 
   let body: unknown;
   try {
-    body = await req.json();
-  } catch {
+    body = await readJsonBodyLimited(req);
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) {
+      return NextResponse.json({ error: error.message }, { status: 413 });
+    }
     return validationResponse(
       new ArtifactValidationError("studio render request", [
         { path: "$", message: "Invalid JSON", code: "invalid_json" },

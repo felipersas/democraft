@@ -70,6 +70,19 @@ describe("POST /api/render", () => {
     });
   });
 
+  it("rejects an oversized body before parsing", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/render", {
+        method: "POST",
+        headers: authorizedHeaders({ "content-type": "application/json" }),
+        body: JSON.stringify({ value: "x".repeat(70_000) }),
+      }),
+    );
+
+    expect(response.status).toBe(413);
+    expect(mocks.enqueue).not.toHaveBeenCalled();
+  });
+
   it("enqueues a valid bounded request", async () => {
     mocks.enqueue.mockReturnValueOnce({ id: "job-1", status: "pending" });
     const body = {

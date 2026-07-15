@@ -1,4 +1,11 @@
-import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
@@ -106,7 +113,7 @@ describe("CLI Studio path boundaries", () => {
     ).rejects.toThrow(/Capture recording escapes/);
   });
 
-  it("does not overwrite an outside file through a recording destination symlink", async () => {
+  it("replaces an old destination symlink without touching its target", async () => {
     const { captureDir, dataDir, root } = await fixture();
     const source = path.join(captureDir, "source.webm");
     const outside = path.join(root, "outside-target.webm");
@@ -118,21 +125,47 @@ describe("CLI Studio path boundaries", () => {
     const manifest = manifestFixture();
     manifest.recording = { path: source, width: 100, height: 100 };
 
+    await materializeStudioData({
+      dataDir,
+      captureDir,
+      manifest,
+      timeline: timelineFixture(),
+    });
+    await expect(readFile(outside, "utf8")).resolves.toBe("OUTSIDE_UNCHANGED");
+    await expect(
+      readFile(path.join(dataDir, "recording.webm"), "utf8"),
+    ).resolves.toBe("recording");
+  });
+
+  it("restores the complete previous generation when promotion fails", async () => {
+    const { captureDir, dataDir } = await fixture();
+    await Promise.all([
+      writeFile(path.join(dataDir, "manifest.json"), "previous-manifest"),
+      writeFile(path.join(dataDir, "timeline.json"), "previous-timeline"),
+      writeFile(path.join(dataDir, "meta.json"), "previous-meta"),
+    ]);
+
     await expect(
       materializeStudioData({
         dataDir,
         captureDir,
-        manifest,
+        manifest: manifestFixture(),
         timeline: timelineFixture(),
+        afterBackupRenamed: async () => {
+          throw new Error("promotion fault");
+        },
       }),
-    ).rejects.toThrow(
-      /escapes its output directory|must not be a symbolic link/,
-    );
+    ).rejects.toThrow("promotion fault");
+
     await expect(
-      import("node:fs/promises").then(({ readFile }) =>
-        readFile(outside, "utf8"),
-      ),
-    ).resolves.toBe("OUTSIDE_UNCHANGED");
+      readFile(path.join(dataDir, "manifest.json"), "utf8"),
+    ).resolves.toBe("previous-manifest");
+    await expect(
+      readFile(path.join(dataDir, "timeline.json"), "utf8"),
+    ).resolves.toBe("previous-timeline");
+    await expect(
+      readFile(path.join(dataDir, "meta.json"), "utf8"),
+    ).resolves.toBe("previous-meta");
   });
 });
 

@@ -30,6 +30,7 @@ import {
   schemaVersion,
   type CaptureCompatibility,
   type RecordedDemoManifest,
+  type StudioMeta,
 } from "@democraft/schema";
 import { formatDiagnostics } from "./format";
 import { loadDemo } from "./loaders";
@@ -171,19 +172,8 @@ export async function launchStudio(
   const timeline = resolveTimeline(compilation.ir, manifest, {
     fps: options.fps,
   });
-
-  await materializeStudioData({
-    dataDir: canonicalDataDir,
-    captureDir,
-    manifest,
-    timeline,
-  });
-
-  // Persist metadata so the studio knows where the demo source lives and
-  // where captures are written — needed for in-studio re-capture, staleness
-  // detection, and auto re-resolve. See docs/architecture/studio-roadmap.md "Workflow/DX".
-  await writeMetaFile({
-    dataDir: canonicalDataDir,
+  const meta = parseStudioMeta({
+    schemaVersion,
     demoPath,
     captureDir,
     captureOutputDirExplicit: explicitCaptureDir !== undefined,
@@ -193,6 +183,14 @@ export async function launchStudio(
     captureHash: compilation.ir.captureHash,
     captureEnvironmentHash: manifest.captureEnvironmentHash,
     capturedAt: Date.now(),
+  });
+
+  await materializeStudioData({
+    dataDir: canonicalDataDir,
+    captureDir,
+    manifest,
+    timeline,
+    meta,
   });
 
   const port = options.port ?? 3000;
@@ -224,99 +222,100 @@ export function captureActionForCompatibility(
   return "capture";
 }
 
-/** Metadata persisted to studio-data/meta.json. The studio reads this to
- * locate the demo source (for re-resolve / re-capture) and detect staleness.
- * Type lives in @democraft/schema so both CLI and studio share it. */
-async function writeMetaFile(args: {
-  dataDir: string;
-  demoPath: string;
-  captureDir: string;
-  captureOutputDirExplicit: boolean;
-  workspaceRoot: string;
-  demoId: string;
-  definitionHash?: string;
-  captureHash?: string;
-  captureEnvironmentHash?: string;
-  capturedAt: number;
-}): Promise<void> {
-  const meta = parseStudioMeta({
-    schemaVersion,
-    demoPath: args.demoPath,
-    captureDir: args.captureDir,
-    captureOutputDirExplicit: args.captureOutputDirExplicit,
-    workspaceRoot: args.workspaceRoot,
-    demoId: args.demoId,
-    definitionHash: args.definitionHash,
-    captureHash: args.captureHash,
-    captureEnvironmentHash: args.captureEnvironmentHash,
-    capturedAt: args.capturedAt,
-  });
-  await writeAtomicTarget(
-    args.dataDir,
-    path.join(args.dataDir, "meta.json"),
-    `${JSON.stringify(meta, null, 2)}\n`,
-    "Studio metadata",
-  );
-}
-
 export async function materializeStudioData(args: {
   dataDir: string;
   captureDir: string;
   manifest: RecordedDemoManifest;
   timeline: ReturnType<typeof resolveTimeline>;
+  meta?: StudioMeta;
+  afterBackupRenamed?: () => Promise<void>;
 }): Promise<void> {
   const manifest = parseRecordedDemoManifest(args.manifest);
   const timeline = parseRenderTimeline(args.timeline);
+  const meta = args.meta ? parseStudioMeta(args.meta) : undefined;
+  const parent = path.dirname(args.dataDir);
+  const generation = path.join(
+    parent,
+    `.${path.basename(args.dataDir)}.generation-${process.pid}-${randomBytes(6).toString("hex")}`,
+  );
+  const backup = path.join(
+    parent,
+    `${path.basename(args.dataDir)}.previous-${process.pid}-${randomBytes(6).toString("hex")}`,
+  );
   const screenshotsSrc = path.join(args.captureDir, "screenshots");
-  const screenshotsDst = path.join(args.dataDir, "screenshots");
-  await rm(screenshotsDst, { recursive: true, force: true });
+  const screenshotsDst = path.join(generation, "screenshots");
   await mkdir(screenshotsDst, { recursive: true });
 
-  if (await existsDir(screenshotsSrc)) {
-    for (const step of manifest.steps) {
-      const src = resolveRecordedScreenshotPath(args.captureDir, step);
-      if (src && (await existsFile(src))) {
-        const safeSrc = await resolveCaptureArtifactPath(
-          args.captureDir,
-          src,
-          `Screenshot for step ${step.stepId}`,
-        );
-        await copyAtomicTarget(
-          args.dataDir,
-          safeSrc,
-          path.join(screenshotsDst, path.basename(src)),
-          `Materialized screenshot for step ${step.stepId}`,
-        );
+  try {
+    if (await existsDir(screenshotsSrc)) {
+      for (const step of manifest.steps) {
+        const src = resolveRecordedScreenshotPath(args.captureDir, step);
+        if (src && (await existsFile(src))) {
+          const safeSrc = await resolveCaptureArtifactPath(
+            args.captureDir,
+            src,
+            `Screenshot for step ${step.stepId}`,
+          );
+          await copyAtomicTarget(
+            generation,
+            safeSrc,
+            path.join(screenshotsDst, path.basename(src)),
+            `Materialized screenshot for step ${step.stepId}`,
+          );
+        }
       }
     }
-  }
 
-  const recordingRaw = manifest.recording?.path;
-  const recordingSrc = recordingRaw
-    ? await resolvePersistedCapturePath(args.captureDir, recordingRaw)
-    : undefined;
-  const recordingDst = path.join(args.dataDir, "recording.webm");
-  if (recordingSrc && (await existsFile(recordingSrc))) {
-    await copyAtomicTarget(
-      args.dataDir,
-      recordingSrc,
-      recordingDst,
-      "Materialized recording",
-    );
-  }
+    const recordingRaw = manifest.recording?.path;
+    const recordingSrc = recordingRaw
+      ? await resolvePersistedCapturePath(args.captureDir, recordingRaw)
+      : undefined;
+    const recordingDst = path.join(generation, "recording.webm");
+    if (recordingSrc && (await existsFile(recordingSrc))) {
+      await copyAtomicTarget(
+        generation,
+        recordingSrc,
+        recordingDst,
+        "Materialized recording",
+      );
+    }
 
-  await writeAtomicTarget(
-    args.dataDir,
-    path.join(args.dataDir, "manifest.json"),
-    `${JSON.stringify(manifest, null, 2)}\n`,
-    "Materialized manifest",
-  );
-  await writeAtomicTarget(
-    args.dataDir,
-    path.join(args.dataDir, "timeline.json"),
-    `${JSON.stringify(timeline, null, 2)}\n`,
-    "Materialized timeline",
-  );
+    await Promise.all([
+      writeAtomicTarget(
+        generation,
+        path.join(generation, "manifest.json"),
+        `${JSON.stringify(manifest, null, 2)}\n`,
+        "Materialized manifest",
+      ),
+      writeAtomicTarget(
+        generation,
+        path.join(generation, "timeline.json"),
+        `${JSON.stringify(timeline, null, 2)}\n`,
+        "Materialized timeline",
+      ),
+      meta
+        ? writeAtomicTarget(
+            generation,
+            path.join(generation, "meta.json"),
+            `${JSON.stringify(meta, null, 2)}\n`,
+            "Studio metadata",
+          )
+        : Promise.resolve(),
+    ]);
+
+    await rename(args.dataDir, backup);
+    try {
+      await args.afterBackupRenamed?.();
+      await rename(generation, args.dataDir);
+    } catch (error) {
+      await rename(backup, args.dataDir);
+      throw error;
+    }
+    await rm(backup, { recursive: true, force: true }).catch(() => undefined);
+  } catch (error) {
+    await rm(generation, { recursive: true, force: true });
+    throw error;
+  }
 }
 
 async function startStudioServer(args: {
