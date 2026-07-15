@@ -3,6 +3,7 @@ import { dirname, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
 import { renderDemoVideo } from "@democraft/remotion";
+import { runDemo } from "@democraft/playwright";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { formatDiagnostics, parseArgs, runCli } from "./index";
 import { captureActionForCompatibility } from "./studio";
@@ -12,6 +13,13 @@ vi.mock("@democraft/remotion", async () => {
     "@democraft/remotion",
   );
   return { ...actual, renderDemoVideo: vi.fn() };
+});
+
+vi.mock("@democraft/playwright", async () => {
+  const actual = await vi.importActual<typeof import("@democraft/playwright")>(
+    "@democraft/playwright",
+  );
+  return { ...actual, runDemo: vi.fn() };
 });
 
 const tempDirs: string[] = [];
@@ -24,6 +32,25 @@ beforeEach(() => {
   vi.mocked(renderDemoVideo).mockImplementation(async ({ outputFile }) => {
     await writeFile(outputFile, "video");
   });
+  vi.mocked(runDemo).mockImplementation(async (ir, options) => {
+    const outputDir =
+      options?.outputDir ?? "/workspace/.democraft/runs/demo/run";
+    await options?.onArtifactCreated?.({
+      captureRunId: "demo-2026-07-15-abcdef",
+      outputDir,
+      manifestPath: join(outputDir, "manifest.json"),
+      metadataPath: join(outputDir, "metadata.json"),
+    });
+    return {
+      schemaVersion: "1",
+      demoId: ir.id,
+      captureRunId: "demo-2026-07-15-abcdef",
+      definitionHash: ir.definitionHash,
+      captureHash: ir.captureHash,
+      steps: [],
+      diagnostics: [],
+    };
+  });
 });
 
 afterEach(async () => {
@@ -32,6 +59,7 @@ afterEach(async () => {
   );
   tempDirs.length = 0;
   vi.mocked(renderDemoVideo).mockReset();
+  vi.mocked(runDemo).mockReset();
 });
 
 describe("cli", () => {
@@ -71,6 +99,42 @@ describe("cli", () => {
 
   it("formats empty diagnostics", () => {
     expect(formatDiagnostics([])).toBe("No diagnostics.");
+  });
+
+  it("prints the managed capture run id and actual manifest path", async () => {
+    const demoPath = await writeDemoFixture();
+
+    const result = await runCli(["capture", demoPath]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Capture run ID: demo-2026-07-15-abcdef");
+    expect(result.stdout).toContain(
+      "Manifest: /workspace/.democraft/runs/demo/run/manifest.json",
+    );
+    expect(vi.mocked(runDemo)).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "demo" }),
+      expect.objectContaining({ outputDir: undefined }),
+    );
+  });
+
+  it("preserves an explicit capture output directory exactly", async () => {
+    const demoPath = await writeDemoFixture();
+    const parent = await mkdtemp(join(tmpdir(), "democraft-cli-capture-"));
+    tempDirs.push(parent);
+    const outputDir = join(parent, "exact");
+
+    const result = await runCli([
+      "capture",
+      demoPath,
+      "--output-dir",
+      outputDir,
+    ]);
+
+    expect(result.stdout).toContain(`Manifest: ${outputDir}/manifest.json`);
+    expect(vi.mocked(runDemo)).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ outputDir }),
+    );
   });
 
   it("inspects a demo module", async () => {

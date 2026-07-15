@@ -304,15 +304,21 @@ export async function runCli(argv = process.argv.slice(2)): Promise<CliResult> {
     };
   }
 
+  let captureArtifact:
+    | { captureRunId: string; manifestPath: string; outputDir: string }
+    | undefined;
   const manifest = await runDemo(compilation.ir, {
     outputDir: args.outputDir,
     headless: args.headless,
+    onArtifactCreated: (artifact) => {
+      captureArtifact = artifact;
+    },
   });
 
   return ok(
     args.json
       ? `${JSON.stringify(manifest, null, 2)}\n`
-      : `Captured ${manifest.demoId}\nManifest: ${args.outputDir ?? `.democraft/runs/${manifest.demoId}`}/manifest.json\n`,
+      : `Captured ${manifest.demoId}\nCapture run ID: ${captureArtifact?.captureRunId ?? manifest.captureRunId ?? "unknown"}\nManifest: ${captureArtifact?.manifestPath ?? `${args.outputDir}/manifest.json`}\n`,
   );
 }
 

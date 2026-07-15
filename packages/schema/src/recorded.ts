@@ -26,11 +26,15 @@ export type RecordedStep = {
   endedAtMs: number;
   targetSnapshot?: TargetSnapshot;
   url?: string;
+  /** Relative path inside the capture directory for the captured frame. */
+  screenshotPath?: string;
 };
 
 export type RecordedDemoManifest = {
   schemaVersion: typeof schemaVersion;
   demoId: string;
+  /** Unique execution id for captures written by the versioned lifecycle. */
+  captureRunId?: string;
   /** Versioned SHA-256 of the complete compiled author definition. */
   definitionHash?: string;
   /** Versioned hash used to decide whether screenshots can be reused. */

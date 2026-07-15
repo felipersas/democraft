@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -163,6 +163,154 @@ describe("playwright runtime", () => {
     await expect(readFile(join(outputDir, "manifest.json"))).rejects.toThrow();
   });
 
+  it("honors an already-aborted signal with zero filesystem or browser side effects", async () => {
+    const parent = await mkdtemp(join(tmpdir(), "democraft-abort-"));
+    tempDirs.push(parent);
+    const outputDir = join(parent, "capture");
+    const launch = vi.fn(createBindings(createMockPage({})).chromium.launch);
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      runDemoWithBindings(
+        createIR([{ kind: "testId", id: "button" }]),
+        { chromium: { launch } },
+        { outputDir, signal: controller.signal },
+      ),
+    ).rejects.toMatchObject({ name: "AbortError" });
+    expect(launch).not.toHaveBeenCalled();
+    await expect(readFile(join(outputDir, "metadata.json"))).rejects.toThrow();
+  });
+
+  it("records browser launch failures as terminal metadata", async () => {
+    const outputDir = await mkdtemp(join(tmpdir(), "democraft-launch-"));
+    tempDirs.push(outputDir);
+    const launch = vi.fn(async () => {
+      throw new Error(`Chromium missing at ${outputDir}/browser`);
+    });
+
+    await expect(
+      runDemoWithBindings(
+        createIR([{ kind: "testId", id: "button" }]),
+        { chromium: { launch } },
+        { outputDir },
+      ),
+    ).rejects.toThrow("Chromium missing");
+    expect(
+      JSON.parse(await readFile(join(outputDir, "metadata.json"), "utf8")),
+    ).toMatchObject({
+      status: "failed",
+      error: { message: "Chromium missing at [capture]/browser" },
+    });
+    await expect(readFile(join(outputDir, "manifest.json"))).rejects.toThrow();
+  });
+
+  it("does not classify an arbitrary AbortError name as cancellation", async () => {
+    const outputDir = await mkdtemp(join(tmpdir(), "democraft-abort-name-"));
+    tempDirs.push(outputDir);
+    const launch = vi.fn(async () => {
+      const error = new Error("browser protocol abort");
+      error.name = "AbortError";
+      throw error;
+    });
+    await expect(
+      runDemoWithBindings(
+        createIR([{ kind: "testId", id: "button" }]),
+        { chromium: { launch } },
+        { outputDir },
+      ),
+    ).rejects.toThrow("browser protocol abort");
+    expect(
+      JSON.parse(await readFile(join(outputDir, "metadata.json"), "utf8")),
+    ).toMatchObject({ status: "failed" });
+  });
+
+  it("closes context and browser when trace startup fails", async () => {
+    const outputDir = await mkdtemp(join(tmpdir(), "democraft-trace-"));
+    tempDirs.push(outputDir);
+    const contextClose = vi.fn(async () => undefined);
+    const browserClose = vi.fn(async () => undefined);
+
+    await expect(
+      runDemoWithBindings(
+        createIR([{ kind: "testId", id: "button" }]),
+        {
+          chromium: {
+            launch: async () => ({
+              close: browserClose,
+              newContext: async () => ({
+                newPage: async () => createMockPage({}),
+                close: contextClose,
+                tracing: {
+                  start: async () => {
+                    throw new Error("trace unavailable");
+                  },
+                  stop: async () => undefined,
+                },
+              }),
+            }),
+          },
+        },
+        { outputDir },
+      ),
+    ).rejects.toThrow("trace unavailable");
+    expect(contextClose).toHaveBeenCalledOnce();
+    expect(browserClose).toHaveBeenCalledOnce();
+    expect(
+      JSON.parse(await readFile(join(outputDir, "metadata.json"), "utf8")),
+    ).toMatchObject({ status: "failed" });
+  });
+
+  it("cancels between steps and always stops trace and closes resources", async () => {
+    const outputDir = await mkdtemp(join(tmpdir(), "democraft-cancel-"));
+    tempDirs.push(outputDir);
+    const controller = new AbortController();
+    const page = createMockPage({});
+    page.goto = async (url: string) => {
+      page.calls.push(`goto:${url}`);
+      controller.abort();
+    };
+    const traceStop = vi.fn(async () => undefined);
+    const contextClose = vi.fn(async () => undefined);
+    const browserClose = vi.fn(async () => undefined);
+    const bindings: PlaywrightBindings = {
+      chromium: {
+        launch: async () => ({
+          close: browserClose,
+          newContext: async () => ({
+            newPage: async () => page,
+            close: contextClose,
+            tracing: {
+              start: async () => undefined,
+              stop: traceStop,
+            },
+          }),
+        }),
+      },
+    };
+
+    await expect(
+      runDemoWithBindings(
+        createIR([{ kind: "testId", id: "button" }]),
+        bindings,
+        {
+          outputDir,
+          signal: controller.signal,
+          environment: { settle: false },
+        },
+      ),
+    ).rejects.toMatchObject({ name: "AbortError" });
+    expect(traceStop).toHaveBeenCalledWith({
+      path: join(outputDir, "trace.zip"),
+    });
+    expect(contextClose).toHaveBeenCalledOnce();
+    expect(browserClose).toHaveBeenCalledOnce();
+    expect(
+      JSON.parse(await readFile(join(outputDir, "metadata.json"), "utf8")),
+    ).toMatchObject({ status: "cancelled" });
+    await expect(readFile(join(outputDir, "manifest.json"))).rejects.toThrow();
+  });
+
   it("validates the produced manifest before writing or returning it", async () => {
     const outputDir = await mkdtemp(join(tmpdir(), "democraft-"));
     tempDirs.push(outputDir);
@@ -220,6 +368,29 @@ describe("playwright runtime", () => {
         code: "MD201",
         stepId: "scene.assert-visible-button.3",
         targetId: "button",
+      }),
+    );
+  });
+
+  it("records screenshot failures without declaring a screenshot path", async () => {
+    const outputDir = await mkdtemp(join(tmpdir(), "democraft-screenshot-"));
+    tempDirs.push(outputDir);
+    const page = createMockPage({
+      testId: { visible: true, text: "Created" },
+    });
+    page.screenshot = async () => {
+      throw new Error("disk full");
+    };
+    const manifest = await runDemoWithBindings(
+      createIR([{ kind: "testId", id: "button" }]),
+      createBindings(page),
+      { outputDir, timeoutMs: 10, environment: { settle: false } },
+    );
+    expect(manifest.steps.every((step) => !step.screenshotPath)).toBe(true);
+    expect(manifest.diagnostics).toContainEqual(
+      expect.objectContaining({
+        severity: "warning",
+        message: "Screenshot failed: disk full",
       }),
     );
   });
@@ -466,7 +637,11 @@ function createBindings(
           close: async () => undefined,
           tracing: {
             start: async () => undefined,
-            stop: async () => undefined,
+            stop: async (options?: Record<string, unknown>) => {
+              if (typeof options?.path === "string") {
+                await writeFile(options.path, "trace");
+              }
+            },
           },
         }),
       }),

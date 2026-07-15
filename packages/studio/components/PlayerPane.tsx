@@ -198,8 +198,10 @@ function buildInputProps(args: {
 }): ProductDemoVideoProps {
   const screenshotSrcByStepId: Record<string, string> = {};
   for (const step of args.manifest.steps) {
+    const canonical = step.screenshotPath?.match(/^screenshots\/([^/]+)$/)?.[1];
+    const filename = canonical ?? `${step.sceneId}-${step.stepId}.png`;
     screenshotSrcByStepId[step.stepId] =
-      `${args.screenshotBaseUrl}/${step.sceneId}-${step.stepId}.png`;
+      `${args.screenshotBaseUrl}/${encodeURIComponent(filename)}`;
   }
   return createProductDemoVideoProps({
     manifest: args.manifest,

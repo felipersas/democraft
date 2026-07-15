@@ -2,7 +2,11 @@ import { z } from "zod";
 import type { DemoIR } from "./scenes";
 import type { RecordedDemoManifest } from "./recorded";
 import type { RenderTimeline } from "./timeline";
-import type { RenderArtifactMetadata } from "./artifacts";
+import type {
+  CaptureArtifactMetadata,
+  LatestCapturePointer,
+  RenderArtifactMetadata,
+} from "./artifacts";
 import type { StudioMeta, StudioRenderRequest } from "./studio";
 import {
   diagnosticSchema,
@@ -15,6 +19,8 @@ export type ArtifactKind =
   | "recorded demo manifest"
   | "render timeline"
   | "render artifact metadata"
+  | "capture artifact metadata"
+  | "latest capture pointer"
   | "studio metadata"
   | "studio render request";
 
@@ -229,6 +235,7 @@ const recordedStepSchema = z
     endedAtMs: nonNegativeFinite,
     targetSnapshot: targetSnapshotSchema.optional(),
     url: z.string().optional(),
+    screenshotPath: z.string().min(1).optional(),
   })
   .passthrough();
 
@@ -236,6 +243,7 @@ export const recordedDemoManifestSchema: z.ZodType<RecordedDemoManifest> = z
   .object({
     schemaVersion: schemaVersionSchema,
     demoId: z.string().min(1),
+    captureRunId: z.string().min(1).optional(),
     definitionHash: definitionHashSchema.optional(),
     captureHash: captureHashSchema.optional(),
     capture: z
@@ -435,11 +443,125 @@ export const renderArtifactMetadataSchema: z.ZodType<RenderArtifactMetadata> = z
     }
   });
 
+const captureEnvironmentSchema = z
+  .object({
+    headless: z.boolean(),
+    viewport: z
+      .object({ width: positiveInteger, height: positiveInteger })
+      .passthrough(),
+    deviceScaleFactor: positiveFinite,
+    locale: z.string().min(1),
+    timezone: z.string().min(1),
+    settle: z.union([
+      z.literal(false),
+      z
+        .object({
+          idleWindowMs: nonNegativeFinite,
+          timeoutMs: nonNegativeFinite,
+          signal: z.enum(["dom", "visual", "network", "both"]),
+        })
+        .passthrough(),
+    ]),
+    timeoutMs: positiveFinite,
+  })
+  .passthrough();
+
+export const captureArtifactMetadataSchema: z.ZodType<CaptureArtifactMetadata> =
+  z
+    .object({
+      schemaVersion: z.literal(1),
+      captureRunId: z.string().min(1),
+      demoId: z.string().min(1),
+      definitionHash: definitionHashSchema.optional(),
+      captureHash: captureHashSchema.optional(),
+      status: z.enum([
+        "created",
+        "running",
+        "completed",
+        "failed",
+        "cancelled",
+      ]),
+      createdAt: z.string().datetime(),
+      updatedAt: z.string().datetime(),
+      startedAt: z.string().datetime().optional(),
+      finishedAt: z.string().datetime().optional(),
+      paths: z
+        .object({
+          manifest: z.literal("manifest.json"),
+          screenshots: z.literal("screenshots"),
+          trace: z.literal("trace.zip").optional(),
+          recording: z.string().min(1).optional(),
+        })
+        .passthrough(),
+      environment: captureEnvironmentSchema,
+      error: z.object({ message: z.string() }).passthrough().optional(),
+    })
+    .passthrough()
+    .superRefine((metadata, context) => {
+      const terminal = ["completed", "failed", "cancelled"].includes(
+        metadata.status,
+      );
+      if (metadata.status === "created" && metadata.startedAt) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["startedAt"],
+          message: "Created capture metadata cannot contain startedAt.",
+        });
+      }
+      if (metadata.status !== "created" && !metadata.startedAt) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["startedAt"],
+          message: `${metadata.status} capture metadata requires startedAt.`,
+        });
+      }
+      if (terminal !== (metadata.finishedAt !== undefined)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["finishedAt"],
+          message: terminal
+            ? `${metadata.status} capture metadata requires finishedAt.`
+            : `${metadata.status} capture metadata cannot contain finishedAt.`,
+        });
+      }
+      if (metadata.status === "failed" && !metadata.error) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["error"],
+          message: "Failed capture metadata requires an error.",
+        });
+      }
+      if (metadata.status !== "failed" && metadata.error) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["error"],
+          message: `${metadata.status} capture metadata cannot contain an error.`,
+        });
+      }
+    });
+
+export const latestCapturePointerSchema: z.ZodType<LatestCapturePointer> = z
+  .object({
+    schemaVersion: z.literal(1),
+    demoId: z.string().min(1),
+    captureRunId: z.string().min(1),
+    captureDirectory: z
+      .string()
+      .min(1)
+      .refine(
+        (value) => value !== "." && value !== ".." && !/[\\/]/.test(value),
+        "Capture directory must be one relative path segment.",
+      ),
+    completedAt: z.string().datetime(),
+  })
+  .passthrough();
+
 export const studioMetaSchema: z.ZodType<StudioMeta> = z
   .object({
     schemaVersion: schemaVersionSchema.optional(),
     demoPath: z.string().min(1),
     captureDir: z.string().min(1),
+    captureOutputDirExplicit: z.boolean().optional(),
     workspaceRoot: z.string().min(1),
     demoId: z.string().min(1),
     definitionHash: definitionHashSchema.optional(),
@@ -480,6 +602,14 @@ export const parseRenderArtifactMetadata = parser(
   "render artifact metadata",
   renderArtifactMetadataSchema,
 );
+export const parseCaptureArtifactMetadata = parser(
+  "capture artifact metadata",
+  captureArtifactMetadataSchema,
+);
+export const parseLatestCapturePointer = parser(
+  "latest capture pointer",
+  latestCapturePointerSchema,
+);
 export const parseStudioMeta = parser("studio metadata", studioMetaSchema);
 export const parseStudioRenderRequest = parser(
   "studio render request",
@@ -498,6 +628,14 @@ export const parseRenderTimelineJson = jsonParser(
 export const parseRenderArtifactMetadataJson = jsonParser(
   "render artifact metadata",
   parseRenderArtifactMetadata,
+);
+export const parseCaptureArtifactMetadataJson = jsonParser(
+  "capture artifact metadata",
+  parseCaptureArtifactMetadata,
+);
+export const parseLatestCapturePointerJson = jsonParser(
+  "latest capture pointer",
+  parseLatestCapturePointer,
 );
 export const parseStudioMetaJson = jsonParser(
   "studio metadata",

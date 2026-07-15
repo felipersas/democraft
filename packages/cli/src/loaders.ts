@@ -1,8 +1,9 @@
 import { readFile, stat } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
 import type { DemoDefinition } from "@democraft/core";
 import type { RecordedDemoManifest } from "@democraft/schema";
+import { resolveRecordedScreenshotPath } from "@democraft/playwright";
 import { userResolve, workspaceRoot } from "./paths";
 
 export async function loadDemo(demoPath: string): Promise<DemoDefinition> {
@@ -45,12 +46,16 @@ export function buildScreenshotSources(
   manifestPath: string,
 ): Record<string, string> {
   const runDir = dirname(userResolve(manifestPath));
+  const entries = manifest.steps
+    .map(
+      (step) =>
+        [step.stepId, resolveRecordedScreenshotPath(runDir, step)] as const,
+    )
+    .filter((entry): entry is readonly [string, string] => Boolean(entry[1]));
   return Object.fromEntries(
-    manifest.steps.map((step) => [
-      step.stepId,
-      pathToFileURL(
-        join(runDir, "screenshots", `${step.sceneId}-${step.stepId}.png`),
-      ).href,
+    entries.map(([stepId, screenshotPath]) => [
+      stepId,
+      pathToFileURL(screenshotPath).href,
     ]),
   );
 }
@@ -62,14 +67,11 @@ export async function buildScreenshotDataUrls(
   const runDir = dirname(userResolve(manifestPath));
   const entries = await Promise.all(
     manifest.steps.map(async (step) => {
-      const screenshotPath = join(
-        runDir,
-        "screenshots",
-        `${step.sceneId}-${step.stepId}.png`,
-      );
+      const screenshotPath = resolveRecordedScreenshotPath(runDir, step);
+      if (!screenshotPath) return undefined;
       const png = await readFile(screenshotPath);
       return [step.stepId, `data:image/png;base64,${png.toString("base64")}`];
     }),
   );
-  return Object.fromEntries(entries);
+  return Object.fromEntries(entries.filter((entry) => entry !== undefined));
 }

@@ -1,5 +1,5 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { basename, join } from "node:path";
 import { tmpdir } from "node:os";
 import {
   schemaVersion,
@@ -41,17 +41,24 @@ describe("studio capture metadata", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-07-15T12:00:00.000Z"));
 
-    await updateMetaAfterCapture(dataDir, meta, {
-      id: "current",
-      definitionHash: NEW_DEFINITION_HASH,
-      captureHash: NEW_CAPTURE_HASH,
-    });
+    const newCaptureDir = "/workspace/.democraft/runs/current/new-run";
+    await updateMetaAfterCapture(
+      dataDir,
+      meta,
+      {
+        id: "current",
+        definitionHash: NEW_DEFINITION_HASH,
+        captureHash: NEW_CAPTURE_HASH,
+      },
+      newCaptureDir,
+    );
 
     expect(
       JSON.parse(await readFile(join(dataDir, "meta.json"), "utf8")),
     ).toEqual({
       ...meta,
       schemaVersion: "1",
+      captureDir: newCaptureDir,
       demoId: "current",
       definitionHash: NEW_DEFINITION_HASH,
       captureHash: NEW_CAPTURE_HASH,
@@ -103,6 +110,46 @@ describe("studio capture metadata", () => {
       }),
     ).rejects.toThrow("$.definitionHash");
     await expect(readFile(join(dataDir, "meta.json"))).rejects.toThrow();
+  });
+
+  it("keeps the previous generation when promotion fails", async () => {
+    const dataDir = await mkdtemp(join(tmpdir(), "democraft-data-"));
+    const captureDir = await mkdtemp(join(tmpdir(), "democraft-capture-"));
+    tempDirs.push(dataDir, captureDir);
+    await writeFile(join(dataDir, "manifest.json"), "previous-manifest");
+    await writeFile(join(dataDir, "timeline.json"), "previous-timeline");
+    await writeFile(join(dataDir, "meta.json"), "previous-meta");
+
+    await expect(
+      materializeStudioData({
+        dataDir,
+        captureDir,
+        manifest: manifestFixture(),
+        timeline: timelineFixture(),
+        afterBackupRenamed: async () => {
+          throw new Error("promotion fault");
+        },
+      }),
+    ).rejects.toThrow("promotion fault");
+    await expect(
+      readFile(join(dataDir, "manifest.json"), "utf8"),
+    ).resolves.toBe("previous-manifest");
+    await expect(
+      readFile(join(dataDir, "timeline.json"), "utf8"),
+    ).resolves.toBe("previous-timeline");
+    await expect(readFile(join(dataDir, "meta.json"), "utf8")).resolves.toBe(
+      "previous-meta",
+    );
+    expect(
+      (await readdir(join(dataDir, ".."))).filter((name) =>
+        name.startsWith(`.${basename(dataDir)}.generation-`),
+      ),
+    ).toEqual([]);
+    expect(
+      (await readdir(join(dataDir, ".."))).filter((name) =>
+        name.startsWith(`${basename(dataDir)}.previous-`),
+      ),
+    ).toEqual([]);
   });
 });
 

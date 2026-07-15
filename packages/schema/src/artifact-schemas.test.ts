@@ -2,12 +2,14 @@ import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import {
   ArtifactValidationError,
+  parseCaptureArtifactMetadata,
   parseDemoIR,
   parseDemoIRJson,
   parseRecordedDemoManifestJson,
   parseRenderArtifactMetadataJson,
   parseRenderTimeline,
   parseRenderTimelineJson,
+  parseLatestCapturePointer,
   parseStudioMetaJson,
   parseStudioRenderRequest,
 } from "./artifact-schemas";
@@ -20,6 +22,61 @@ const HASHES = {
 };
 
 describe("artifact schemas v1", () => {
+  it("validates capture lifecycle metadata and latest pointers", () => {
+    const metadata = parseCaptureArtifactMetadata({
+      schemaVersion: 1,
+      captureRunId: "demo-2026-07-15-id",
+      demoId: "demo",
+      definitionHash: HASHES.definition,
+      captureHash: HASHES.capture,
+      status: "completed",
+      createdAt: "2026-07-15T12:00:00.000Z",
+      startedAt: "2026-07-15T12:00:00.100Z",
+      updatedAt: "2026-07-15T12:00:01.000Z",
+      finishedAt: "2026-07-15T12:00:01.000Z",
+      paths: {
+        manifest: "manifest.json",
+        screenshots: "screenshots",
+        trace: "trace.zip",
+      },
+      environment: {
+        headless: true,
+        viewport: { width: 1920, height: 1080 },
+        deviceScaleFactor: 2,
+        locale: "en-US",
+        timezone: "UTC",
+        settle: false,
+        timeoutMs: 8000,
+      },
+    });
+    expect(metadata.status).toBe("completed");
+    expect(
+      parseLatestCapturePointer({
+        schemaVersion: 1,
+        demoId: "demo",
+        captureRunId: metadata.captureRunId,
+        captureDirectory: "2026-07-15-id",
+        completedAt: metadata.finishedAt!,
+      }).captureRunId,
+    ).toBe(metadata.captureRunId);
+    expect(() =>
+      parseCaptureArtifactMetadata({
+        ...metadata,
+        status: "failed",
+        error: undefined,
+      }),
+    ).toThrow("$.error");
+    expect(() =>
+      parseLatestCapturePointer({
+        schemaVersion: 1,
+        demoId: "demo",
+        captureRunId: metadata.captureRunId,
+        captureDirectory: "../capture",
+        completedAt: metadata.finishedAt!,
+      }),
+    ).toThrow("$.captureDirectory");
+  });
+
   it("reads every valid contract fixture including legacy optional fields", async () => {
     const [ir, manifest, completeManifest, timeline, metadata, meta] =
       await Promise.all([

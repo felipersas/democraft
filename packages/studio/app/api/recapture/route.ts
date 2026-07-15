@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { runDemo } from "@democraft/playwright";
+import { redactCaptureErrorMessage, runDemo } from "@democraft/playwright";
 import { readMeta, loadDemo } from "@/lib/staleness";
 import {
   materializeStudioData,
@@ -9,9 +9,11 @@ import { studioDataDir } from "@/lib/server-data";
 import { publish } from "@/lib/event-bus";
 import { compileDemo } from "@democraft/compiler";
 import { resolveTimeline } from "@democraft/timeline";
+import path from "node:path";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
+let recaptureInFlight = false;
 
 /**
  * Re-runs the Playwright capture for the demo the studio was launched with,
@@ -23,6 +25,21 @@ export const maxDuration = 300;
  * can show a spinner/state.
  */
 export async function POST() {
+  if (recaptureInFlight) {
+    return NextResponse.json(
+      { error: "A re-capture is already running." },
+      { status: 409 },
+    );
+  }
+  recaptureInFlight = true;
+  try {
+    return await performRecapture();
+  } finally {
+    recaptureInFlight = false;
+  }
+}
+
+async function performRecapture() {
   const dataDir = studioDataDir();
   const meta = await readMeta(dataDir);
   if (!meta) {
@@ -47,7 +64,15 @@ export async function POST() {
     }
 
     publish("recapture-progress", { phase: "capturing" });
-    manifest = await runDemo(compilation.ir, { outputDir: meta.captureDir });
+    let captureDir = meta.captureDir;
+    manifest = await runDemo(compilation.ir, {
+      outputDir:
+        meta.captureOutputDirExplicit !== false ? meta.captureDir : undefined,
+      captureRootDir: path.join(meta.workspaceRoot, ".democraft", "runs"),
+      onArtifactCreated: (artifact) => {
+        captureDir = artifact.outputDir;
+      },
+    });
 
     publish("recapture-progress", { phase: "resolving" });
     const timeline = resolveTimeline(compilation.ir, manifest);
@@ -55,20 +80,20 @@ export async function POST() {
     publish("recapture-progress", { phase: "materializing" });
     await materializeStudioData({
       dataDir,
-      captureDir: meta.captureDir,
+      captureDir,
       manifest,
       timeline,
     });
-    await updateMetaAfterCapture(dataDir, meta, compilation.ir);
+    await updateMetaAfterCapture(dataDir, meta, compilation.ir, captureDir);
   } catch (err) {
+    const message = redactCaptureErrorMessage(
+      err instanceof Error ? err : "Re-capture failed.",
+    );
     publish("recapture-progress", {
       phase: "failed",
-      error: err instanceof Error ? err.message : "Re-capture failed.",
+      error: message,
     });
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Re-capture failed." },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 
   publish("recapture-progress", { phase: "done" });

@@ -2,7 +2,12 @@ import { copyFile, mkdir, readFile, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { compileDemo } from "@democraft/compiler";
-import { runDemo } from "@democraft/playwright";
+import {
+  resolveLatestCompletedCapture,
+  resolveRecordedScreenshotPath,
+  isReusableCaptureDirectory,
+  runDemo,
+} from "@democraft/playwright";
 import { resolveTimeline } from "@democraft/timeline";
 import {
   compareCaptureCompatibility,
@@ -40,19 +45,28 @@ export async function launchStudio(
   }
 
   const root = options.workspaceRoot ?? process.cwd();
-  const captureDir = options.outputDir
+  const runsRoot = path.join(root, ".democraft", "runs");
+  const explicitCaptureDir = options.outputDir
     ? path.isAbsolute(options.outputDir)
       ? options.outputDir
       : path.resolve(root, options.outputDir)
-    : path.join(root, ".democraft", "runs", compilation.ir.id);
+    : undefined;
+  const latestCapture = explicitCaptureDir
+    ? undefined
+    : await resolveLatestCompletedCapture(runsRoot, compilation.ir.id);
+  let captureDir = explicitCaptureDir ?? latestCapture?.captureDir;
   const dataDir = path.join(root, ".democraft", "studio-data");
   await mkdir(dataDir, { recursive: true });
 
   let manifest: RecordedDemoManifest;
-  const existingManifest = await readArtifactIfExists(
-    path.join(captureDir, "manifest.json"),
-    parseRecordedDemoManifestJson,
-  );
+  const existingManifest =
+    captureDir &&
+    (await isReusableCaptureDirectory(captureDir, compilation.ir.id))
+      ? await readArtifactIfExists(
+          path.join(captureDir, "manifest.json"),
+          parseRecordedDemoManifestJson,
+        )
+      : undefined;
   const existingCompatibility = existingManifest
     ? compareCaptureCompatibility(
         {
@@ -73,15 +87,12 @@ export async function launchStudio(
     // Playwright.
     if (options.noCapture) {
       process.stderr.write(
-        `Reusing existing capture from ${captureDir} (--no-capture).\n`,
+        `Reusing existing${latestCapture?.legacy ? " legacy" : ""} capture from ${captureDir} (--no-capture).\n`,
       );
     }
   } else if (options.noCapture) {
     throw new Error(
-      `--no-capture was set but no prior capture exists at\n  ${path.join(
-        captureDir,
-        "manifest.json",
-      )}\nRun \`democraft studio\` once without --no-capture to capture.`,
+      `--no-capture was set but no prior completed capture exists${explicitCaptureDir ? ` at\n  ${path.join(explicitCaptureDir, "manifest.json")}` : ` for "${compilation.ir.id}" under\n  ${runsRoot}`}\nRun \`democraft studio\` once without --no-capture to capture.`,
     );
   } else {
     process.stderr.write(
@@ -90,9 +101,17 @@ export async function launchStudio(
         : "No prior capture found — running Playwright (this may take a while)…\n",
     );
     manifest = await runDemo(compilation.ir, {
-      outputDir: captureDir,
+      outputDir: explicitCaptureDir,
+      captureRootDir: runsRoot,
       headless: options.headless,
+      onArtifactCreated: (artifact) => {
+        captureDir = artifact.outputDir;
+      },
     });
+  }
+
+  if (!captureDir) {
+    throw new Error("Capture completed without an artifact directory.");
   }
 
   const failedCapture = manifest.steps.some((step) =>
@@ -124,6 +143,7 @@ export async function launchStudio(
     dataDir,
     demoPath: path.resolve(options.demoPath),
     captureDir,
+    captureOutputDirExplicit: explicitCaptureDir !== undefined,
     workspaceRoot: root,
     demoId: compilation.ir.id,
     definitionHash: compilation.ir.definitionHash,
@@ -159,6 +179,7 @@ async function writeMetaFile(args: {
   dataDir: string;
   demoPath: string;
   captureDir: string;
+  captureOutputDirExplicit: boolean;
   workspaceRoot: string;
   demoId: string;
   definitionHash?: string;
@@ -169,6 +190,7 @@ async function writeMetaFile(args: {
     schemaVersion,
     demoPath: args.demoPath,
     captureDir: args.captureDir,
+    captureOutputDirExplicit: args.captureOutputDirExplicit,
     workspaceRoot: args.workspaceRoot,
     demoId: args.demoId,
     definitionHash: args.definitionHash,
@@ -197,10 +219,9 @@ async function materializeStudioData(args: {
 
   if (await existsDir(screenshotsSrc)) {
     for (const step of manifest.steps) {
-      const name = `${step.sceneId}-${step.stepId}.png`;
-      const src = path.join(screenshotsSrc, name);
-      if (await existsFile(src)) {
-        await copyFile(src, path.join(screenshotsDst, name));
+      const src = resolveRecordedScreenshotPath(args.captureDir, step);
+      if (src && (await existsFile(src))) {
+        await copyFile(src, path.join(screenshotsDst, path.basename(src)));
       }
     }
   }
@@ -209,7 +230,9 @@ async function materializeStudioData(args: {
   const recordingSrc = recordingRaw
     ? path.isAbsolute(recordingRaw)
       ? recordingRaw
-      : path.resolve(args.captureDir, recordingRaw)
+      : (await existsFile(path.resolve(recordingRaw)))
+        ? path.resolve(recordingRaw)
+        : path.resolve(args.captureDir, recordingRaw)
     : undefined;
   const recordingDst = path.join(args.dataDir, "recording.webm");
   if (recordingSrc && (await existsFile(recordingSrc))) {

@@ -90,9 +90,19 @@ export const DEFAULT_SETTLE_STRATEGY: Required<SettleStrategy> = {
 
 export type RunDemoOptions = {
   outputDir?: string;
+  /** Managed capture root used only when outputDir is omitted. */
+  captureRootDir?: string;
   headless?: boolean;
   environment?: RuntimeEnvironment;
   timeoutMs?: number;
+  signal?: AbortSignal;
+  /** Called after the capture directory and initial metadata exist. */
+  onArtifactCreated?: (artifact: {
+    captureRunId: string;
+    outputDir: string;
+    manifestPath: string;
+    metadataPath: string;
+  }) => void | Promise<void>;
 };
 
 export type BrowserLike = {

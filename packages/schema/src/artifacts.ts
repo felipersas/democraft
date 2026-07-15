@@ -33,3 +33,51 @@ export type RenderArtifactMetadata = {
     message: string;
   };
 };
+
+export type CaptureArtifactStatus =
+  "created" | "running" | "completed" | "failed" | "cancelled";
+
+export type CaptureArtifactMetadata = {
+  schemaVersion: 1;
+  captureRunId: string;
+  demoId: string;
+  definitionHash?: string;
+  captureHash?: string;
+  status: CaptureArtifactStatus;
+  createdAt: string;
+  updatedAt: string;
+  startedAt?: string;
+  finishedAt?: string;
+  paths: {
+    manifest: "manifest.json";
+    screenshots: "screenshots";
+    trace?: "trace.zip";
+    recording?: string;
+  };
+  environment: {
+    headless: boolean;
+    viewport: { width: number; height: number };
+    deviceScaleFactor: number;
+    locale: string;
+    timezone: string;
+    settle:
+      | false
+      | {
+          idleWindowMs: number;
+          timeoutMs: number;
+          signal: "dom" | "visual" | "network" | "both";
+        };
+    timeoutMs: number;
+  };
+  error?: {
+    message: string;
+  };
+};
+
+export type LatestCapturePointer = {
+  schemaVersion: 1;
+  demoId: string;
+  captureRunId: string;
+  captureDirectory: string;
+  completedAt: string;
+};

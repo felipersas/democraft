@@ -1,4 +1,8 @@
 import { join } from "node:path";
+import {
+  canonicalScreenshotFilename,
+  screenshotRelativePath,
+} from "./screenshot-path";
 import type {
   DemoIR,
   DemoStep,
@@ -220,9 +224,14 @@ export async function executeStep(
     await args.page.waitForTimeout?.(captureStepHoldMs(args.step));
   }
 
-  await args.page
-    .screenshot?.({
-      path: join(args.screenshotsPath, `${args.sceneId}-${args.step.id}.png`),
+  let screenshotPath: string | undefined;
+  const screenshotFilename = canonicalScreenshotFilename(
+    args.sceneId,
+    args.step.id,
+  );
+  try {
+    await args.page.screenshot?.({
+      path: join(args.screenshotsPath, screenshotFilename),
       // Capture the viewport, not the full document. A full-page screenshot
       // grows with page content (a tall dashboard yields a 1440×3244 PNG while
       // a short page yields 1440×900), so consecutive steps would be captured
@@ -233,8 +242,23 @@ export async function executeStep(
       // Element bounding boxes from Playwright are viewport-relative, so camera
       // focus targets line up with what the screenshot actually shows.
       fullPage: false,
-    })
-    .catch(() => undefined);
+    });
+    if (args.page.screenshot) {
+      screenshotPath = screenshotRelativePath(args.sceneId, args.step.id);
+    }
+  } catch (error) {
+    args.diagnostics.push({
+      code: "MD201",
+      severity: "warning",
+      message:
+        error instanceof Error
+          ? `Screenshot failed: ${error.message}`
+          : "Screenshot failed.",
+      demoId: args.ir.id,
+      sceneId: args.sceneId,
+      stepId: args.step.id,
+    });
+  }
 
   return {
     stepId: args.step.id,
@@ -244,6 +268,7 @@ export async function executeStep(
     endedAtMs: Date.now(),
     targetSnapshot,
     url: args.page.url(),
+    screenshotPath,
   };
 }
 

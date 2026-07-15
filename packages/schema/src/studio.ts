@@ -13,6 +13,8 @@ export type StudioMeta = {
   demoPath: string;
   /** Directory where raw captures are written (`.democraft/runs/<id>/`). */
   captureDir: string;
+  /** True when --output-dir must remain the exact recapture destination. */
+  captureOutputDirExplicit?: boolean;
   /** Monorepo workspace root. */
   workspaceRoot: string;
   /** Stable, human-authored demo id. */
