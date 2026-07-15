@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { resolveExistingPathWithin } from "./path-boundary";
+import { materializeDemoEntry } from "@democraft/remotion/server";
 
 /**
  * Resolve the Remotion entry file (`registerRoot`) for bundling.
@@ -9,7 +10,8 @@ import { resolveExistingPathWithin } from "./path-boundary";
  * 1. If `userEntryPath` is provided (e.g. from `--entry` or a render job's
  *    `options.entryPath`), validate and return it — this lets users register
  *    custom visual components from their own entry file.
- * 2. Otherwise, walk up from `process.cwd()` looking for
+ * 2. If `demoPath` is provided, generate an entry from that author module.
+ * 3. Otherwise, walk up from `process.cwd()` looking for
  *    `node_modules/@democraft/remotion/dist/entry.js` (the built-in entry).
  *    This walk is needed inside the Next.js dev server where `import.meta.url`
  *    is rewritten and the default resolution in `@democraft/remotion` gives
@@ -18,6 +20,7 @@ import { resolveExistingPathWithin } from "./path-boundary";
 export async function findRemotionEntry(
   userEntryPath?: string,
   workspaceRoot = process.cwd(),
+  demoPath?: string,
 ): Promise<string> {
   if (userEntryPath) {
     const resolved = path.isAbsolute(userEntryPath)
@@ -33,6 +36,10 @@ export async function findRemotionEntry(
       resolved,
       "Custom Remotion entry",
     );
+  }
+
+  if (demoPath) {
+    return materializeDemoEntry(demoPath);
   }
 
   let dir = process.cwd();

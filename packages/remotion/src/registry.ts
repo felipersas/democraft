@@ -3,6 +3,7 @@ import {
   type CalloutProps,
   type CaptionProps,
   type VisualComponent,
+  type GenericVisualComponent,
   type VisualRegistry,
 } from "./overlays";
 import type React from "react";
@@ -92,6 +93,16 @@ export function defineVisualRegistry(
       registry.visuals[entry.id] =
         entry.component as React.ComponentType<Record<string, unknown>>;
     }
+  }
+  return registry;
+}
+
+export function visualRegistryFromDefinitions(
+  definitions?: Record<string, { readonly component: unknown }>,
+): VisualRegistry {
+  const registry = defineVisualRegistry();
+  for (const [id, definition] of Object.entries(definitions ?? {})) {
+    registry.visuals[id] = definition.component as GenericVisualComponent;
   }
   return registry;
 }

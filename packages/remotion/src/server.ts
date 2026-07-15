@@ -18,6 +18,8 @@ import {
 } from "./media";
 import { compositionId } from "./constants";
 
+export { createDemoEntrySource, materializeDemoEntry } from "./demo-entry";
+
 export {
   cancelRenderArtifact,
   completeRenderArtifact,

@@ -1,12 +1,15 @@
 ---
 title: Custom entry point
-description: Register your own visual components by creating a custom Remotion entry point.
+description: Override the generated Remotion composition for advanced use cases.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
 import { Steps, Step } from "fumadocs-ui/components/steps";
 
-By default, Democraft renders with a built-in entry point that knows about the four built-in renderers (`motion.*` + `remocn.*`). To use **your own components** — whether cloned from the remocn registry or written from scratch — you create a **custom entry point** that registers them.
+Democraft normally generates an entry from `demo.ts`, including components in
+its `visuals` map. You do **not** need this page to use a local or copied remocn
+component. Create a custom entry only when you need to replace the composition,
+override caption/callout internals, or control Remotion registration directly.
 
 ## Why a custom entry?
 

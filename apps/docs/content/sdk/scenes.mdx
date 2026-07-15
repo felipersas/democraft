@@ -151,6 +151,21 @@ await scene.callout(
 
 Display an annotated callout pointing at `target`. `title` is required.
 
+### `visual(id, props, options?)`
+
+```ts
+await scene.visual(
+  "local.launch-title",
+  { text: "New analytics", speed: 1.2 },
+  { duration: "1.5s", id: "launch-title" },
+);
+```
+
+Render an arbitrary component declared in the demo's `visuals` map. The visual
+ID and props are inferred from `defineVisual(Component)`. Props must be
+JSON-serializable; the component itself remains in `demo.ts` and is wired into
+Remotion automatically by `render` and Studio.
+
 ## Cue
 
 ### `cue(name)`

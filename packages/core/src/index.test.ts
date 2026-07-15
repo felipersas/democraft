@@ -5,8 +5,9 @@ import {
   defineDemo,
   defineTarget,
   defineTargets,
+  defineVisual,
 } from "./index";
-import type { Duration, VisualDefinition } from "./index";
+import type { Duration } from "./index";
 
 describe("targets", () => {
   it("types supported durations and normalizes target-free demos", () => {
@@ -120,10 +121,8 @@ describe("targets", () => {
   });
 
   it("infers visual ids and component props in the scene API", () => {
-    const launchTitle = { component: null } as VisualDefinition<{
-      text: string;
-      speed?: number;
-    }>;
+    const LaunchTitle = ({ text }: { text: string; speed?: number }) => text;
+    const launchTitle = defineVisual(LaunchTitle);
 
     const definition = defineDemo({
       id: "visual-demo",

@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { fileURLToPath } from "node:url";
 
 const REMOTION_EXTERNALS = [
   "@remotion/bundler",
@@ -32,6 +33,13 @@ const config: NextConfig = {
     serverActions: { bodySizeLimit: "10mb" },
   },
   webpack: (webpackConfig, { isServer }) => {
+    webpackConfig.resolve = webpackConfig.resolve ?? {};
+    webpackConfig.resolve.alias = {
+      ...(webpackConfig.resolve.alias ?? {}),
+      "@democraft/user-demo":
+        process.env.DEMOCRAFT_STUDIO_DEMO_PATH ??
+        fileURLToPath(new URL("./lib/empty-user-demo.ts", import.meta.url)),
+    };
     if (isServer) {
       const existing = Array.isArray(webpackConfig.externals)
         ? webpackConfig.externals

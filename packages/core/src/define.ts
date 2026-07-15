@@ -5,11 +5,19 @@ import type {
   DemoDefinition,
   DemoInput,
   TargetInput,
+  VisualDefinition,
   VisualMap,
 } from "./types";
 
 export function defineConfig(config: DemoConfig): DemoConfig {
   return config;
+}
+
+/** Declare a React/Remotion-compatible function component with inferred props. */
+export function defineVisual<TProps>(
+  component: (props: TProps) => unknown,
+): VisualDefinition<TProps> {
+  return { component };
 }
 
 export function defineDemo<

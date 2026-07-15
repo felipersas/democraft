@@ -28,7 +28,34 @@ Components do **not** live inside the `@democraft/remotion` package. They live i
 
 - **Write your own** from scratch. Any React component that accepts the right props works.
 
-In both cases, you register the component in a **custom entry point** so the renderer knows about it. See [custom entry](../remotion/custom-entry) for the full guide.
+In both cases, declare the component in the same `demo.ts`. Democraft generates
+the Remotion entry automatically:
+
+```ts title="demo.ts"
+import { defineDemo, defineVisual } from "@democraft/core";
+import { BlurOutUp } from "./components/remocn/blur-out-up";
+
+export default defineDemo({
+  id: "launch",
+  title: "Launch",
+  source: { baseUrl: "http://localhost:3000" },
+  visuals: {
+    "local.launch-title": defineVisual(BlurOutUp),
+  },
+  async run({ demo }) {
+    await demo.scene("intro", async (scene) => {
+      await scene.visual(
+        "local.launch-title",
+        { text: "New analytics", speed: 1.2 },
+        { duration: "1.5s" },
+      );
+    });
+  },
+});
+```
+
+TypeScript infers the visual ID and the component's props. Render with the same
+module: `democraft render demo.ts --manifest ... --timeline ...`.
 
 ## The renderer string
 
@@ -63,7 +90,8 @@ Renderer IDs follow `<namespace>.<component>`:
 | `local.*` | Your own project components | `local.my-caption`, `local.pulse-callout` |
 
 <Callout type="warn">
-If you pass a `renderer` string that isn't registered, the overlay silently falls back to the default (`motion.caption` or `motion.callout`). There is no error — the render succeeds with plain styling. Always check the renderer ID matches what you registered.
+If you pass an unknown `renderer` or visual ID, Democraft reports an explicit
+error and lists the registered alternatives.
 </Callout>
 
 ## Built-in renderers
@@ -103,14 +131,14 @@ These ship with `@democraft/remotion` and are available without any custom entry
   </Step>
 
   <Step title="Render">
-    The built-in renderers work out of the box. To use custom renderers
-    (`local.*`, or remocn components you cloned), set up a
-    [custom entry](../remotion/custom-entry).
+    Built-ins and components declared in `demo.ts` work without another file.
+    A [custom entry](../remotion/custom-entry) is only needed when replacing the
+    whole composition or other advanced Remotion behavior.
   </Step>
 </Steps>
 
 ## Next steps
 
-- **[Custom entry](../remotion/custom-entry)** — set up your own entry point to register custom components.
+- **[Custom entry](../remotion/custom-entry)** — advanced composition overrides.
 - **[Creating components](../remotion/create-components)** — build a component from scratch with the `CaptionProps` / `CalloutProps` contract.
 - **[Remotion integration](../remotion/integration)** — how the renderer resolves renderer IDs to components.

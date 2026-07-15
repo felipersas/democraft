@@ -28,7 +28,34 @@ Componentes **não** vivem dentro do pacote `@democraft/remotion`. Eles vivem no
 
 - **Escrever o seu** do zero. Qualquer componente React que aceite as props certas funciona.
 
-Em ambos os casos, você registra o componente num **entry point customizado** para que o renderizador saiba dele. Veja [entry custom](../remotion/custom-entry) para o guia completo.
+Em ambos os casos, declare o componente no mesmo `demo.ts`. O Democraft gera o
+entry do Remotion automaticamente:
+
+```ts title="demo.ts"
+import { defineDemo, defineVisual } from "@democraft/core";
+import { BlurOutUp } from "./components/remocn/blur-out-up";
+
+export default defineDemo({
+  id: "launch",
+  title: "Launch",
+  source: { baseUrl: "http://localhost:3000" },
+  visuals: {
+    "local.launch-title": defineVisual(BlurOutUp),
+  },
+  async run({ demo }) {
+    await demo.scene("intro", async (scene) => {
+      await scene.visual(
+        "local.launch-title",
+        { text: "New analytics", speed: 1.2 },
+        { duration: "1.5s" },
+      );
+    });
+  },
+});
+```
+
+O TypeScript infere o ID e as props do componente. Renderize usando o mesmo
+módulo: `democraft render demo.ts --manifest ... --timeline ...`.
 
 ## A string renderer
 
@@ -63,7 +90,8 @@ Renderer IDs seguem `<namespace>.<component>`:
 | `local.*` | Seus próprios componentes do projeto | `local.my-caption`, `local.pulse-callout` |
 
 <Callout type="warn">
-Se você passar uma string `renderer` que não está registrada, o overlay cai silenciosamente no default (`motion.caption` ou `motion.callout`). Não há erro — a renderização acontece com o styling simples. Sempre confira que o renderer ID corresponde ao que você registrou.
+Se você passar um `renderer` ou ID visual desconhecido, o Democraft retorna um
+erro explícito e lista as alternativas registradas.
 </Callout>
 
 ## Renderers built-in
@@ -103,14 +131,14 @@ Estes vêm com `@democraft/remotion` e estão disponíveis sem nenhum entry cust
   </Step>
 
   <Step title="Renderize">
-    Os renderers built-in funcionam sem configuração. Para usar renderers
-    customizados (`local.*`, ou componentes remocn que você clonou), configure
-    um [entry custom](../remotion/custom-entry).
+    Renderers built-in e componentes declarados no `demo.ts` funcionam sem
+    outro arquivo. Um [entry custom](../remotion/custom-entry) só é necessário
+    para substituir a composition ou outro comportamento avançado do Remotion.
   </Step>
 </Steps>
 
 ## Próximos passos
 
-- **[Entry custom](../remotion/custom-entry)** — configure seu próprio entry point para registrar componentes customizados.
+- **[Entry custom](../remotion/custom-entry)** — overrides avançados da composition.
 - **[Criando componentes](../remotion/create-components)** — construa um componente do zero com o contrato `CaptionProps` / `CalloutProps`.
 - **[Integração com Remotion](../remotion/integration)** — como o renderizador resolve renderer IDs para componentes.

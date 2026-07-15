@@ -27,7 +27,7 @@ Flags:
   --no-capture         Reuse existing capture for studio
   --headless           Run browser headless
   --headed             Run browser headed
-  --entry <path>       Remotion entry point (defaults to @democraft/remotion internal)
+  --entry <path>       Advanced Remotion entry override (normally generated from demo.ts)
 `;
 }
 

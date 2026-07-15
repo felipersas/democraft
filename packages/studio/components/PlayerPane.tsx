@@ -5,7 +5,9 @@ import { Player, type PlayerRef } from "@remotion/player";
 import {
   createProductDemoVideoProps,
   ProductDemoVideo,
+  visualRegistryFromDefinitions,
 } from "@democraft/remotion/client";
+import userDemo from "@democraft/user-demo";
 import type { ProductDemoVideoProps } from "@democraft/remotion/client";
 import type { RenderTimeline, RecordedDemoManifest } from "@democraft/schema";
 import { useStudio } from "@/lib/studio-context";
@@ -14,6 +16,8 @@ import { isLayerVisible } from "@/lib/layers";
 import { applyCaptionOverrides } from "@/lib/captions";
 import { fitPlayerSize } from "@/lib/player-size";
 import type { CaptionOverrides, LayerState } from "@/lib/types";
+
+const userVisualRegistry = visualRegistryFromDefinitions(userDemo.visuals);
 
 export function PlayerPane() {
   const { status, playerRef, loop, layerState, soloLayer, captionOverrides } =
@@ -203,10 +207,13 @@ function buildInputProps(args: {
     screenshotSrcByStepId[step.stepId] =
       `${args.screenshotBaseUrl}/${encodeURIComponent(filename)}`;
   }
-  return createProductDemoVideoProps({
-    manifest: args.manifest,
-    mediaMode: "screenshots",
-    timeline: args.timeline,
-    screenshotSrcByStepId,
-  });
+  return {
+    ...createProductDemoVideoProps({
+      manifest: args.manifest,
+      mediaMode: "screenshots",
+      timeline: args.timeline,
+      screenshotSrcByStepId,
+    }),
+    registry: userVisualRegistry,
+  };
 }

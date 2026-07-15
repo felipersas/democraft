@@ -38,8 +38,7 @@ Developers and coding agents should register and use components in the same
 the Remotion client bundle.
 
 ```ts
-import { defineDemo } from "@democraft/core";
-import { defineVisual } from "@democraft/remotion";
+import { defineDemo, defineVisual } from "@democraft/core";
 import { BlurOutUp } from "./components/remocn/blur-out-up";
 
 export default defineDemo({
@@ -47,17 +46,18 @@ export default defineDemo({
   title: "Launch",
   source: { baseUrl: "http://localhost:3000" },
   visuals: {
-    "local.launch-title": defineVisual({
-      component: BlurOutUp,
-      props: {
-        text: "New analytics",
-        speed: 1.2,
-      },
-    }),
+    "local.launch-title": defineVisual(BlurOutUp),
   },
   async run({ demo }) {
     await demo.scene("intro", async (scene) => {
-      await scene.visual("local.launch-title");
+      await scene.visual(
+        "local.launch-title",
+        {
+        text: "New analytics",
+        speed: 1.2,
+        },
+        { duration: "1.5s" },
+      );
     });
   },
 });
@@ -75,10 +75,11 @@ LLMs, but it must not be required merely to render a copied component.
 3. Generate a temporary Remotion entry that imports the original `demo.ts` and
    builds its registry during bundling.
 4. Make `render demo.ts` use that generated entry automatically.
-5. Make the Studio preview load the same bundled registry, so preview and final
-   render cannot diverge.
+5. Make the Studio preview load the same author module registry, so preview and
+   final render cannot diverge.
 6. Validate duplicate IDs, missing components, unknown visual IDs, and
    non-serializable props with `DCxxxx` diagnostics.
 
-Until those steps are complete, `config.adapters` must not be documented as an
-automatic way to activate local components.
+These steps are implemented by the typed `overlay.visual` pipeline and the
+generated demo entry. `config.adapters` remains a legacy advanced seam and must
+not be documented as the way to activate local components.

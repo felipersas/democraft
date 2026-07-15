@@ -29,7 +29,10 @@ import {
 } from "./render-history";
 import path from "node:path";
 import type { StudioRenderRequest } from "@democraft/schema";
-import { trustedWorkspaceRoot } from "./studio-path-authority";
+import {
+  trustedDemoPath,
+  trustedWorkspaceRoot,
+} from "./studio-path-authority";
 
 // Render types come from the single source of truth in types/render.ts,
 // shared with the client. Re-export for backward compatibility with anything
@@ -292,6 +295,9 @@ async function runJob(job: RenderJob): Promise<void> {
           entryPath: await findRemotionEntry(
             job.options.entryPath,
             await trustedWorkspaceRoot(),
+            timeline.overlays.some((overlay) => overlay.kind === "visual")
+              ? await trustedDemoPath()
+              : undefined,
           ),
           cancelGuard,
         };

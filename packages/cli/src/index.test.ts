@@ -457,6 +457,49 @@ describe("cli", () => {
     );
   });
 
+  it("generates the Remotion entry from demo.ts for generic visuals", async () => {
+    const demoPath = await writeDemoFixture();
+    const manifestPath = await writeManifestFixture();
+    const timelinePath = await writeVisualTimelineFixture();
+    const outputFile = join(dirname(timelinePath), "visual.mp4");
+
+    const result = await withTemporaryInvocationRoot(() =>
+      runCli([
+        "render",
+        demoPath,
+        "--manifest",
+        manifestPath,
+        "--timeline",
+        timelinePath,
+        "--output-file",
+        outputFile,
+      ]),
+    );
+
+    expect(result.exitCode).toBe(0);
+    const [{ entryPath }] = vi.mocked(renderDemoVideo).mock.calls[0];
+    expect(entryPath).toContain(join(".democraft", "entries"));
+    expect(await readFile(entryPath!, "utf8")).toContain(
+      `import demo from ${JSON.stringify(demoPath)}`,
+    );
+  });
+
+  it("explains when a visual render omitted the demo module", async () => {
+    const result = await runCli([
+      "render",
+      "--manifest",
+      await writeManifestFixture(),
+      "--timeline",
+      await writeVisualTimelineFixture(),
+    ]);
+
+    expect(result).toMatchObject({
+      exitCode: 1,
+      stderr: expect.stringContaining("democraft render <demo.ts>"),
+    });
+    expect(renderDemoVideo).not.toHaveBeenCalled();
+  });
+
   it("rejects an invalid render artifact before invoking the renderer", async () => {
     const manifestPath = await writeManifestFixture();
     const timelinePath = await writeTimelineFixture();
@@ -779,6 +822,30 @@ async function writeTimelineFixture(): Promise<string> {
     ),
   );
 
+  return timelinePath;
+}
+
+async function writeVisualTimelineFixture(): Promise<string> {
+  const timelinePath = await writeTimelineFixture();
+  const timeline = JSON.parse(await readFile(timelinePath, "utf8"));
+  timeline.scenes[0].steps.push({
+    stepId: "intro.overlay-visual.2",
+    sceneId: "intro",
+    kind: "overlay.visual",
+    fromFrame: 42,
+    durationInFrames: 18,
+  });
+  timeline.overlays.push({
+    id: "intro.overlay-visual.2.overlay",
+    stepId: "intro.overlay-visual.2",
+    sceneId: "intro",
+    kind: "visual",
+    visual: "local.title",
+    props: { text: "Launch" },
+    fromFrame: 42,
+    durationInFrames: 18,
+  });
+  await writeFile(timelinePath, JSON.stringify(timeline, null, 2));
   return timelinePath;
 }
 

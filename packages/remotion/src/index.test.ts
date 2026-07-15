@@ -13,6 +13,7 @@ import {
   resolveVisualComponent,
 } from "./overlays";
 import { defineVisual, defineVisualRegistry } from "./registry";
+import { createDemoEntrySource } from "./demo-entry";
 import type { RenderTimeline } from "@democraft/schema";
 
 describe("remotion", () => {
@@ -186,6 +187,14 @@ describe("remotion", () => {
 
     expect(visual.component).toBe(Title);
     expect(resolveVisualComponent(registry, "local.title")).toBe(Title);
+  });
+
+  it("generates an entry that imports visuals from the demo module", () => {
+    const source = createDemoEntrySource("/workspace/demo.ts");
+
+    expect(source).toContain('import demo from "/workspace/demo.ts"');
+    expect(source).toContain("visualRegistryFromDefinitions(demo.visuals)");
+    expect(source).toContain("registerRoot(Root)");
   });
 });
 

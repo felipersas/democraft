@@ -46,7 +46,13 @@ export {
 } from "./overlays";
 
 // --- Registry API ---
-export { defineVisual, defineVisualRegistry, type VisualEntry } from "./registry";
+export {
+  defineVisual,
+  defineVisualRegistry,
+  visualRegistryFromDefinitions,
+  type VisualEntry,
+} from "./registry";
+export { createDemoEntrySource, materializeDemoEntry } from "./demo-entry";
 
 // --- Adapters ---
 export { remocnAdapter, type DemocraftAdapter } from "./adapters/remocn";

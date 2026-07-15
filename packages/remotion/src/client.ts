@@ -32,6 +32,11 @@ export {
   type VisualRegistry,
 } from "./overlays";
 
-export { defineVisual, defineVisualRegistry, type VisualEntry } from "./registry";
+export {
+  defineVisual,
+  defineVisualRegistry,
+  visualRegistryFromDefinitions,
+  type VisualEntry,
+} from "./registry";
 
 export { remocnAdapter, type DemocraftAdapter } from "./adapters/remocn";

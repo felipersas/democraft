@@ -9,6 +9,7 @@ import {
   completeRenderArtifact,
   createRenderArtifact,
   failRenderArtifact,
+  materializeDemoEntry,
   renderDemoVideo,
   type DemoMediaMode,
 } from "@democraft/remotion";
@@ -168,6 +169,19 @@ export async function runCli(argv = process.argv.slice(2)): Promise<CliResult> {
     const mediaMode: DemoMediaMode = args.useRecording
       ? "recording"
       : "screenshots";
+    const usesGenericVisuals = timeline.overlays.some(
+      (overlay) => overlay.kind === "visual",
+    );
+    if (usesGenericVisuals && !args.entryPath && !args.demoPath) {
+      return fail(
+        "This timeline uses custom visual components. Pass the demo module: `democraft render <demo.ts> --manifest ... --timeline ...`.",
+      );
+    }
+    const entryPath = args.entryPath
+      ? userResolve(args.entryPath)
+      : usesGenericVisuals && args.demoPath
+        ? await materializeDemoEntry(userResolve(args.demoPath))
+        : undefined;
     const artifact = args.outputFile
       ? undefined
       : await createRenderArtifact({
@@ -206,7 +220,7 @@ export async function runCli(argv = process.argv.slice(2)): Promise<CliResult> {
         ),
         scale: args.scale,
         crf: args.crf,
-        entryPath: args.entryPath ? userResolve(args.entryPath) : undefined,
+        entryPath,
       });
       if (artifact) await completeRenderArtifact(artifact);
     } catch (error) {

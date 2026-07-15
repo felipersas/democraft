@@ -1,4 +1,11 @@
-import { mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import {
+  mkdtemp,
+  readFile,
+  realpath,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -40,6 +47,22 @@ describe("custom Remotion entry", () => {
 
     await expect(findRemotionEntry(linkedEntry, workspace)).rejects.toThrow(
       /Custom Remotion entry escapes its allowed root/,
+    );
+  });
+
+  it("generates an entry from the trusted demo module", async () => {
+    const workspace = await mkdtemp(
+      path.join(tmpdir(), "democraft-workspace-"),
+    );
+    tempDirs.push(workspace);
+    const demo = path.join(workspace, "demo.ts");
+    await writeFile(demo, "export default {visuals: {}};");
+
+    const entry = await findRemotionEntry(undefined, workspace, demo);
+
+    expect(entry).toContain(path.join(".democraft", "entries"));
+    await expect(readFile(entry, "utf8")).resolves.toContain(
+      "visualRegistryFromDefinitions(demo.visuals)",
     );
   });
 });
