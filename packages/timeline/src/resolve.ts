@@ -37,10 +37,7 @@ export function resolveTimeline(
 
     for (const step of scene.steps) {
       const recordedStep = recordedByStepId.get(step.id);
-      const durationInFrames = msToFrames(
-        stepDurationMs(step, recordedStep),
-        fps,
-      );
+      const durationInFrames = msToFrames(stepDurationMs(step), fps);
       const renderStep: RenderStep = {
         stepId: step.id,
         sceneId: scene.id,
@@ -132,16 +129,23 @@ function collectTracks(
   }
 }
 
-function stepDurationMs(step: DemoStep, recordedStep?: RecordedStep): number {
-  const actualMs = recordedDurationMs(recordedStep);
-  const plannedMs = plannedStepDurationMs(step, recordedStep);
-  return Math.max(plannedMs, actualMs);
-}
-
-function plannedStepDurationMs(
-  step: DemoStep,
-  recordedStep?: RecordedStep,
-): number {
+/**
+ * The on-screen duration of a step in the rendered video — its *presentation*
+ * pacing, decoupled from how long the step took to capture.
+ *
+ * Capture duration (settle + network + rendering) is concerned with picking
+ * the *right frame*: the runtime waits for the page to settle so the
+ * screenshot reflects the fully-loaded view. That wait should not leak into
+ * the video's timeline — otherwise every navigation inflates the duration with
+ * dead air (a 0.7s click ballooning to 4s of frozen frame while the page was
+ * loading). Presentation pacing is driven by what the viewer needs to read,
+ * not by how slow the network was during capture.
+ *
+ * Author-paced steps (holds, captions, callouts, transitions) keep their
+ * explicit durations. Action steps (click, fill, goto, camera moves, asserts)
+ * use snappy fixed beats that show the change and move on.
+ */
+function stepDurationMs(step: DemoStep): number {
   switch (step.kind) {
     case "timeline.hold":
       return step.durationMs;
@@ -164,7 +168,7 @@ function plannedStepDurationMs(
     case "browser.select":
       return 700;
     case "browser.goto":
-      return Math.max(700, recordedDurationMs(recordedStep));
+      return 900;
     case "assert.visible":
     case "assert.text":
     case "assert.url":
@@ -172,11 +176,6 @@ function plannedStepDurationMs(
     case "cue":
       return 1;
   }
-}
-
-function recordedDurationMs(recordedStep?: RecordedStep): number {
-  if (!recordedStep) return 0;
-  return Math.max(0, recordedStep.endedAtMs - recordedStep.startedAtMs);
 }
 
 function msToFrames(ms: number, fps: number): number {

@@ -113,7 +113,7 @@ describe("timeline", () => {
   it("resolves deterministic frame ranges and tracks", () => {
     const timeline = resolveTimeline(ir, manifest, { fps: 60 });
 
-    expect(timeline.durationInFrames).toBe(438);
+    expect(timeline.durationInFrames).toBe(441);
     expect(
       timeline.scenes.map((scene) => [
         scene.id,
@@ -121,8 +121,8 @@ describe("timeline", () => {
         scene.durationInFrames,
       ]),
     ).toEqual([
-      ["intro", 0, 225],
-      ["create", 225, 213],
+      ["intro", 0, 228],
+      ["create", 228, 213],
     ]);
     expect(timeline.camera).toEqual([
       expect.objectContaining({
@@ -155,7 +155,11 @@ describe("timeline", () => {
     expect(text).toContain("Camera tracks: 2");
   });
 
-  it("does not compress steps below their captured duration", () => {
+  it("uses snappy presentation pacing regardless of capture duration", () => {
+    // A slow capture (page took 1.3s to respond during capture) must NOT
+    // inflate the step's on-screen duration. The settle gate ensures the
+    // *right* screenshot is captured; the timeline pacing is driven by what
+    // the viewer needs to read, not by how slow the network was.
     const slowClickManifest: RecordedDemoManifest = {
       ...manifest,
       steps: manifest.steps.map((step) =>
@@ -170,7 +174,9 @@ describe("timeline", () => {
       .flatMap((scene) => scene.steps)
       .find((step) => step.stepId === "create.click.1");
 
-    expect(clickStep?.durationInFrames).toBe(78);
+    // 650ms planned → 39 frames @60fps, NOT the 1300ms (78 frames) it took
+    // to capture. Presentation pacing stays snappy.
+    expect(clickStep?.durationInFrames).toBe(39);
   });
 });
 
