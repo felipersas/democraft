@@ -133,9 +133,13 @@ export async function runCli(argv = process.argv.slice(2)): Promise<CliResult> {
       manifest,
       timeline,
       outputFile: userResolve(outputFile),
-      recordingFile: manifest.recording?.path
-        ? resolveRecordingPath(manifest.recording.path)
-        : undefined,
+      // Render from screenshots by default. The recording (raw browser
+      // capture) shows page-load transitions and is opt-in via --recording;
+      // screenshots show the stable post-settle state for each step.
+      recordingFile:
+        args.useRecording && manifest.recording?.path
+          ? resolveRecordingPath(manifest.recording.path)
+          : undefined,
       screenshotSrcByStepId: await buildScreenshotDataUrls(
         manifest,
         args.manifestPath,

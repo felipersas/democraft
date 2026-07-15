@@ -44,6 +44,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
       index += 1;
     } else if (flag === "--no-capture") {
       parsed.noCapture = true;
+    } else if (flag === "--recording") {
+      parsed.useRecording = true;
     } else if (flag === "--entry") {
       parsed.entryPath = flags[index + 1];
       index += 1;

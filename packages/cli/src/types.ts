@@ -20,4 +20,13 @@ export type ParsedArgs = {
   port?: number;
   noCapture?: boolean;
   entryPath?: string;
+  /**
+   * Render from the raw browser recording (webm) instead of the per-step
+   * screenshots. Off by default: screenshots show the stable, post-settle
+   * states captured for each step (no loading flash, no half-rendered frames),
+   * which is what a polished demo needs. The recording is the unedited browser
+   * capture — useful when you want to show real-time interaction, at the cost
+   * of exposing page load transitions.
+   */
+  useRecording?: boolean;
 };

@@ -23,6 +23,7 @@ describe("cli", () => {
         "--output-dir",
         "out",
         "--headed",
+        "--recording",
       ]),
     ).toEqual({
       command: "capture",
@@ -31,6 +32,7 @@ describe("cli", () => {
       staticOnly: false,
       outputDir: "out",
       headless: false,
+      useRecording: true,
     });
   });
 
