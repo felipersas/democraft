@@ -60,10 +60,10 @@ schema e resposta 400 estruturada; metadata de render valida estados terminais
 e ranges, inclusive no writer. `/api/data` expõe violações persistidas como 422
 estruturado.
 
-**Fora desta rodada:** limite de bytes aplicado ao body antes de `request.json`,
-containment/`realpath` de paths, reload de imports ESM transitivos e validação
-dos eventos SSE no cliente. Esses itens permanecem respectivamente nas fases
-de segurança/robustez do Studio, sem política ad hoc nesta mudança.
+**Hardening posterior concluído:** rotas JSON mutáveis limitam o stream a 64 KiB
+antes do parse; paths usam containment canônico/`realpath`; e a compilação do
+Studio isola o grafo ESM transitivo. A validação dos eventos SSE no cliente
+permanece como robustez P2.
 
 ### Fase 1B: lifecycle de captura
 
@@ -92,10 +92,10 @@ sessão com Origin exata; bind/target loopback documentado e testado; histórico
 terminal reconstruído do filesystem, com identidade estável, cache
 single-flight e memória limitada durante a seleção dos candidatos mais recentes.
 
-**Resíduos P2:** a reconstrução precisa enumerar os diretórios para garantir
-recência quando a ordem do filesystem é arbitrária; o materializador inicial da
-CLI e a escrita live de `timeline.json` ainda devem convergir para uma única
-transação de geração atômica.
+**Resíduo P2:** a reconstrução precisa enumerar os diretórios para garantir
+recência quando a ordem do filesystem é arbitrária. O materializador inicial da
+CLI agora promove manifest, timeline, metadata e mídia como uma única geração;
+a escrita live de `timeline.json` usa promoção atômica contida.
 
 ### Resíduos de identidade/reload
 
