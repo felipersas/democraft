@@ -9,8 +9,6 @@ const config = {
     // typecheck runs as a separate turbo task
     ignoreBuildErrors: false,
   },
-  // externalize workspace packages so Next doesn't try to bundle their source
-  serverExternalPackages: ["@democraft/*"],
   transpilePackages: [
     "fumadocs-ui",
     "fumadocs-core",

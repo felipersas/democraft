@@ -10,29 +10,16 @@ const sans = Schibsted_Grotesk({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://democraft.dev"),
+  metadataBase: new URL("https://docs.democraft.dev"),
   title: {
-    default: "Democraft — Demos as code",
+    default: "Democraft Documentation",
     template: "%s · Democraft",
   },
   description:
-    "Create software demos as code. Playwright captures the browser, Remotion renders the video, one API for developers and AI agents.",
-  applicationName: "Democraft",
-  openGraph: {
-    type: "website",
-    siteName: "Democraft",
-    title: "Democraft — Demos as code",
-    description:
-      "Playwright captures the browser, Remotion renders the video, one API for developers and AI agents.",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Democraft — Demos as code",
-    description:
-      "Playwright captures the browser, Remotion renders the video, one API for developers and AI agents.",
-  },
+    "Documentation for authoring, capturing, and rendering Democraft demos.",
+  applicationName: "Democraft Documentation",
   alternates: {
-    canonical: "/",
+    canonical: "/en/docs/introduction",
     languages: {
       en: "/en/docs",
       "pt-BR": "/pt-BR/docs",

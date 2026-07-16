@@ -18,7 +18,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     for (const page of pages) {
       const slugs = page.slugs;
       entries.push({
-        url: `https://democraft.dev/${locale}/docs/${slugs.join("/")}`,
+        url: `https://docs.democraft.dev/${locale}/docs/${slugs.join("/")}`,
         lastModified: page.data.lastModified ?? undefined,
         changeFrequency: "weekly" as const,
         priority: 0.7,

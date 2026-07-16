@@ -2,10 +2,7 @@ import type { MetadataRoute } from "next";
 
 export default function robots(): MetadataRoute.Robots {
   return {
-    rules: {
-      userAgent: "*",
-      allow: "/",
-    },
-    sitemap: "https://docs.democraft.dev/sitemap.xml",
+    rules: { userAgent: "*", allow: "/" },
+    sitemap: "https://democraft.dev/sitemap.xml",
   };
 }

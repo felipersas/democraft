@@ -2,7 +2,6 @@
 
 import { Check, Copy } from "lucide-react";
 import { useState } from "react";
-import { CodeBlock, Pre } from "fumadocs-ui/components/codeblock";
 
 const commands = {
   npm: "npx democraft studio examples/demo-app/src/demo.ts",
@@ -48,7 +47,8 @@ function CopyCommandButton({ command }: { command: string }) {
   return (
     <button
       aria-label={copied ? "Command copied" : "Copy command"}
-      className="absolute top-2 right-2 z-10 inline-flex size-7 items-center justify-center rounded-md border border-white/10 bg-[#111216] text-[#a0a1aa] transition-colors hover:border-white/20 hover:text-[#f7f8f8]"
+      title={copied ? "Command copied" : "Copy command"}
+      className="absolute top-2 right-2 z-10 inline-flex size-7 items-center justify-center rounded-md border border-[var(--landing-border)] bg-[var(--landing-surface-2)] text-[var(--landing-muted)] transition-colors duration-[90ms] hover:bg-[var(--landing-hover)] hover:text-[var(--landing-foreground)]"
       onClick={copyCommand}
       type="button"
     >
@@ -60,14 +60,9 @@ function CopyCommandButton({ command }: { command: string }) {
 function CommandBlock({ command }: { command: string }) {
   return (
     <div className="relative">
-      <CodeBlock
-        allowCopy={false}
-        className="m-0 border-white/10 bg-[#111216] text-[#dfe0e3]"
-      >
-        <Pre className="pr-12 text-[12px] leading-[1.5]">
-          <code>{command}</code>
-        </Pre>
-      </CodeBlock>
+      <pre className="m-0 overflow-x-auto rounded-md border border-[var(--landing-border)] bg-[var(--landing-surface-1)] px-3 py-3 pr-12 text-[12px] leading-[18px] text-[var(--landing-foreground-secondary)]">
+        <code>{command}</code>
+      </pre>
       <CopyCommandButton command={command} />
     </div>
   );
@@ -78,14 +73,17 @@ export function InstallCommand() {
 
   return (
     <div className="max-w-full">
-      <div className="flex gap-5 border-b border-white/10" role="tablist">
+      <div
+        className="flex gap-1 border-b border-[var(--landing-border-subtle)]"
+        role="tablist"
+      >
         {(Object.keys(commands) as Array<keyof typeof commands>).map((item) => (
           <button
             aria-selected={manager === item}
-            className={`border-b py-2 text-sm font-medium transition-colors ${
+            className={`min-h-8 border-b px-2 py-1 text-[12px] font-medium transition-colors duration-[90ms] ${
               manager === item
-                ? "border-white text-[#f7f8f8]"
-                : "border-transparent text-[#8f9098] hover:text-[#f7f8f8]"
+                ? "border-[var(--landing-accent)] text-[var(--landing-foreground)]"
+                : "border-transparent text-[var(--landing-muted)] hover:bg-[var(--landing-hover)] hover:text-[var(--landing-foreground-secondary)]"
             }`}
             key={item}
             onClick={() => setManager(item)}

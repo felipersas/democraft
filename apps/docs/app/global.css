@@ -16,3 +16,17 @@ pre,
 code {
   font-feature-settings: "calt" 0;
 }
+
+/* Fumadocs 14 ships `fixed` and `md:sticky` in different cascade layers.
+   Keep the desktop sidebar in flow so the page starts after its 268px width. */
+@media (min-width: 768px) {
+  #nd-docs-layout > #nd-sidebar {
+    position: sticky;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
