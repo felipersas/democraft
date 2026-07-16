@@ -1,6 +1,7 @@
 import { ArrowRight, Github } from "lucide-react";
 import { BrandMark } from "@/components/landing/brand";
 import { CodePanel } from "@/components/landing/code-panel";
+import { HeroAurora } from "@/components/landing/hero-aurora";
 import { InstallCommand } from "@/components/landing/install-command";
 import {
   Comparison,
@@ -22,7 +23,7 @@ export function LandingPage() {
       <header className="sticky top-0 z-20 border-b border-[var(--landing-border-subtle)] bg-[rgba(15,16,18,0.94)]">
         <div className="landing-container flex h-16 items-center justify-between">
           <a
-            className="landing-link gap-2 text-[13px] text-[var(--landing-foreground)]"
+            className="landing-link gap-2 text-[15px] text-[var(--landing-foreground)]"
             href="#top"
           >
             <BrandMark />
@@ -33,19 +34,19 @@ export function LandingPage() {
             className="flex items-center gap-1 max-[720px]:hidden"
           >
             <a
-              className="rounded-md px-2 py-1 text-[12px] text-[var(--landing-muted)] no-underline transition-colors duration-[90ms] hover:bg-[var(--landing-hover)] hover:text-[var(--landing-foreground-secondary)]"
+              className="rounded-md px-2 py-1 text-[14px] text-[var(--landing-muted)] no-underline transition-colors duration-[90ms] hover:bg-[var(--landing-hover)] hover:text-[var(--landing-foreground-secondary)]"
               href="#how-it-works"
             >
               How it works
             </a>
             <a
-              className="rounded-md px-2 py-1 text-[12px] text-[var(--landing-muted)] no-underline transition-colors duration-[90ms] hover:bg-[var(--landing-hover)] hover:text-[var(--landing-foreground-secondary)]"
+              className="rounded-md px-2 py-1 text-[14px] text-[var(--landing-muted)] no-underline transition-colors duration-[90ms] hover:bg-[var(--landing-hover)] hover:text-[var(--landing-foreground-secondary)]"
               href="#principles"
             >
               Why code
             </a>
             <a
-              className="rounded-md px-2 py-1 text-[12px] text-[var(--landing-muted)] no-underline transition-colors duration-[90ms] hover:bg-[var(--landing-hover)] hover:text-[var(--landing-foreground-secondary)]"
+              className="rounded-md px-2 py-1 text-[14px] text-[var(--landing-muted)] no-underline transition-colors duration-[90ms] hover:bg-[var(--landing-hover)] hover:text-[var(--landing-foreground-secondary)]"
               href={docs}
             >
               Documentation
@@ -61,26 +62,21 @@ export function LandingPage() {
       </header>
 
       <section
-        className="relative border-b border-[var(--landing-border-subtle)]"
+        className="relative isolate min-h-[90svh] overflow-hidden border-b border-[var(--landing-border-subtle)]"
         id="top"
       >
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 top-0 h-[480px] bg-[radial-gradient(circle_at_74%_8%,var(--landing-accent-soft),transparent_40%)]"
-        />
-        <div className="landing-container relative grid grid-cols-[minmax(320px,0.78fr)_minmax(520px,1.22fr)] items-center gap-16 py-[clamp(80px,9vw,128px)] max-[1000px]:grid-cols-1 max-[1000px]:gap-12 max-[800px]:py-20">
-          <div className="flex max-w-[520px] flex-col items-start max-[1000px]:max-w-[680px]">
-            <p className="landing-kicker mb-5 flex items-center gap-2">
-              <span
-                className="size-1.5 rounded-full bg-[var(--landing-accent)]"
-                aria-hidden="true"
-              />
-              Open source · experimental
-            </p>
-            <h1 className="max-w-[640px] text-[clamp(42px,5vw,64px)] leading-[1.02] font-[550] tracking-[-0.035em] text-balance max-[560px]:text-[clamp(38px,12vw,52px)]">
+          className="pointer-events-none absolute inset-0 z-0 overflow-hidden"
+        >
+          <HeroAurora />
+        </div>
+        <div className="landing-container relative z-10 grid min-h-[90svh] grid-cols-[minmax(320px,0.78fr)_minmax(520px,1.22fr)] items-center gap-12 py-[clamp(80px,9vw,128px)] max-[1000px]:grid-cols-1 max-[800px]:py-20">
+          <div className="flex max-w-[560px] flex-col items-start max-[1000px]:max-w-[680px]">
+            <h1 className="max-w-[680px] text-[clamp(46px,5vw,68px)] leading-[1.02] font-[550] tracking-[-0.035em] text-balance max-[560px]:text-[clamp(40px,12vw,56px)]">
               Product demos that behave like software.
             </h1>
-            <p className="mt-6 max-w-[60ch] text-[15px] leading-6 text-pretty text-[var(--landing-foreground-secondary)]">
+            <p className="mt-6 max-w-[60ch] text-[18px] leading-7 text-pretty text-[var(--landing-foreground-secondary)]">
               Define the workflow in TypeScript. Playwright captures the real
               product. Remotion renders a repeatable video you can version,
               review, and regenerate.
@@ -157,7 +153,7 @@ export function LandingPage() {
 
       <section className="landing-container landing-section text-center">
         <h2 className="landing-heading mx-auto">Stop re-recording demos.</h2>
-        <p className="mx-auto mt-4 mb-6 text-[13px] leading-5 text-[var(--landing-foreground-secondary)]">
+        <p className="mx-auto mt-4 mb-6 text-[16px] leading-[26px] text-[var(--landing-foreground-secondary)]">
           Start versioning the experience that explains your product.
         </p>
         <div className="flex flex-wrap justify-center gap-2">
@@ -170,7 +166,7 @@ export function LandingPage() {
         </div>
       </section>
 
-      <footer className="landing-container grid grid-cols-[1fr_auto_1fr] items-center gap-5 border-t border-[var(--landing-border-subtle)] py-6 text-[11px] max-[800px]:grid-cols-1">
+      <footer className="landing-container grid grid-cols-[1fr_auto_1fr] items-center gap-5 border-t border-[var(--landing-border-subtle)] py-6 text-[13px] max-[800px]:grid-cols-1">
         <a
           className="landing-link text-[var(--landing-foreground)]"
           href="#top"
@@ -180,25 +176,25 @@ export function LandingPage() {
         </a>
         <div className="flex gap-4 max-[800px]:flex-wrap">
           <a
-            className="landing-link text-[11px] text-[var(--landing-muted)]"
+            className="landing-link text-[13px] text-[var(--landing-muted)]"
             href={docs}
           >
             Documentation
           </a>
           <a
-            className="landing-link text-[11px] text-[var(--landing-muted)]"
+            className="landing-link text-[13px] text-[var(--landing-muted)]"
             href={docsHref("/en/docs/examples/basic")}
           >
             Example
           </a>
           <a
-            className="landing-link text-[11px] text-[var(--landing-muted)]"
+            className="landing-link text-[13px] text-[var(--landing-muted)]"
             href={docsHref("/en/docs/contribute/development")}
           >
             Contribute
           </a>
           <a
-            className="landing-link text-[11px] text-[var(--landing-muted)]"
+            className="landing-link text-[13px] text-[var(--landing-muted)]"
             href={github}
           >
             GitHub

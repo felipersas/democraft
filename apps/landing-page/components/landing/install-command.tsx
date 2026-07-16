@@ -60,7 +60,7 @@ function CopyCommandButton({ command }: { command: string }) {
 function CommandBlock({ command }: { command: string }) {
   return (
     <div className="relative">
-      <pre className="m-0 overflow-x-auto rounded-md border border-[var(--landing-border)] bg-[var(--landing-surface-1)] px-3 py-3 pr-12 text-[12px] leading-[18px] text-[var(--landing-foreground-secondary)]">
+      <pre className="m-0 overflow-x-auto rounded-md border border-[var(--landing-border)] bg-[var(--landing-surface-1)] px-3 py-3 pr-12 text-[14px] leading-[22px] text-[var(--landing-foreground-secondary)]">
         <code>{command}</code>
       </pre>
       <CopyCommandButton command={command} />
@@ -80,7 +80,7 @@ export function InstallCommand() {
         {(Object.keys(commands) as Array<keyof typeof commands>).map((item) => (
           <button
             aria-selected={manager === item}
-            className={`min-h-8 border-b px-2 py-1 text-[12px] font-medium transition-colors duration-[90ms] ${
+            className={`min-h-8 border-b px-2 py-1 text-[14px] font-medium transition-colors duration-[90ms] ${
               manager === item
                 ? "border-[var(--landing-accent)] text-[var(--landing-foreground)]"
                 : "border-transparent text-[var(--landing-muted)] hover:bg-[var(--landing-hover)] hover:text-[var(--landing-foreground-secondary)]"

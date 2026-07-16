@@ -83,11 +83,11 @@ export function HowItWorks() {
             className="group grid min-h-16 grid-cols-[32px_1fr_16px] gap-3 border-b border-[var(--landing-border-subtle)] py-4 transition-colors duration-[90ms] hover:bg-[var(--landing-surface-1)] max-[560px]:grid-cols-[24px_1fr]"
             key={title}
           >
-            <span className="text-[11px] leading-5 font-medium text-[var(--landing-subtle)]">
+            <span className="text-[13px] leading-[26px] font-medium text-[var(--landing-subtle)]">
               0{index + 1}
             </span>
             <div>
-              <h3 className="mb-1 text-[14px] leading-5 font-medium">
+              <h3 className="mb-1 text-[18px] leading-[26px] font-medium">
                 {title}
               </h3>
               <p className="landing-copy max-w-[58ch]">{description}</p>
@@ -118,7 +118,9 @@ export function ProductPrinciples() {
             className="min-h-36 border-t border-[var(--landing-border-subtle)] py-6 pr-10 even:border-l even:border-l-[var(--landing-border-subtle)] even:pr-0 even:pl-10 max-[560px]:min-h-0 max-[560px]:px-0 max-[560px]:even:border-l-0"
             key={title}
           >
-            <h3 className="mb-1 text-[14px] leading-5 font-medium">{title}</h3>
+            <h3 className="mb-1 text-[18px] leading-[26px] font-medium">
+              {title}
+            </h3>
             <p className="landing-copy max-w-[58ch]">{description}</p>
           </article>
         ))}
@@ -136,8 +138,8 @@ export function Comparison() {
           Less take management. More product iteration.
         </h2>
       </div>
-      <div className="border-t border-[var(--landing-border-subtle)] text-[12px]">
-        <div className="grid min-h-10 grid-cols-[1.1fr_0.9fr_1.25fr] items-center gap-4 border-b border-[var(--landing-border-subtle)] py-2 text-[11px] leading-4 font-medium text-[var(--landing-muted)] max-[560px]:grid-cols-2">
+      <div className="border-t border-[var(--landing-border-subtle)] text-[15px] leading-6">
+        <div className="grid min-h-10 grid-cols-[1.1fr_0.9fr_1.25fr] items-center gap-4 border-b border-[var(--landing-border-subtle)] py-2 text-[13px] leading-5 font-medium text-[var(--landing-muted)] max-[560px]:grid-cols-2">
           <span className="max-[560px]:hidden">Workflow</span>
           <span>Manual recording</span>
           <span>Democraft</span>
@@ -179,7 +181,7 @@ export function FAQ() {
             className="group border-b border-[var(--landing-border-subtle)]"
             key={question}
           >
-            <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between py-3 text-[14px] leading-5 font-medium transition-colors duration-[90ms] hover:text-[var(--landing-foreground-secondary)] [&::-webkit-details-marker]:hidden">
+            <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between py-3 text-[18px] leading-[26px] font-medium transition-colors duration-[90ms] hover:text-[var(--landing-foreground-secondary)] [&::-webkit-details-marker]:hidden">
               {question}
               <span
                 className="text-[18px] leading-none font-light text-[var(--landing-muted)] transition-transform duration-150 group-open:rotate-45 motion-reduce:transition-none"

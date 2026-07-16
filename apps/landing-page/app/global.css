@@ -22,15 +22,15 @@
   --landing-radius-sm: 4px;
   --landing-radius-md: 6px;
   --landing-radius-lg: 12px;
-  --landing-content: 1200px;
+  --landing-content: 1360px;
   --landing-narrow: 680px;
   min-height: 100vh;
   overflow: clip;
   background: var(--landing-background);
   color: var(--landing-foreground);
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
-  font-size: 13px;
-  line-height: 20px;
+  font-size: 16px;
+  line-height: 26px;
 }
 
 .landing-shell *,
@@ -40,7 +40,7 @@
 }
 
 .landing-container {
-  width: min(calc(100% - 48px), var(--landing-content));
+  width: min(calc(100% - 32px), var(--landing-content));
   margin-inline: auto;
 }
 
@@ -51,15 +51,15 @@
 
 .landing-kicker {
   color: var(--landing-muted);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 400;
-  line-height: 16px;
+  line-height: 20px;
 }
 
 .landing-heading {
-  max-width: 640px;
+  max-width: 720px;
   color: var(--landing-foreground);
-  font-size: clamp(28px, 3.5vw, 40px);
+  font-size: clamp(36px, 3.5vw, 48px);
   font-weight: 550;
   letter-spacing: -0.025em;
   line-height: 1.12;
@@ -69,9 +69,9 @@
 .landing-copy {
   max-width: 68ch;
   color: var(--landing-foreground-secondary);
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 400;
-  line-height: 20px;
+  line-height: 26px;
   text-wrap: pretty;
 }
 
@@ -84,7 +84,7 @@
   padding: 6px 10px;
   border: 1px solid transparent;
   border-radius: var(--landing-radius-md);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   line-height: 20px;
   text-decoration: none;
