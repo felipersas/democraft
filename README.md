@@ -22,9 +22,9 @@ developers or AI agents maintain it through the same API.
 
 ## See it in action
 
-[![Watch a Democraft-rendered product walkthrough](./apps/landing-page/public/demos/talento-pipeline-poster.webp)](./apps/landing-page/public/demos/talento-pipeline.mp4)
+[![Democraft-rendered product walkthrough](./apps/landing-page/public/demos/talento-pipeline-preview.gif)](./apps/landing-page/public/demos/talento-pipeline.mp4)
 
-[▶ Watch the rendered demo (MP4)](./apps/landing-page/public/demos/talento-pipeline.mp4)
+The preview plays automatically. [Open the full-resolution MP4](./apps/landing-page/public/demos/talento-pipeline.mp4).
 
 > [!NOTE]
 > Democraft is pre-release. The `0.1.0-beta.0` packages are configured and
