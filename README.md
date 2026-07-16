@@ -20,6 +20,12 @@ developers or AI agents maintain it through the same API.
 
 </div>
 
+## See it in action
+
+[![Watch a Democraft-rendered product walkthrough](./apps/landing-page/public/demos/talento-pipeline-poster.webp)](./apps/landing-page/public/demos/talento-pipeline.mp4)
+
+[▶ Watch the rendered demo (MP4)](./apps/landing-page/public/demos/talento-pipeline.mp4)
+
 > [!NOTE]
 > Democraft is pre-release. The `0.1.0-beta.0` packages are configured and
 > verified from clean local tarball installs; they still need to be published
@@ -274,7 +280,7 @@ make check
 | `@democraft/preview`    | Deprecated standalone HTML artifact preview.                 |
 | `@democraft/testing`    | Shared fixtures and integration helpers.                     |
 | `@democraft/cli`        | The `democraft` command-line interface.                      |
-| `@democraft/studio`     | Production Studio runtime installed internally by the CLI.    |
+| `@democraft/studio`     | Production Studio runtime installed internally by the CLI.   |
 
 The dependency graph and package boundaries are documented in
 [Architecture](./docs/architecture/overview.md).
