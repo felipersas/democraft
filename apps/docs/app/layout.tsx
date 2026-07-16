@@ -18,6 +18,10 @@ export const metadata: Metadata = {
   description:
     "Documentation for authoring, capturing, and rendering Democraft demos.",
   applicationName: "Democraft Documentation",
+  icons: {
+    icon: "/brand/democraft-mark-dark.png",
+    shortcut: "/brand/democraft-mark-dark.png",
+  },
   alternates: {
     canonical: "/en/docs/introduction",
     languages: {

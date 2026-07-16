@@ -14,6 +14,10 @@ export const metadata: Metadata = {
   description:
     "Create software demos as code. Playwright captures the browser, Remotion renders the video, one API for developers and AI agents.",
   applicationName: "Democraft",
+  icons: {
+    icon: "/brand/democraft-mark-dark.png",
+    shortcut: "/brand/democraft-mark-dark.png",
+  },
   openGraph: {
     type: "website",
     siteName: "Democraft",
