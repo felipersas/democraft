@@ -3,12 +3,7 @@ import { BrandMark } from "@/components/landing/brand";
 import { CodePanel } from "@/components/landing/code-panel";
 import { HeroAurora } from "@/components/landing/hero-aurora";
 import { InstallCommand } from "@/components/landing/install-command";
-import {
-  Comparison,
-  FAQ,
-  HowItWorks,
-  ProductPrinciples,
-} from "@/components/landing/sections";
+import { Comparison, FAQ, HowItWorks } from "@/components/landing/sections";
 
 const docsBase = (
   process.env.NEXT_PUBLIC_DOCS_URL ?? "https://docs.democraft.dev"
@@ -16,6 +11,51 @@ const docsBase = (
 const docsHref = (path: string) => `${docsBase}${path}`;
 const docs = docsHref("/en/docs/introduction");
 const github = "https://github.com/felipersas/democraft";
+
+const talentoDemo = `import { byText, defineDemo, defineTargets } from "@democraft/core";
+
+const targets = defineTargets({
+  dashboard: byText("Operação de recrutamento"),
+  applications: byText("Candidaturas por mês"),
+});
+
+export default defineDemo({
+  id: "talento-overview",
+  source: { baseUrl: "http://localhost:3001" },
+  targets,
+  async run({ demo }) {
+    await demo.scene("overview", async (scene) => {
+      await scene.goto("/app/nimbus-tech");
+      await scene.establish("dashboard");
+      await scene.focus("applications");
+      await scene.callout("applications", {
+        title: "Hiring activity over time",
+        renderer: "remocn.callout-dark",
+      });
+    });
+  },
+});`;
+
+const remocnDemo = `import { defineDemo, defineVisual } from "@democraft/core";
+import { SoftBlurIn } from "./components/remocn/soft-blur-in";
+
+export default defineDemo({
+  id: "launch",
+  title: "Launch",
+  source: { baseUrl: "http://localhost:3000" },
+  visuals: {
+    "local.launch-title": defineVisual(SoftBlurIn),
+  },
+  async run({ demo }) {
+    await demo.scene("intro", async (scene) => {
+      await scene.visual(
+        "local.launch-title",
+        { text: "Analytics, redesigned", speed: 1.2 },
+        { duration: "1.5s" },
+      );
+    });
+  },
+});`;
 
 export function LandingPage() {
   return (
@@ -41,9 +81,9 @@ export function LandingPage() {
             </a>
             <a
               className="rounded-md px-2 py-1 text-[14px] text-[var(--landing-muted)] no-underline transition-colors duration-[90ms] hover:bg-[var(--landing-hover)] hover:text-[var(--landing-foreground-secondary)]"
-              href="#principles"
+              href="#components"
             >
-              Why code
+              Components
             </a>
             <a
               className="rounded-md px-2 py-1 text-[14px] text-[var(--landing-muted)] no-underline transition-colors duration-[90ms] hover:bg-[var(--landing-hover)] hover:text-[var(--landing-foreground-secondary)]"
@@ -127,11 +167,46 @@ export function LandingPage() {
             Explore the authoring API <ArrowRight size={14} />
           </a>
         </div>
-        <CodePanel />
+        <CodePanel
+          code={talentoDemo}
+          path="talento-saas / src"
+          filename="demo.ts"
+          label="TypeScript demo definition"
+        />
       </section>
 
       <HowItWorks />
-      <ProductPrinciples />
+
+      <section
+        className="landing-container landing-section grid grid-cols-[minmax(280px,0.7fr)_minmax(0,1.3fr)] items-center gap-20 max-[800px]:grid-cols-1 max-[800px]:gap-10"
+        id="components"
+      >
+        <div>
+          <p className="landing-kicker mb-4">Visual components</p>
+          <h2 className="landing-heading">
+            Use ready-made components—or build and integrate your own.
+          </h2>
+          <p className="landing-copy mt-5">
+            Titles, captions, and callouts are React components rendered by
+            Remotion. Copy a cinematic one from remocn — Remotion meets shadcn —
+            or write your own. The source stays in your project, and TypeScript
+            checks both the renderer ID and its props.
+          </p>
+          <a
+            className="landing-link mt-5"
+            href={docsHref("/en/docs/concepts/components")}
+          >
+            Explore remocn components <ArrowRight size={14} />
+          </a>
+        </div>
+        <CodePanel
+          code={remocnDemo}
+          path="acme-app / src"
+          filename="demo.ts"
+          label="TypeScript demo registering a custom visual component"
+        />
+      </section>
+
       <Comparison />
 
       <section className="landing-container landing-section grid grid-cols-[0.68fr_1.32fr] gap-20 max-[800px]:grid-cols-1 max-[800px]:gap-10">

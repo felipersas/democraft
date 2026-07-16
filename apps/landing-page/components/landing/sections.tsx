@@ -19,25 +19,6 @@ const steps = [
   ],
 ];
 
-const principles = [
-  [
-    "Real browser evidence",
-    "The application is exercised in Playwright instead of recreated for a recording.",
-  ],
-  [
-    "Capture once",
-    "Compatible captured artifacts stay useful while the presentation changes.",
-  ],
-  [
-    "Typed, semantic targets",
-    "Targets use roles, labels, text, and test IDs—not an anonymous pile of selectors.",
-  ],
-  [
-    "Reviewable production",
-    "A demo is ordinary source code: diffable, versioned, and inspectable by people or agents.",
-  ],
-];
-
 const faqs = [
   [
     "Is Democraft a screen recorder?",
@@ -99,32 +80,6 @@ export function HowItWorks() {
           </li>
         ))}
       </ol>
-    </section>
-  );
-}
-
-export function ProductPrinciples() {
-  return (
-    <section className="landing-container landing-section" id="principles">
-      <div className="mb-16 max-w-[680px]">
-        <p className="landing-kicker mb-4">Why code</p>
-        <h2 className="landing-heading">
-          Video direction with an engineering memory.
-        </h2>
-      </div>
-      <div className="grid grid-cols-2 max-[560px]:grid-cols-1">
-        {principles.map(([title, description]) => (
-          <article
-            className="min-h-36 border-t border-[var(--landing-border-subtle)] py-6 pr-10 even:border-l even:border-l-[var(--landing-border-subtle)] even:pr-0 even:pl-10 max-[560px]:min-h-0 max-[560px]:px-0 max-[560px]:even:border-l-0"
-            key={title}
-          >
-            <h3 className="mb-1 text-[18px] leading-[26px] font-medium">
-              {title}
-            </h3>
-            <p className="landing-copy max-w-[58ch]">{description}</p>
-          </article>
-        ))}
-      </div>
     </section>
   );
 }
