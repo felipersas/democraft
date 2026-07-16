@@ -44,9 +44,9 @@ export function SoftBlurIn({
           fontSize,
           fontWeight,
           color,
-          letterSpacing: "-0.05em",
+          letterSpacing: "-0.03em",
           fontFamily:
-            "var(--font-geist-sans), -apple-system, BlinkMacSystemFont, sans-serif",
+            "var(--font-geist-sans, -apple-system, BlinkMacSystemFont, sans-serif)",
         }}
       >
         {chars.map((char, i) => {

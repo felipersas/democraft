@@ -21,6 +21,13 @@ export type CalloutProps = {
   box: BoundingBox;
 };
 
+export type CalloutTheme = "dark" | "light";
+
+export type ModernCalloutProps = CalloutProps & {
+  accentColor?: string;
+  theme?: CalloutTheme;
+};
+
 export type VisualRegistry = {
   captions: Record<string, VisualComponent<CaptionProps>>;
   callouts: Record<string, VisualComponent<CalloutProps>>;
@@ -174,7 +181,7 @@ export function Caption({ opacity, overlay }: CaptionProps) {
       style: {
         position: "absolute",
         left: "50%",
-        bottom: 74,
+        bottom: 150,
         transform: "translateX(-50%)",
         maxWidth: 980,
         padding: "18px 26px",
@@ -196,7 +203,7 @@ export function KineticCaption({ opacity, overlay }: CaptionProps) {
       style: {
         position: "absolute",
         left: "50%",
-        bottom: 96,
+        bottom: 170,
         transform: `translateX(-50%) scale(${0.96 + opacity * 0.04})`,
         width: 980,
         maxWidth: 980,
@@ -243,34 +250,93 @@ export function Callout({ box, opacity, overlay }: CalloutProps) {
   );
 }
 
-export function GlassCallout({
+export function ModernCallout({
+  accentColor = "#68df62",
   box,
   opacity,
   overlay,
-}: CalloutProps): React.ReactElement {
+  theme = "dark",
+}: ModernCalloutProps): React.ReactElement {
+  const dark = theme === "dark";
+
   return React.createElement(
     "div",
     {
       style: {
-        ...calloutStyle(box, opacity, "rgba(255,255,255,.86)"),
-        color: "#121722",
-        fontFamily: "Inter, system-ui, sans-serif",
+        ...calloutStyle(
+          box,
+          opacity,
+          dark ? "rgba(14, 16, 18, 0.92)" : "rgba(250, 250, 249, 0.94)",
+        ),
+        padding: "20px 22px 21px",
+        overflow: "hidden",
+        color: dark ? "#f5f5f4" : "#18181b",
+        border: `1px solid ${dark ? "rgba(255,255,255,.14)" : "rgba(24,24,27,.14)"}`,
+        borderRadius: 12,
+        boxShadow: dark
+          ? "0 24px 64px rgba(0,0,0,.42), inset 0 1px rgba(255,255,255,.04)"
+          : "0 24px 64px rgba(15,23,42,.18), inset 0 1px rgba(255,255,255,.7)",
+        backdropFilter: "blur(18px)",
+        filter: `blur(${(1 - opacity) * 6}px)`,
+        fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+        transform: `translateY(${(1 - opacity) * 14}px) scale(${0.985 + opacity * 0.015})`,
+        transformOrigin: "top left",
       },
     },
+    React.createElement("div", {
+      style: {
+        position: "absolute",
+        top: 0,
+        left: 22,
+        width: 42,
+        height: 2,
+        backgroundColor: accentColor,
+      },
+    }),
     React.createElement(
       "strong",
-      { style: { display: "block", color: "#185eaa", fontSize: 26 } },
+      {
+        style: {
+          display: "block",
+          fontSize: 25,
+          fontWeight: 650,
+          letterSpacing: "-0.025em",
+          lineHeight: 1.2,
+        },
+      },
       overlay.title,
     ),
     overlay.description
       ? React.createElement(
           "p",
-          { style: { margin: "10px 0 0", fontSize: 21, lineHeight: 1.45 } },
+          {
+            style: {
+              margin: "9px 0 0",
+              color: dark ? "rgba(245,245,244,.72)" : "rgba(24,24,27,.68)",
+              fontSize: 19,
+              lineHeight: 1.46,
+            },
+          },
           overlay.description,
         )
       : null,
   );
 }
+
+export function DarkCallout(props: CalloutProps): React.ReactElement {
+  return React.createElement(ModernCallout, { ...props, theme: "dark" });
+}
+
+export function LightCallout(props: CalloutProps): React.ReactElement {
+  return React.createElement(ModernCallout, {
+    ...props,
+    accentColor: "#6558d3",
+    theme: "light",
+  });
+}
+
+/** @deprecated Use ModernCallout or a themed renderer ID. */
+export const GlassCallout = LightCallout;
 
 /**
  * The built-in visual registry. Maps renderer IDs (the strings authors pass as
@@ -293,6 +359,8 @@ export const defaultVisualRegistry: VisualRegistry = {
   callouts: {
     "motion.callout": Callout,
     "remocn.glass-callout": GlassCallout,
+    "remocn.callout-dark": DarkCallout,
+    "remocn.callout-light": LightCallout,
   },
   visuals: {},
 };

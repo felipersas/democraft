@@ -24,11 +24,16 @@ export {
   Callout,
   KineticCaption,
   GlassCallout,
+  ModernCallout,
+  DarkCallout,
+  LightCallout,
   OverlayLayer,
   type VisualComponent,
   type GenericVisualComponent,
   type CaptionProps,
   type CalloutProps,
+  type CalloutTheme,
+  type ModernCalloutProps,
   type VisualRegistry,
 } from "./overlays";
 
@@ -40,3 +45,8 @@ export {
 } from "./registry";
 
 export { remocnAdapter, type DemocraftAdapter } from "./adapters/remocn";
+
+export {
+  SoftBlurIn,
+  type SoftBlurInProps,
+} from "./components/remocn/soft-blur-in";

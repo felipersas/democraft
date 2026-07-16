@@ -167,13 +167,18 @@ describe("remotion", () => {
     expect(() =>
       resolveCalloutComponent(defaultVisualRegistry, "local.missing"),
     ).toThrow(
-      'Unknown callout renderer "local.missing". Registered renderers: motion.callout, remocn.glass-callout.',
+      'Unknown callout renderer "local.missing". Registered renderers: motion.callout, remocn.callout-dark, remocn.callout-light, remocn.glass-callout.',
     );
     expect(() =>
       resolveVisualComponent(defaultVisualRegistry, "local.missing"),
     ).toThrow(
       'Unknown visual renderer "local.missing". Registered renderers: none.',
     );
+  });
+
+  it("ships dark and light callout renderers", () => {
+    expect(resolveCalloutComponent(defaultVisualRegistry, "remocn.callout-dark")).toBeDefined();
+    expect(resolveCalloutComponent(defaultVisualRegistry, "remocn.callout-light")).toBeDefined();
   });
 
   it("defines and resolves arbitrary typed visual components", () => {

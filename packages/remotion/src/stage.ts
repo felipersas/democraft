@@ -175,8 +175,7 @@ export function Backdrop() {
     style: {
       position: "absolute",
       inset: 0,
-      background:
-        "linear-gradient(135deg, #10131a 0%, #18202b 52%, #0d1118 100%)",
+      background: "#050505",
     },
   });
 }
@@ -209,8 +208,8 @@ export function StageMedia({
         top: stage.y,
         width: capture.width * stage.scale,
         height: capture.height * stage.scale,
-        borderRadius: 18,
-        boxShadow: "0 28px 90px rgba(0,0,0,.35)",
+        borderRadius: 0,
+        boxShadow: "none",
         overflow: "hidden",
       },
     },
