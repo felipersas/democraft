@@ -1,19 +1,43 @@
 # Publishing Democraft to npm
 
-This is the maintainer checklist for the first public npm release. Do not publish until every item in **Current blockers** is resolved.
+This is the maintainer checklist for public npm releases.
 
-## Current blockers
+## Routine beta release
 
-1. The `@democraft` npm organization must exist and the publishing account must have write access.
+Choose only the changed packages, in dependency order. For example, when both
+Studio and CLI changed:
 
-The public packages are prepared as `0.1.0-beta.0`, build during `prepack`,
-declare MIT/repository/runtime metadata, and publish explicitly to the public
-npm registry. Libraries and the CLI include only `dist/`; the Studio includes
-only its production Next.js manifests, server bundle, and static assets.
+```bash
+make release-beta-prepare SELECTED="studio cli"
+```
 
-## 1. Prepare the packages
+This increments their beta versions, refreshes the lockfile, runs the complete
+repository check, and performs publish dry-runs. Review and commit the version
+changes, then publish:
 
-Choose one release version and apply it to all public packages. They currently use `0.1.0-beta.0`. Internal `workspace:*` dependencies are converted to the package version when pnpm packs them, so the entire dependency graph must exist in the registry.
+```bash
+git add packages/*/package.json pnpm-lock.yaml
+git commit -m "chore: release studio and cli"
+git push
+make release-beta-publish SELECTED="studio cli" CONFIRM=publish
+```
+
+The publish target refuses a dirty worktree or missing npm authentication.
+Never reuse a published version. Publish dependencies before consumers, such
+as `studio` before `cli`.
+
+## Package preparation
+
+Public packages build during `prepack`, declare MIT/repository/runtime
+metadata, and publish explicitly to the public npm registry. Libraries and the
+CLI include only `dist/`; the Studio includes only its production Next.js
+manifests, server bundle, and static assets.
+
+### Package metadata
+
+Increment every changed package and any consumer that must point to its new
+version. Internal `workspace:*` dependencies are converted to registry versions
+when pnpm packs them, so dependencies must be published before consumers.
 
 For each public package:
 
@@ -28,7 +52,7 @@ public because it is the production runtime dependency behind
 `npx democraft studio`; users should still install the CLI rather than the
 Studio directly.
 
-## 2. Authenticate and verify the scope
+### Authentication
 
 Create or confirm the `@democraft` organization on npm, enable 2FA on the maintainer account, then authenticate:
 
@@ -40,7 +64,7 @@ npm org ls democraft
 
 Interactive publishing requires 2FA. For CI, prefer npm trusted publishing with OIDC instead of storing a long-lived npm token.
 
-## 3. Run the release checks
+### Manual checks
 
 From the repository root:
 
@@ -57,9 +81,10 @@ make publish-dry-run
 
 Repeat `pack` and `pnpm publish --dry-run --access public` from inside every public package directory. Use pnpm for workspace publishing because it replaces `workspace:*` with registry-compatible versions. Check that there are no source maps with sensitive paths, fixtures, traces, recordings, environment files, caches, or unrelated source files.
 
-## 4. Publish in dependency order
+### Full-graph publication
 
-Use a prerelease tag for the first external test, for example version `0.1.0-beta.0` with `--tag beta`. Publish the packages in this order:
+Use the `beta` tag for prereleases. When publishing the full graph, use this
+dependency order:
 
 1. `@democraft/schema`
 2. `@democraft/core`, `@democraft/playwright`, `@democraft/preview`, `@democraft/remotion`, and `@democraft/timeline`
@@ -68,7 +93,8 @@ Use a prerelease tag for the first external test, for example version `0.1.0-bet
 5. `@democraft/studio`
 6. `@democraft/cli`
 
-The guarded Make target publishes in that order:
+For an intentional full-graph publication, the guarded Make target publishes
+in that order:
 
 ```bash
 make publish CONFIRM=publish TAG=beta
@@ -76,7 +102,7 @@ make publish CONFIRM=publish TAG=beta
 
 Never reuse a published version: npm package name/version pairs are immutable. If a step fails after some packages were published, fix the problem, increment the version, and continue with a consistent set.
 
-## 5. Test exactly what users install
+## Test exactly what users install
 
 Create a clean directory outside the monorepo:
 
@@ -101,7 +127,7 @@ The Studio command is a release gate: it must start the production build from
 this clean installation, serve `/` and `/api/data`, and shut down cleanly. It
 must not invoke pnpm or depend on a monorepo checkout.
 
-## 6. Promote the tested release
+## Promote the tested release
 
 After the beta tarballs pass the clean-install smoke test, publish a stable version with the default `latest` tag, or promote an already tested version deliberately:
 

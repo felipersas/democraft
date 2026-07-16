@@ -8,13 +8,14 @@ import {
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { i18n, translations, type Locale } from "@/lib/i18n";
+import { getMDXComponents } from "@/components/mdx";
 
 /**
  * Docs page — handles every locale and every slug.
  *
  * URL shape: `/<lang>/docs/<...slug>`
  *   - `/en/docs/introduction`       English introduction page
- *   - `/pt-BR/docs/introducao`      Portuguese introduction page
+ *   - `/pt-BR/docs/introduction`    Portuguese introduction page
  *
  * `lang` is a route param (validated against known locales). `slug` is the
  * content path within that locale. The source resolves pages by language
@@ -25,11 +26,14 @@ export const dynamicParams = false;
 /** First content page for each locale — where `/<lang>/docs` redirects to. */
 const localeLanding: Record<Locale, string> = {
   en: "introduction",
-  "pt-BR": "introducao",
+  "pt-BR": "introduction",
 };
 
 export function generateStaticParams() {
-  return source.generateParams();
+  return [
+    ...source.generateParams(),
+    ...i18n.locales.map((lang) => ({ lang, slug: [] })),
+  ];
 }
 
 export async function generateMetadata({
@@ -56,9 +60,8 @@ export async function generateMetadata({
 }
 
 /**
- * hreflang alternates. Since the two locales use translated slugs, we can't
- * just swap the locale prefix — we look up the equivalent page in each locale
- * and fall back to that locale's landing page if no translation exists.
+ * hreflang alternates. Locale-suffixed MDX files share the same canonical
+ * pathname, so the locale prefix is the only part that changes.
  */
 function buildHreflang(slug: string[]): Record<string, string> {
   const result: Record<string, string> = {};
@@ -104,7 +107,7 @@ export default async function Page({
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription>{page.data.description}</DocsDescription>
       <DocsBody>
-        <MDX />
+        <MDX components={getMDXComponents()} />
       </DocsBody>
     </DocsPage>
   );

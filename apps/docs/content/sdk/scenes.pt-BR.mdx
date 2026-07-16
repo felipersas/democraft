@@ -1,12 +1,12 @@
 ---
 title: Cenas
-description: A referência dos métodos do construtor DemoScene — todos os catorze tipos de passo.
+description: A referência dos métodos do construtor DemoScene — todos os quinze tipos de passo.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
 import { TypeTable } from "fumadocs-ui/components/type-table";
 
-O construtor `DemoScene` é o que você conduz dentro de `demo.scene(id, run)`. Ele tem catorze métodos async — um por tipo de passo. Esta página é a referência método a método.
+O construtor `DemoScene` é o que você conduz dentro de `demo.scene(id, run)`. Ele tem quinze métodos async — um por tipo de passo. Esta página é a referência método a método.
 
 ## Ações de navegador
 
@@ -177,5 +177,5 @@ await scene.cue(name: string, options?: { id?: string }): Promise<void>
 Solta um marcador nomeado na timeline. Cues não renderizam visualmente — são pontos de referência para o Studio e consumidores programáticos.
 
 <Callout type="info">
-Adicionar, remover ou reordenar qualquer passo é uma **mudança estrutural** que dispara uma re-captura. Editar textos/durações/renderers em um passo existente é uma **mudança de conteúdo** que apenas re-resolve a timeline. Veja [captura única](../pipeline/captura-unica).
+Adicionar, remover ou reordenar qualquer passo é uma **mudança estrutural** que dispara uma re-captura. Editar textos/durações/renderers em um passo existente é uma **mudança de conteúdo** que apenas re-resolve a timeline. Veja [captura única](../pipeline/capture-once).
 </Callout>

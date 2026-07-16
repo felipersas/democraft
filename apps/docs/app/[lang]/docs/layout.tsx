@@ -9,7 +9,7 @@ import { LanguageSelect } from "@/components/language-select";
  *
  * The `lang` route param selects which locale's page tree to render in the
  * sidebar, so navigation only shows pages in the current language. The language
- * switcher lives in the sidebar footer.
+ * switcher uses the shared navigation slot, shown in both desktop and mobile UI.
  *
  * `children` is passed directly to DocsLayout (no wrapper) so Fumadocs controls
  * the page centering and max-width.
@@ -40,16 +40,16 @@ export default async function DocsLayoutRoute({
   const navOptions = {
     title: "Democraft",
     url: `/${locale}/docs`,
+    children: (
+      <div className="ms-auto">
+        <LanguageSelect current={locale} />
+      </div>
+    ),
   };
 
   const sidebarOptions: DocsLayoutProps["sidebar"] = {
     title: "Democraft",
     defaultOpenLevel: 1,
-    footer: (
-      <div className="p-2">
-        <LanguageSelect current={locale} />
-      </div>
-    ),
   };
 
   return (

@@ -1,12 +1,12 @@
 ---
 title: Steps
-description: The fourteen step kinds that compose a scene.
+description: The fifteen step kinds that compose a scene.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
 import { TypeTable } from "fumadocs-ui/components/type-table";
 
-A **step** is the atomic unit of a scene. Democraft has fourteen step kinds, grouped into five families: browser actions, assertions, camera moves, timeline control, and overlays.
+A **step** is the atomic unit of a scene. Democraft has fifteen step kinds, grouped into five families: browser actions, assertions, camera moves, timeline control, and overlays.
 
 ## Browser actions
 
@@ -80,6 +80,7 @@ Steps that add text or annotation layers on top of the captured frames.
 |--------|------|-------------|
 | `scene.caption(text, opts?)` | `overlay.caption` | Full-width or centered caption text. |
 | `scene.callout(target, opts)` | `overlay.callout` | Annotated pointer at a target. |
+| `scene.visual(id, props, opts?)` | `overlay.visual` | A custom React visual declared in `demo.ts`. |
 
 `callout` requires `{ title }` and accepts `{ description, renderer }`:
 
@@ -92,6 +93,8 @@ await scene.callout("project-card", {
 ```
 
 `caption` and `callout` accept a `renderer` option — a named visual component. The built-in renderers are `motion.caption` (default), `remocn.kinetic-title`, `motion.callout` (default), and `remocn.glass-callout`. **Remocn** is the primary component library; see [Components and remocn](./components) for the full catalog and how to add your own.
+
+`visual` accepts a visual ID, JSON-serializable props, and an optional `{ duration }`. It renders a component declared in the demo's `visuals` map. See [Components and remocn](./components) for a complete example.
 
 ## Cue markers
 

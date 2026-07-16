@@ -16,7 +16,7 @@ Uma demo tem quatro partes:
 | `id` | Identificador estável. Usado para cache, diretório de captura e entrada do hash de conteúdo do IR. |
 | `title` | Nome legível por humanos. Exibido no Studio e nos diagnósticos. |
 | `source` | Onde o app-alvo vive: `baseUrl` (obrigatório) e `initialPath` (opcional). |
-| `targets` | Um mapa de contratos de elementos nomeados. Veja [alvos](./alvos). |
+| `targets` | Um mapa de contratos de elementos nomeados. Veja [alvos](./targets). |
 | `run` | Uma função async que conduz a captura via `demo.scene(...)`. |
 
 ```ts title="demo.ts"
@@ -54,7 +54,7 @@ Escolha um `id` uma vez e mantenha-o. Renomeá-lo invalida o cache de captura.
 
 `run` recebe `{ demo }`. Você chama `demo.scene(id, run)` (ou `demo.scene(id, metadata, run)`) para definir cenas em ordem. A ordem das chamadas `scene(...)` é a ordem das cenas no vídeo.
 
-Dentro de uma cena, você conduz um construtor `DemoScene` — veja [cenas](./cena).
+Dentro de uma cena, você conduz um construtor `DemoScene` — veja [cenas](./scene).
 
 ## O `source`
 

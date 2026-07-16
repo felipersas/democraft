@@ -1,12 +1,12 @@
 ---
 title: Passos
-description: Os catorze tipos de passo que compõem uma cena.
+description: Os quinze tipos de passo que compõem uma cena.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
 import { TypeTable } from "fumadocs-ui/components/type-table";
 
-Um **passo** é a unidade atômica de uma cena. O Democraft tem catorze tipos de passo, agrupados em cinco famílias: ações de navegador, asserções, movimentos de câmera, controle de timeline e overlays.
+Um **passo** é a unidade atômica de uma cena. O Democraft tem quinze tipos de passo, agrupados em cinco famílias: ações de navegador, asserções, movimentos de câmera, controle de timeline e overlays.
 
 ## Ações de navegador
 
@@ -80,6 +80,7 @@ Passos que adicionam camadas de texto ou anotação sobre os frames capturados.
 |--------|------|-----------|
 | `scene.caption(text, opts?)` | `overlay.caption` | Texto de legenda em largura total ou centralizado. |
 | `scene.callout(target, opts)` | `overlay.callout` | Ponteiro anotado em um alvo. |
+| `scene.visual(id, props, opts?)` | `overlay.visual` | Um visual React customizado declarado em `demo.ts`. |
 
 `callout` exige `{ title }` e aceita `{ description, renderer }`:
 
@@ -92,6 +93,8 @@ await scene.callout("project-card", {
 ```
 
 `caption` e `callout` aceitam uma opção `renderer` — um componente visual nomeado. Os renderers built-in são `motion.caption` (default), `remocn.kinetic-title`, `motion.callout` (default) e `remocn.glass-callout`. **Remocn** é a biblioteca primária de componentes; veja [Componentes e remocn](./components) para o catálogo completo e como adicionar os seus.
+
+`visual` aceita um ID visual, props serializáveis em JSON e uma duração opcional em `{ duration }`. Ele renderiza um componente declarado no mapa `visuals` da demo. Veja [Componentes e remocn](./components) para um exemplo completo.
 
 ## Marcadores cue
 
@@ -115,5 +118,5 @@ Todo passo aceita um `{ id }` opcional:
 IDs explícitos de passo são opcionais, mas recomendados — tornam diagnósticos, diffs e referências do Studio estáveis. Sem eles, o Democraft gera IDs a partir da posição do passo, que se deslocam quando você reordena passos.
 
 <Callout type="info">
-Adicionar ou remover um passo é uma **mudança estrutural** — muda o hash de conteúdo do IR e dispara uma re-captura. Editar o texto de uma legenda ou a duração de um `hold` é uma **mudança de conteúdo** — apenas um re-resolve é necessário. Veja [captura única](../pipeline/captura-unica).
+Adicionar ou remover um passo é uma **mudança estrutural** — muda o hash de conteúdo do IR e dispara uma re-captura. Editar o texto de uma legenda ou a duração de um `hold` é uma **mudança de conteúdo** — apenas um re-resolve é necessário. Veja [captura única](../pipeline/capture-once).
 </Callout>

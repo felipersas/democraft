@@ -26,11 +26,11 @@ This is why the Studio can preview and render without the target app running —
 
 Because render depends only on captured files, you can **capture once and then iterate on everything else** — captions, camera moves, transitions, pacing, overlays — without re-running the browser. Democraft detects when `demo.ts` changes in ways that require a re-capture (structural changes: new steps, different locators) versus changes that only need a re-resolve (pacing, captions, overlays).
 
-See [capture-once](../pipeline/capture-once) for the details.
+See [capture-once](./pipeline/capture-once) for the details.
 
 ## 4. One API for humans and agents
 
-The authoring surface — `defineDemo`, `defineTargets`, the `DemoScene` builder, the fourteen step kinds — is identical whether a human writes a demo by hand or an AI agent generates one. There is no separate "agent SDK" or JSON-only format.
+The authoring surface — `defineDemo`, `defineTargets`, the `DemoScene` builder, the fifteen step kinds — is identical whether a human writes a demo by hand or an AI agent generates one. There is no separate "agent SDK" or JSON-only format.
 
 This means:
 

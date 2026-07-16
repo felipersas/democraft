@@ -49,12 +49,12 @@ Uma `DemoDefinition` é um objeto simples — `defineDemo` é uma função ident
 
 ## O formato de uma cena
 
-Dentro de `run`, `demo.scene(id, run)` lhe dá um `DemoScene` com catorze métodos async. Cada um anexa um passo à cena. O compilador achata todas as cenas em uma única lista ordenada de passos (o IR), que a captura e a renderização consomem.
+Dentro de `run`, `demo.scene(id, run)` lhe dá um `DemoScene` com quinze métodos async. Cada um anexa um passo à cena. O compilador achata todas as cenas em uma única lista ordenada de passos (o IR), que a captura e a renderização consomem.
 
 Veja:
 - [defineDemo](./define-demo) para a referência completa da definição.
 - [locators](./locators) para as quatro fábricas e cadeias de fallback.
-- [cenas](./cenas) para a referência dos métodos do construtor.
+- [cenas](./scenes) para a referência dos métodos do construtor.
 
 ## Uma API única, dois públicos
 
@@ -62,4 +62,4 @@ Veja:
 A mesma SDK serve humanos escrevendo demos em um editor e agentes de IA gerando demos programaticamente. Não há uma "SDK de agente" separada — um agente emite o TypeScript idêntico ao que um humano escreveria, que é revisável como um PR normal.
 </Callout>
 
-É por isso que a API se mantém pequena e previsível: todo conceito tem exatamente um lugar para viver, e os catorze tipos de passo cobrem o vocabulário de demos sem pontos de extensão que fragmentariam a superfície.
+É por isso que a API se mantém pequena e previsível: todo conceito tem exatamente um lugar para viver, e os quinze tipos de passo cobrem o vocabulário de demos sem pontos de extensão que fragmentariam a superfície.

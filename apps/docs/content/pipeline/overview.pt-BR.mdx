@@ -30,7 +30,7 @@ O pipeline do Democraft tem seis estágios. Cada um consome a saída do anterior
 | Composição | Não | Não | Não |
 | Renderização | Não | Não | Não |
 
-Apenas a **captura** precisa do app ativo e do Playwright. Tudo à jusante da captura trabalha a partir dos arquivos capturados em disco. Esta é a fundação da [captura única](./captura-unica).
+Apenas a **captura** precisa do app ativo e do Playwright. Tudo à jusante da captura trabalha a partir dos arquivos capturados em disco. Esta é a fundação da [captura única](./capture-once).
 
 ## Os contratos estáveis
 
@@ -69,4 +69,4 @@ demo.ts
   → renderDemoVideo → MP4
 ```
 
-Leia [captura única](./captura-unica) para como a detecção de staleness lhe permite pular o caro estágio de captura na maioria das edições.
+Leia [captura única](./capture-once) para como a detecção de staleness lhe permite pular o caro estágio de captura na maioria das edições.

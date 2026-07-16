@@ -38,7 +38,7 @@ await demo.scene(
 
 ## O construtor `DemoScene`
 
-O construtor tem catorze métodos — um por tipo de passo. Cada um é `async` e retorna `Promise<void>`:
+O construtor tem quinze métodos — um por tipo de passo. Cada um é `async` e retorna `Promise<void>`:
 
 | Método | Tipo de passo | Captura? |
 |--------|---------------|----------|
@@ -55,9 +55,10 @@ O construtor tem catorze métodos — um por tipo de passo. Cada um é `async` e
 | `transition(opts?)` | `timeline.transition` | Tempo |
 | `caption(text, opts?)` | `overlay.caption` | Overlay |
 | `callout(target, opts)` | `overlay.callout` | Overlay |
+| `visual(id, props, opts?)` | `overlay.visual` | Overlay |
 | `cue(name)` | `cue` | Marcador |
 
-Veja [passos](./passos) para a semântica de cada um.
+Veja [passos](./steps) para a semântica de cada um.
 
 ## Ordenação de cenas
 
@@ -75,4 +76,4 @@ await scene.click("new-project-button", { id: "open-dialog" });
 
 Dentro de uma cena, movimentos `establish` e `focus` se compõem: um `focus` após um `establish` anima do enquadramento estabelecido para o alvo focado. Entre cenas, a câmera reseta a menos que você faça a ponte com uma `transition`.
 
-Veja [captura vs renderização](./captura-vs-renderizacao) para como o estado da câmera é resolvido na timeline.
+Veja [captura vs renderização](./capture-vs-render) para como o estado da câmera é resolvido na timeline.

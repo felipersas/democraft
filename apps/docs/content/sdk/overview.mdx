@@ -49,7 +49,7 @@ A `DemoDefinition` is a plain object — `defineDemo` is an identity function th
 
 ## The shape of a scene
 
-Inside `run`, `demo.scene(id, run)` gives you a `DemoScene` with fourteen async methods. Each appends one step to the scene. The compiler flattens all scenes into a single ordered step list (the IR), which capture and render consume.
+Inside `run`, `demo.scene(id, run)` gives you a `DemoScene` with fifteen async methods. Each appends one step to the scene. The compiler flattens all scenes into a single ordered step list (the IR), which capture and render consume.
 
 See:
 - [defineDemo](./define-demo) for the full definition reference.
@@ -62,4 +62,4 @@ See:
 The same SDK serves humans writing demos in an editor and AI agents generating demos programmatically. There is no separate "agent SDK" — an agent emits the identical TypeScript a human would write, which is reviewable as a normal PR.
 </Callout>
 
-This is why the API stays small and predictable: every concept has exactly one place to live, and the fourteen step kinds cover the demo vocabulary without extension points that would fragment the surface.
+This is why the API stays small and predictable: every concept has exactly one place to live, and the fifteen step kinds cover the demo vocabulary without extension points that would fragment the surface.

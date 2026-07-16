@@ -26,11 +26,11 @@ Gravar uma sessão de navegador (que precisa do Playwright + um app rodando) é 
 
 Como a renderização depende apenas dos arquivos capturados, você pode **capturar uma vez e depois iterar em todo o resto** — legendas, movimentos de câmera, transições, pacing, overlays — sem precisar rodar o navegador novamente. O Democraft detecta quando `demo.ts` muda de formas que exigem re-captura (mudanças estruturais: novos passos, locators diferentes) versus mudanças que só precisam de um re-resolve (pacing, legendas, overlays).
 
-Veja [captura única](../pipeline/captura-unica) para os detalhes.
+Veja [captura única](./pipeline/capture-once) para os detalhes.
 
 ## 4. Uma API para humanos e agentes
 
-A superfície de autoria — `defineDemo`, `defineTargets`, o construtor `DemoScene`, os catorze tipos de passo — é idêntica, seja um humano escrevendo uma demo manualmente ou um agente de IA gerando uma. Não há uma "SDK de agente" separada ou um formato apenas JSON.
+A superfície de autoria — `defineDemo`, `defineTargets`, o construtor `DemoScene`, os quinze tipos de passo — é idêntica, seja um humano escrevendo uma demo manualmente ou um agente de IA gerando uma. Não há uma "SDK de agente" separada ou um formato apenas JSON.
 
 Isso significa que:
 

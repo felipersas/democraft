@@ -40,7 +40,7 @@ function defineDemo<TTargets extends Record<string, TargetInput>>(
 | `config` | `DemoConfig` | No | Reusable config attached to this demo. |
 | `source.baseUrl` | `string` | Yes | Origin of the target app. Must be live during capture. |
 | `source.initialPath` | `string` | No | Starting path. Defaults to the first scene's `goto`. |
-| `targets` | `TTargets` | Yes | Named element contracts. Literal keys become the allowed target IDs in scene methods. See [locators](../locators). |
+| `targets` | `TTargets` | Yes | Named element contracts. Literal keys become the allowed target IDs in scene methods. See [locators](./locators). |
 | `run` | `({ demo }) => Promise<void> \| void` | Yes | Drives the capture via `demo.scene(...)`. |
 
 ## Minimal example

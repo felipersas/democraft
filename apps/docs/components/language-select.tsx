@@ -9,10 +9,8 @@ import { i18n, type Locale } from "@/lib/i18n";
 /**
  * Language switcher.
  *
- * Swaps the locale prefix in the URL (`/<locale>/docs/...`). Since the two
- * locales use translated slugs, we can't guarantee an equivalent page exists
- * for the current slug — so we redirect to the target locale's docs landing
- * page. This is simpler and always correct.
+ * Swaps the locale prefix in the URL (`/<locale>/docs/...`). Both locale files
+ * use the same canonical pathname, so readers stay on the same page.
  *
  * - Keyboard accessible (Escape to close, focus returns to trigger).
  * - No flags: labels are the language name in its own language.
@@ -45,9 +43,7 @@ export function LanguageSelect({ current }: { current: Locale }) {
 
   /**
    * Swap the locale segment at the start of the URL.
-   * `/en/docs/introduction` → `/pt-BR/docs/introduction`
-   * Falls back to the target locale's docs root if the path doesn't start
-   * with a known locale.
+   * `/en/docs/introduction` → `/pt-BR/docs/introduction`.
    */
   function targetPath(target: Locale): string {
     // Match leading /<locale> at the start

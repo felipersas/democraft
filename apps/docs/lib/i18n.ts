@@ -5,7 +5,7 @@
  * `source.ts`, the `[lang]` layout, the `<LanguageSelect>`, the sitemap, the
  * middleware, the parity check script.
  *
- * Add a locale here and content/<locale>/ becomes live everywhere.
+ * Add a locale here and create matching `content/<path>.<locale>.mdx` files.
  */
 
 export const languages = {
@@ -15,42 +15,13 @@ export const languages = {
 
 export type Locale = keyof typeof languages;
 
-/** Locales that should NOT be prefixed in the URL (root-locale strategy). */
-export const rootLocale: Locale = "en";
-
 export type Languages = typeof languages;
 
 const i18n = {
   languages,
   defaultLanguage: "en" as const,
-  /**
-   * Returns the URL prefix for a locale.
-   * Root locale (en) is served at `/` with no prefix; every other locale
-   * gets `/<locale>/` (e.g. `/pt-BR/`).
-   */
-  prefixFor(locale: Locale): string {
-    return locale === rootLocale ? "" : `/${locale}`;
-  },
-  /**
-   * Map a URL path back to a locale. Returns `null` for unknown prefixes.
-   */
-  localeFromPath(pathname: string): Locale | null {
-    const match = pathname.match(/^\/(pt-BR|en)(\/|$)/);
-    if (match) {
-      return match[1] as Locale;
-    }
-    // unprefixed path → root locale (en)
-    return rootLocale;
-  },
   /** Ordered list of locale codes. */
   locales: Object.keys(languages) as Locale[],
-  /**
-   * Localized UI strings used by Fumadocs components and our layout.
-   * Fumadocs reads these via the loader's `i18n.translate` field.
-   */
-  translate(locale: Locale) {
-    return translations[locale] ?? translations.en;
-  },
 };
 
 export type I18n = typeof i18n;

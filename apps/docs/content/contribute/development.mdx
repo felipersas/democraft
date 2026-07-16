@@ -71,7 +71,7 @@ pnpm --filter @democraft/docs build
 ```
 
 <Callout type="info">
-The docs are bilingual (pt-BR + en). When you add a page, add it in **both** `content/en/` and `content/pt-BR/` and update **both** `meta.json` files. The two trees must have structural parity — same slugs (modulo translation), same headings.
+The docs are bilingual (pt-BR + en). When you add a page, add the English file as `content/<path>.mdx`, its Portuguese translation as `content/<path>.pt-BR.mdx`, and update both metadata files. The two trees must have structural parity — same slugs (modulo translation), same headings.
 </Callout>
 
 ## Conventions
@@ -86,7 +86,7 @@ The docs are bilingual (pt-BR + en). When you add a page, add it in **both** `co
 
 Both locales must stay in sync. When editing docs:
 
-1. Make the same change in both `content/en/` and `content/pt-BR/`.
+1. Make the same change in `content/<path>.mdx` and `content/<path>.pt-BR.mdx`.
 2. Keep code snippets identical across locales (only the prose changes).
 3. Do not translate API names, package names, CLI flags, or diagnostic codes.
 4. Update both `meta.json` files when adding or reordering pages.

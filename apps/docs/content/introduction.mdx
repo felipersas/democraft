@@ -47,7 +47,7 @@ export default defineDemo({
 });
 ```
 
-Each `scene.*` call is one of fourteen **step kinds** — browser actions (`goto`, `click`, `fill`, `select`), assertions (`visible`, `text`, `url`), camera moves (`establish`, `focus`), timeline control (`hold`, `transition`), overlays (`caption`, `callout`), and `cue` markers. Democraft compiles these into an intermediate representation, captures the browser, resolves a render timeline, and renders the video.
+Each `scene.*` call is one of fifteen **step kinds** — browser actions (`goto`, `click`, `fill`, `select`), assertions (`visible`, `text`, `url`), camera moves (`establish`, `focus`), timeline control (`hold`, `transition`), overlays (`caption`, `callout`, `visual`), and `cue` markers. Democraft compiles these into an intermediate representation, captures the browser, resolves a render timeline, and renders the video.
 
 ## What it produces
 
@@ -89,7 +89,7 @@ What works today:
 - Full capture → timeline → render pipeline.
 - The Studio (Next.js) for previewing and rendering without a full CLI round-trip.
 - Capture-once caching with staleness detection and in-studio re-capture.
-- Fourteen step kinds covering the common demo vocabulary.
+- Fifteen step kinds covering the common demo vocabulary.
 
 ## Next steps
 

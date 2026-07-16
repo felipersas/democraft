@@ -1,8 +1,5 @@
-import { redirect } from "next/navigation";
+import { LandingPage } from "@/components/landing";
 
-/**
- * Root → redirect to the default-locale docs landing page.
- */
-export default async function RootPage() {
-  return redirect("/en/docs/introduction");
+export default function Home() {
+  return <LandingPage />;
 }

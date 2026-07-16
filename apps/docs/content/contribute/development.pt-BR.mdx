@@ -54,7 +54,7 @@ pnpm --filter @democraft/compiler build
 
 ## Rodando o Studio
 
-O Studio é aberto via CLI contra um arquivo de demo. Veja o [início rápido](../inicio-rapido) para o fluxo completo com o exemplo demo-app.
+O Studio é aberto via CLI contra um arquivo de demo. Veja o [início rápido](../quickstart) para o fluxo completo com o exemplo demo-app.
 
 ```bash
 pnpm --filter @democraft/example-demo-app start   # terminal 1 (app-alvo)
@@ -71,7 +71,7 @@ pnpm --filter @democraft/docs build
 ```
 
 <Callout type="info">
-A documentação é bilíngue (pt-BR + en). Quando você adicionar uma página, adicione-a em **ambos** `content/en/` e `content/pt-BR/` e atualize **ambos** os arquivos `meta.json`. As duas árvores devem ter paridade estrutural — mesmos slugs (exceto tradução), mesmos headings.
+A documentação é bilíngue (pt-BR + en). Ao adicionar uma página, crie o arquivo em inglês como `content/<caminho>.mdx`, a tradução em português como `content/<caminho>.pt-BR.mdx` e atualize os dois arquivos de metadados. As duas árvores devem ter paridade estrutural — mesmos slugs (exceto tradução), mesmos headings.
 </Callout>
 
 ## Convenções
@@ -86,7 +86,7 @@ A documentação é bilíngue (pt-BR + en). Quando você adicionar uma página, 
 
 Ambos os locales devem permanecer sincronizados. Ao editar a documentação:
 
-1. Faça a mesma mudança em ambos `content/en/` e `content/pt-BR/`.
+1. Faça a mesma mudança em `content/<caminho>.mdx` e `content/<caminho>.pt-BR.mdx`.
 2. Mantenha snippets de código idênticos entre locales (apenas a prosa muda).
 3. Não traduza nomes de APIs, nomes de pacotes, flags da CLI ou códigos de diagnóstico.
 4. Atualize ambos os arquivos `meta.json` ao adicionar ou reordenar páginas.

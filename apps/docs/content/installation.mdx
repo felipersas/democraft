@@ -8,7 +8,7 @@ import { Tab, Tabs } from "fumadocs-ui/components/tabs";
 
 ## Use Democraft in a project
 
-After the first npm release, install the CLI and the authoring API as development dependencies:
+Install the CLI and authoring API as development dependencies:
 
 <Tabs items={["npm", "pnpm", "yarn"]}>
   <Tab value="npm">
@@ -39,10 +39,9 @@ npx democraft render demo.ts -o demo.mp4
 npx democraft studio demo.ts
 ```
 
-<Callout type="warn" title="Pre-release repository">
-The `0.1.0-beta.0` package graph, including the production Studio, is ready and
-has passed a clean tarball-install smoke test. It still needs to be published
-to the npm registry. Until then, use the contributor setup below.
+<Callout type="warn" title="Pre-release">
+Democraft is currently published as a beta. Use the `@beta` tag while the API
+is still evolving.
 </Callout>
 
 ## Contribute from source

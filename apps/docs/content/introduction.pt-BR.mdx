@@ -46,7 +46,7 @@ export default defineDemo({
 });
 ```
 
-Cada chamada `scene.*` é um dos catorze **tipos de passo** — ações de navegador (`goto`, `click`, `fill`, `select`), asserções (`visible`, `text`, `url`), movimentos de câmera (`establish`, `focus`), controle de timeline (`hold`, `transition`), overlays (`caption`, `callout`) e marcadores `cue`. O Democraft compila esses passos em uma representação intermediária, captura o navegador, resolve uma timeline de renderização e renderiza o vídeo.
+Cada chamada `scene.*` é um dos quinze **tipos de passo** — ações de navegador (`goto`, `click`, `fill`, `select`), asserções (`visible`, `text`, `url`), movimentos de câmera (`establish`, `focus`), controle de timeline (`hold`, `transition`), overlays (`caption`, `callout`, `visual`) e marcadores `cue`. O Democraft compila esses passos em uma representação intermediária, captura o navegador, resolve uma timeline de renderização e renderiza o vídeo.
 
 ## O que ele produz
 
@@ -88,10 +88,10 @@ O que funciona hoje:
 - Pipeline completo de captura → timeline → render.
 - O Studio (Next.js) para pré-visualização e renderização sem um round-trip completo pela CLI.
 - Cache de captura única com detecção de staleness e re-captura dentro do studio.
-- Catorze tipos de passo cobrindo o vocabulário comum de demos.
+- Quinze tipos de passo cobrindo o vocabulário comum de demos.
 
 ## Próximos passos
 
-- Leia a [filosofia do projeto](./filosofia) para entender as decisões de design.
-- Siga o [início rápido](./inicio-rapido) para renderizar seu primeiro vídeo.
-- Navegue pelos [conceitos](./conceitos/demo) para aprofundar em cenas, alvos e timelines.
+- Leia a [filosofia do projeto](./philosophy) para entender as decisões de design.
+- Siga o [início rápido](./quickstart) para renderizar seu primeiro vídeo.
+- Navegue pelos [conceitos](./concepts/demo) para aprofundar em cenas, alvos e timelines.

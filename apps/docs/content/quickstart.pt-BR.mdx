@@ -11,7 +11,7 @@ Este guia leva você de um checkout limpo a um MP4 renderizado usando o exemplo 
 
 ## O que você precisa
 
-- O workspace instalado e compilado — veja [instalação](./instalacao).
+- O workspace instalado e compilado — veja [instalação](./installation).
 - Dois terminais.
 
 <Callout type="info">
@@ -31,7 +31,7 @@ pnpm --filter @democraft/example-demo-app start
 Você deve ver `Demo app listening on http://localhost:4173`.
 
 <Callout type="info">
-O app-alvo só é necessário na **primeira** vez, para a captura. Depois disso, o Democraft reutiliza os arquivos capturados de `.democraft/` e o app não precisa rodar. Veja [captura única](../pipeline/captura-unica).
+O app-alvo só é necessário na **primeira** vez, para a captura. Depois disso, o Democraft reutiliza os arquivos capturados de `.democraft/` e o app não precisa rodar. Veja [captura única](./pipeline/capture-once).
 </Callout>
 
 ## Abrir o Studio
@@ -97,6 +97,6 @@ pnpm exec democraft validate examples/demo-app/src/demo.ts
 
 ## Próximos passos
 
-- Leia os [conceitos](./conceitos/demo) para entender demos, cenas e alvos.
-- Aprenda a [SDK](./sdk/visao-geral) para a API de autoria completa.
-- Entenda o modelo de [captura única](../pipeline/captura-unica) para iteração rápida.
+- Leia os [conceitos](./concepts/demo) para entender demos, cenas e alvos.
+- Aprenda a [SDK](./sdk/overview) para a API de autoria completa.
+- Entenda o modelo de [captura única](./pipeline/capture-once) para iteração rápida.

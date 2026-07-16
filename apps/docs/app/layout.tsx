@@ -34,8 +34,8 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/",
     languages: {
-      en: "/docs/en",
-      "pt-BR": "/docs/pt-BR",
+      en: "/en/docs",
+      "pt-BR": "/pt-BR/docs",
     },
   },
 };

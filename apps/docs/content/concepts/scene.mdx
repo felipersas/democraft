@@ -38,7 +38,7 @@ await demo.scene(
 
 ## The `DemoScene` builder
 
-The builder has fourteen methods — one per step kind. Each is `async` and returns `Promise<void>`:
+The builder has fifteen methods — one per step kind. Each is `async` and returns `Promise<void>`:
 
 | Method | Step kind | Captures? |
 |--------|-----------|-----------|
@@ -55,6 +55,7 @@ The builder has fourteen methods — one per step kind. Each is `async` and retu
 | `transition(opts?)` | `timeline.transition` | Timing |
 | `caption(text, opts?)` | `overlay.caption` | Overlay |
 | `callout(target, opts)` | `overlay.callout` | Overlay |
+| `visual(id, props, opts?)` | `overlay.visual` | Overlay |
 | `cue(name)` | `cue` | Marker |
 
 See [steps](./steps) for the semantics of each.
