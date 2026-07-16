@@ -1,31 +1,23 @@
 import { codeToHtml } from "shiki";
 
-const demo = `import { byText, defineDemo, defineTargets } from "@democraft/core";
+type CodePanelProps = {
+  /** The TypeScript source to syntax-highlight. */
+  code: string;
+  /** Path-bar text (e.g. "talento-saas / src"). */
+  path: string;
+  /** Filename-tab text (e.g. "demo.ts"). */
+  filename: string;
+  /** Accessible label for the panel. */
+  label: string;
+};
 
-const targets = defineTargets({
-  dashboard: byText("Operação de recrutamento"),
-  applications: byText("Candidaturas por mês"),
-});
-
-export default defineDemo({
-  id: "talento-overview",
-  source: { baseUrl: "http://localhost:3001" },
-  targets,
-  async run({ demo }) {
-    await demo.scene("overview", async (scene) => {
-      await scene.goto("/app/nimbus-tech");
-      await scene.establish("dashboard");
-      await scene.focus("applications");
-      await scene.callout("applications", {
-        title: "Hiring activity over time",
-        renderer: "remocn.callout-dark",
-      });
-    });
-  },
-});`;
-
-export async function CodePanel() {
-  const highlighted = await codeToHtml(demo, {
+export async function CodePanel({
+  code,
+  path,
+  filename,
+  label,
+}: CodePanelProps) {
+  const highlighted = await codeToHtml(code, {
     lang: "typescript",
     theme: "github-dark-default",
   });
@@ -33,19 +25,17 @@ export async function CodePanel() {
   return (
     <div
       className="min-w-0 overflow-hidden rounded-xl border border-[var(--landing-border)] bg-[var(--landing-surface-1)]"
-      aria-label="TypeScript demo definition"
+      aria-label={label}
     >
       <div className="flex h-8 items-center border-b border-[var(--landing-border-subtle)] bg-[var(--landing-surface-2)] px-3">
-        <span className="text-[11px] text-[var(--landing-muted)]">
-          talento-saas / src
-        </span>
+        <span className="text-[11px] text-[var(--landing-muted)]">{path}</span>
       </div>
       <div
         className="flex h-8 items-end border-b border-[var(--landing-border-subtle)] bg-[var(--landing-surface-1)] px-2"
         role="presentation"
       >
         <span className="border-x border-t border-[var(--landing-border)] bg-[var(--landing-surface-2)] px-3 py-2 text-[11px] leading-none text-[var(--landing-foreground-secondary)]">
-          demo.ts
+          {filename}
         </span>
       </div>
       <div
