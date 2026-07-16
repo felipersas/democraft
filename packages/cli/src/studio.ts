@@ -35,6 +35,10 @@ import {
 import { formatDiagnostics } from "./format";
 import { loadDemo } from "./loaders";
 import { userResolve } from "./paths";
+import {
+  resolveStudioRuntime,
+  STUDIO_LOOPBACK_HOST,
+} from "./studio-runtime";
 
 export type StudioOptions = {
   demoPath: string;
@@ -45,12 +49,6 @@ export type StudioOptions = {
   fps?: number;
   workspaceRoot?: string;
 };
-
-export const STUDIO_LOOPBACK_HOST = "127.0.0.1";
-
-export function studioDevServerArgs(port: number): string[] {
-  return ["--filter", "@democraft/studio", "dev", "--port", String(port)];
-}
 
 export function studioUrl(port: number): string {
   return `http://${STUDIO_LOOPBACK_HOST}:${port}`;
@@ -327,13 +325,14 @@ async function startStudioServer(args: {
   captureHeadless: boolean;
   captureEnvironmentHash: string;
 }): Promise<string> {
+  const runtime = resolveStudioRuntime(args.port);
   return new Promise((resolve, reject) => {
     const sessionToken = randomBytes(32).toString("base64url");
-    const child = spawn("pnpm", studioDevServerArgs(args.port), {
-      cwd: args.workspaceRoot,
+    const child = spawn(runtime.command, runtime.args, {
+      cwd: runtime.cwd,
       stdio: ["inherit", "pipe", "inherit"],
       env: studioServerEnvironment(args, sessionToken),
-      shell: process.platform === "win32",
+      shell: false,
     });
 
     const url = studioUrl(args.port);
@@ -359,7 +358,7 @@ async function startStudioServer(args: {
       if (!resolved) {
         reject(
           new Error(
-            `Studio dev server exited with code ${code} before becoming ready`,
+            `Studio server exited with code ${code} before becoming ready`,
           ),
         );
       }

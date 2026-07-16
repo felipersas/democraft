@@ -1,11 +1,13 @@
 # @democraft/studio
 
-Local Next.js app that previews and renders Democraft compositions. The CLI's `studio` command launches this server with demo data already prepared.
+Packaged Next.js runtime that previews and renders Democraft compositions. It
+is an implementation dependency of `@democraft/cli`; applications normally do
+not install or launch this package directly.
 
 ## Run via CLI
 
 ```bash
-pnpm exec democraft studio examples/basic-demo/src/demo.ts
+npx democraft studio demo.ts
 ```
 
 The CLI:
@@ -14,15 +16,20 @@ The CLI:
 2. Captures via Playwright (`runDemo`)
 3. Resolves the timeline (`resolveTimeline`)
 4. Writes `manifest.json`, `timeline.json`, screenshots, and any recording to `.democraft/studio-data/`
-5. Launches `pnpm --filter @democraft/studio dev` with `DEMOCRAFT_STUDIO_DATA` pointing at the data dir
+5. Resolves this package and its Next.js binary through Node module resolution
+6. Launches the packaged production server with `DEMOCRAFT_STUDIO_DATA` pointing at the data directory
 
-## Run standalone
+No workspace filter or package-manager subprocess is used at runtime.
+
+## Contributor development
 
 ```bash
 pnpm --filter @democraft/studio dev
 ```
 
-The server reads from `../.democraft/studio-data/` by default. Override with the `DEMOCRAFT_STUDIO_DATA` env var.
+This source-only command is for contributors. Normal users should launch the
+Studio through `democraft studio`, which supplies the authenticated session and
+authorized workspace paths.
 
 ## Keyboard shortcuts
 

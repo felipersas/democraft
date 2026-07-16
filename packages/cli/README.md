@@ -3,30 +3,35 @@
 The Democraft command-line interface.
 
 ```bash
-pnpm add -D @democraft/cli
+npm install --save-dev @democraft/cli@beta @democraft/core@beta
 ```
 
 Common workflows are end-to-end commands:
 
 ```bash
-pnpm exec democraft studio demo.ts
-pnpm exec democraft validate demo.ts
-pnpm exec democraft render demo.ts -o demo.mp4
+npx democraft studio demo.ts
+npx democraft validate demo.ts
+npx democraft render demo.ts -o demo.mp4
 ```
 
 The path can be omitted when exactly one `demo.ts`, `demo.tsx`, `src/demo.ts`, or `src/demo.tsx` exists:
 
 ```bash
-pnpm exec democraft studio
-pnpm exec democraft render -o demo.mp4
+npx democraft studio
+npx democraft render -o demo.mp4
 ```
 
 Explicit artifacts remain available for CI and debugging:
 
 ```bash
-pnpm exec democraft capture demo.ts
-pnpm exec democraft timeline demo.ts --manifest manifest.json --output timeline.json
-pnpm exec democraft render demo.ts --manifest manifest.json --timeline timeline.json -o demo.mp4
+npx democraft capture demo.ts
+npx democraft timeline demo.ts --manifest manifest.json --output timeline.json
+npx democraft render demo.ts --manifest manifest.json --timeline timeline.json -o demo.mp4
 ```
 
-Run `pnpm exec democraft help` or `pnpm exec democraft render --help` for usage.
+`@democraft/studio` is installed automatically as a CLI dependency. The
+`studio` command runs its packaged production build and does not require pnpm
+or a Democraft source checkout.
+
+Run `npx democraft help` or `npx democraft render --help` for usage. Equivalent
+launchers are `pnpm exec democraft` and `bunx democraft`.

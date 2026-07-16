@@ -45,7 +45,7 @@ Common options:
   --fps <number>       Timeline frames per second
   --scale <number>     Render scale multiplier (default 1, try 2 for sharper)
   --crf <number>       h264 CRF (default 15, lower = better quality)
-  --port <number>      Studio dev server port (default 3000)
+  --port <number>      Studio server port (default 3000)
   --no-capture         Reuse existing capture for studio
   --headless           Run browser headless
   --headed             Run browser headed

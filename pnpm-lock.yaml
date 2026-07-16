@@ -151,6 +151,9 @@ importers:
       '@democraft/schema':
         specifier: workspace:*
         version: link:../schema
+      '@democraft/studio':
+        specifier: workspace:*
+        version: link:../studio
       '@democraft/timeline':
         specifier: workspace:*
         version: link:../timeline

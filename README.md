@@ -21,9 +21,9 @@ developers or AI agents maintain it through the same API.
 </div>
 
 > [!NOTE]
-> Democraft is currently source-first and pre-release. The public packages are
-> prepared as `0.1.0-beta.0`; follow [Develop from source](#develop-from-source)
-> until the first npm release.
+> Democraft is pre-release. The `0.1.0-beta.0` packages are configured and
+> verified from clean local tarball installs; they still need to be published
+> to npm before the install command below becomes available from the registry.
 
 ## Why Democraft?
 
@@ -78,17 +78,23 @@ export default defineDemo({
 });
 ```
 
+Install the CLI and authoring API:
+
+```bash
+npm install --save-dev @democraft/cli@beta @democraft/core@beta
+```
+
 With the target application running:
 
 ```bash
-pnpm exec democraft validate demo.ts
-pnpm exec democraft render demo.ts -o demo.mp4
+npx democraft validate demo.ts
+npx democraft render demo.ts -o demo.mp4
 ```
 
 Or open the visual workflow:
 
 ```bash
-pnpm exec democraft studio demo.ts
+npx democraft studio demo.ts
 ```
 
 The demo path can be omitted when the current directory contains one
@@ -145,18 +151,18 @@ The common path is intentionally short:
 Artifact flags remain available for CI and debugging:
 
 ```bash
-pnpm exec democraft capture demo.ts --output-dir .democraft/runs/create-project
-pnpm exec democraft timeline demo.ts \
+npx democraft capture demo.ts --output-dir .democraft/runs/create-project
+npx democraft timeline demo.ts \
   --manifest .democraft/runs/create-project/manifest.json \
   -o .democraft/timelines/create-project.json
-pnpm exec democraft render demo.ts \
+npx democraft render demo.ts \
   --manifest .democraft/runs/create-project/manifest.json \
   --timeline .democraft/timelines/create-project.json \
   -o demo.mp4
 ```
 
-Run `pnpm exec democraft help` or `pnpm exec democraft <command> --help` for the
-full reference.
+Run `npx democraft help` or `npx democraft <command> --help` for the full
+reference. With pnpm or Bun, use `pnpm exec democraft` or `bunx democraft`.
 
 ## User-owned visual components
 
@@ -197,7 +203,7 @@ shortcuts, and in-place re-capture. It works from `.democraft/studio-data/`, so
 cached captures can be previewed and rendered without the target app running.
 
 ```bash
-pnpm exec democraft studio demo.ts
+npx democraft studio demo.ts
 ```
 
 The Studio binds to the loopback interface and mutation endpoints require an
@@ -206,9 +212,10 @@ ephemeral session token created by the CLI.
 ## Project status
 
 > [!WARNING]
-> Democraft is experimental and pre-1.0. The npm packages are prepared as
-> `0.1.0-beta.0` but are not ready for public installation until the Studio is
-> distributable outside this monorepo. Use the source workflow below for now.
+> Democraft is experimental and pre-1.0. The complete npm package graph,
+> including the production Studio runtime, is prepared as `0.1.0-beta.0` and
+> has been verified from a clean tarball installation. Registry publication is
+> still pending.
 
 Working today:
 
@@ -267,7 +274,7 @@ make check
 | `@democraft/preview`    | Deprecated standalone HTML artifact preview.                 |
 | `@democraft/testing`    | Shared fixtures and integration helpers.                     |
 | `@democraft/cli`        | The `democraft` command-line interface.                      |
-| `@democraft/studio`     | Private local editing and rendering application.             |
+| `@democraft/studio`     | Production Studio runtime installed internally by the CLI.    |
 
 The dependency graph and package boundaries are documented in
 [Architecture](./docs/architecture/overview.md).

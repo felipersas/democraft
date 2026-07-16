@@ -10,19 +10,25 @@ The `democraft` CLI keeps the common workflow short and preserves direct artifac
 
 ## Usage
 
-Install the CLI in your project and run it through your package manager:
+Install the CLI and authoring API in your project. npm links the local
+`democraft` executable, so `npx` uses the installed version:
 
 ```bash
-pnpm add -D @democraft/cli
-pnpm exec democraft studio demo.ts
+npm install --save-dev @democraft/cli@beta @democraft/core@beta
+npx democraft studio demo.ts
 ```
+
+The CLI installs `@democraft/studio` as an internal dependency. The command
+starts its production build directly through Node; pnpm and a Democraft source
+checkout are not required. With pnpm or Bun, use `pnpm exec democraft` or
+`bunx democraft`.
 
 The demo path is optional when the project contains exactly one conventional module: `demo.ts`, `demo.tsx`, `src/demo.ts`, or `src/demo.tsx`.
 
 ```bash
-pnpm exec democraft studio
-pnpm exec democraft validate
-pnpm exec democraft render -o demo.mp4
+npx democraft studio
+npx democraft validate
+npx democraft render -o demo.mp4
 ```
 
 If more than one conventional module exists, pass the path explicitly. The CLI never chooses an ambiguous demo silently.
@@ -45,14 +51,14 @@ If more than one conventional module exists, pass the path explicitly. The CLI n
 <Tabs items={["Studio", "Headless render", "Package script"]}>
   <Tab value="Studio">
     ```bash
-    pnpm exec democraft studio demo.ts
+    npx democraft studio demo.ts
     ```
 
     Studio captures when needed and provides preview, timeline editing, and rendering in one UI.
   </Tab>
   <Tab value="Headless render">
     ```bash
-    pnpm exec democraft render demo.ts -o demo.mp4
+    npx democraft render demo.ts -o demo.mp4
     ```
 
     This single command runs validation, capture, timeline resolution, and rendering. The target application must be running during capture.
@@ -92,11 +98,11 @@ If more than one conventional module exists, pass the path explicitly. The CLI n
 Use explicit artifacts when a CI job separates capture, timeline resolution, and rendering:
 
 ```bash
-pnpm exec democraft capture demo.ts
-pnpm exec democraft timeline demo.ts \
+npx democraft capture demo.ts
+npx democraft timeline demo.ts \
   --manifest .democraft/runs/example/manifest.json \
   --output timeline.json
-pnpm exec democraft render demo.ts \
+npx democraft render demo.ts \
   --manifest .democraft/runs/example/manifest.json \
   --timeline timeline.json \
   -o demo.mp4

@@ -14,6 +14,12 @@ This guide takes you from a fresh checkout to a rendered MP4 using the bundled `
 - The workspace installed and built — see [installation](./installation).
 - Two terminals.
 
+<Callout type="info">
+This page uses pnpm because it runs the example inside the Democraft source
+workspace. In an application that installed `@democraft/cli`, use
+`npx democraft studio` instead; the production Studio is included by the CLI.
+</Callout>
+
 ## Start the target app
 
 The `demo-app` example is a small HTTP server that Playwright captures against. It must be running **during capture** (but not for preview/editing afterwards).

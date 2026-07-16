@@ -1,24 +1,21 @@
 import { spawn } from "node:child_process";
-import { createRequire } from "node:module";
 import type { Readable } from "node:stream";
-import { pathToFileURL } from "node:url";
+import path from "node:path";
 import { diagnosticSchema, parseDemoIR } from "@democraft/schema";
 import type { CompilationResult } from "@democraft/compiler";
 
 const MAX_RESULT_BYTES = 5 * 1024 * 1024;
 const DEFAULT_TIMEOUT_MS = 30_000;
-const require = createRequire(import.meta.url);
-const COMPILER_MODULE_URL = pathToFileURL(
-  require.resolve("@democraft/compiler"),
-).href;
-
 const CHILD_SOURCE = String.raw`
 import { writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 const send = (value) => writeFileSync(3, JSON.stringify(value));
 try {
+  const runtimeRequire = createRequire(process.env.DEMOCRAFT_MODULE_RESOLUTION_ANCHOR);
+  const compilerUrl = pathToFileURL(runtimeRequire.resolve("@democraft/compiler")).href;
   const [{ compileDemo }, imported] = await Promise.all([
-    import(process.env.DEMOCRAFT_COMPILER_MODULE),
+    import(compilerUrl),
     import(pathToFileURL(process.env.DEMOCRAFT_DEMO_MODULE).href),
   ]);
   if (!imported.default) throw new Error("Demo module must have a default export.");
@@ -42,7 +39,10 @@ export async function compileDemoModuleIsolated(
       env: {
         ...process.env,
         DEMOCRAFT_DEMO_MODULE: demoPath,
-        DEMOCRAFT_COMPILER_MODULE: COMPILER_MODULE_URL,
+        DEMOCRAFT_MODULE_RESOLUTION_ANCHOR: path.join(
+          process.cwd(),
+          "package.json",
+        ),
       },
       stdio: ["ignore", "ignore", "pipe", "pipe"],
     },

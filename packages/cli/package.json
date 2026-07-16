@@ -45,6 +45,7 @@
     "@democraft/preview": "workspace:*",
     "@democraft/remotion": "workspace:*",
     "@democraft/schema": "workspace:*",
+    "@democraft/studio": "workspace:*",
     "@democraft/timeline": "workspace:*",
     "tsx": "^4.23.0"
   }

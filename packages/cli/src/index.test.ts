@@ -9,7 +9,6 @@ import { formatDiagnostics, parseArgs, runCli } from "./index";
 import { resolveDemoPath } from "./paths";
 import {
   captureActionForCompatibility,
-  studioDevServerArgs,
   studioUrl,
 } from "./studio";
 
@@ -74,14 +73,7 @@ afterEach(async () => {
 });
 
 describe("cli", () => {
-  it("builds the Studio command and loopback URL without exposing secrets", () => {
-    expect(studioDevServerArgs(4310)).toEqual([
-      "--filter",
-      "@democraft/studio",
-      "dev",
-      "--port",
-      "4310",
-    ]);
+  it("builds the Studio loopback URL without exposing secrets", () => {
     expect(studioUrl(4310)).toBe("http://127.0.0.1:4310");
     expect(studioUrl(4310)).not.toContain("token");
   });

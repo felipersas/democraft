@@ -1,6 +1,6 @@
 SHELL := /bin/sh
 
-PACKAGES := schema core playwright preview remotion timeline compiler testing cli
+PACKAGES := schema core playwright preview remotion timeline compiler testing studio cli
 PACK_DIR ?= .artifacts/npm
 TAG ?= beta
 

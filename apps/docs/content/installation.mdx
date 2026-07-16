@@ -10,22 +10,22 @@ import { Tab, Tabs } from "fumadocs-ui/components/tabs";
 
 After the first npm release, install the CLI and the authoring API as development dependencies:
 
-<Tabs items={["pnpm", "npm", "yarn"]}>
-  <Tab value="pnpm">
-    ```bash
-    pnpm add -D @democraft/cli @democraft/core
-    pnpm exec playwright install chromium
-    ```
-  </Tab>
+<Tabs items={["npm", "pnpm", "yarn"]}>
   <Tab value="npm">
     ```bash
-    npm install --save-dev @democraft/cli @democraft/core
+    npm install --save-dev @democraft/cli@beta @democraft/core@beta
     npx playwright install chromium
+    ```
+  </Tab>
+  <Tab value="pnpm">
+    ```bash
+    pnpm add -D @democraft/cli@beta @democraft/core@beta
+    pnpm exec playwright install chromium
     ```
   </Tab>
   <Tab value="yarn">
     ```bash
-    yarn add --dev @democraft/cli @democraft/core
+    yarn add --dev @democraft/cli@beta @democraft/core@beta
     yarn playwright install chromium
     ```
   </Tab>
@@ -34,12 +34,15 @@ After the first npm release, install the CLI and the authoring API as developmen
 Chromium is required for capture. Once your target app is running, validate or render a demo directly:
 
 ```bash
-pnpm exec democraft validate demo.ts
-pnpm exec democraft render demo.ts -o demo.mp4
+npx democraft validate demo.ts
+npx democraft render demo.ts -o demo.mp4
+npx democraft studio demo.ts
 ```
 
 <Callout type="warn" title="Pre-release repository">
-The npm packages are not release-ready yet. Until the first release is completed, use the contributor setup below. In particular, the published CLI must gain a distributable Studio before `democraft studio` can work outside this monorepo.
+The `0.1.0-beta.0` package graph, including the production Studio, is ready and
+has passed a clean tarball-install smoke test. It still needs to be published
+to the npm registry. Until then, use the contributor setup below.
 </Callout>
 
 ## Contribute from source

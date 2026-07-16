@@ -1,11 +1,34 @@
 {
   "name": "@democraft/studio",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0-beta.0",
+  "description": "Local visual Studio runtime for Democraft demos.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/felipersas/democraft.git",
+    "directory": "packages/studio"
+  },
+  "homepage": "https://github.com/felipersas/democraft#readme",
+  "bugs": "https://github.com/felipersas/democraft/issues",
+  "engines": {
+    "node": ">=20"
+  },
   "type": "module",
+  "files": [
+    ".next/*.json",
+    ".next/BUILD_ID",
+    ".next/server",
+    ".next/static"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "scripts": {
     "dev": "next dev --hostname 127.0.0.1",
     "build": "tsc --noEmit",
+    "build:production": "next build",
+    "prepack": "pnpm build:production",
     "start": "next start --hostname 127.0.0.1",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

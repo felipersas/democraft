@@ -4,10 +4,12 @@ This is the maintainer checklist for the first public npm release. Do not publis
 
 ## Current blockers
 
-1. `@democraft/studio` is private. The CLI starts it with a workspace-only `pnpm --filter @democraft/studio dev`, so `democraft studio` cannot work from an npm installation yet. Publish/bundle a production Studio or temporarily document that command as unavailable.
-2. The `@democraft` npm organization must exist and the publishing account must have write access.
+1. The `@democraft` npm organization must exist and the publishing account must have write access.
 
-The public packages are prepared as `0.1.0-beta.0`, include only `dist/`, build during `prepack`, declare MIT/repository/runtime metadata, and publish explicitly to the public npm registry.
+The public packages are prepared as `0.1.0-beta.0`, build during `prepack`,
+declare MIT/repository/runtime metadata, and publish explicitly to the public
+npm registry. Libraries and the CLI include only `dist/`; the Studio includes
+only its production Next.js manifests, server bundle, and static assets.
 
 ## 1. Prepare the packages
 
@@ -21,7 +23,10 @@ For each public package:
 - add `license`, `repository`, `homepage`, `bugs`, `engines`, and a non-placeholder version;
 - ensure every path in `main`, `types`, `exports`, and `bin` exists in the tarball.
 
-Keep the monorepo root, examples, docs app, and Studio private unless their release design explicitly changes.
+Keep the monorepo root, examples, and docs app private. `@democraft/studio` is
+public because it is the production runtime dependency behind
+`npx democraft studio`; users should still install the CLI rather than the
+Studio directly.
 
 ## 2. Authenticate and verify the scope
 
@@ -60,7 +65,8 @@ Use a prerelease tag for the first external test, for example version `0.1.0-bet
 2. `@democraft/core`, `@democraft/playwright`, `@democraft/preview`, `@democraft/remotion`, and `@democraft/timeline`
 3. `@democraft/compiler`
 4. `@democraft/testing`
-5. `@democraft/cli`
+5. `@democraft/studio`
+6. `@democraft/cli`
 
 The guarded Make target publishes in that order:
 
@@ -77,21 +83,23 @@ Create a clean directory outside the monorepo:
 ```bash
 mkdir /tmp/democraft-smoke
 cd /tmp/democraft-smoke
-pnpm init
-pnpm add -D @democraft/cli@beta @democraft/core@beta
-pnpm exec playwright install chromium
-pnpm exec democraft help
+npm init -y
+npm install --save-dev @democraft/cli@beta @democraft/core@beta
+npx playwright install chromium
+npx democraft help
 ```
 
 Add one `demo.ts`, run a local target app, and verify at least:
 
 ```bash
-pnpm exec democraft validate demo.ts
-pnpm exec democraft render demo.ts -o demo.mp4
-pnpm exec democraft studio demo.ts
+npx democraft validate demo.ts
+npx democraft render demo.ts -o demo.mp4
+npx democraft studio demo.ts
 ```
 
-The Studio command is a release gate: it must run from this clean installation, not only from the monorepo.
+The Studio command is a release gate: it must start the production build from
+this clean installation, serve `/` and `/api/data`, and shut down cleanly. It
+must not invoke pnpm or depend on a monorepo checkout.
 
 ## 6. Promote the tested release
 
