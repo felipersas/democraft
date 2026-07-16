@@ -156,27 +156,6 @@ importers:
         specifier: workspace:*
         version: link:../../packages/timeline
 
-  examples/talento-saas:
-    dependencies:
-      '@democraft/compiler':
-        specifier: workspace:*
-        version: link:../../packages/compiler
-      '@democraft/core':
-        specifier: workspace:*
-        version: link:../../packages/core
-      '@democraft/playwright':
-        specifier: workspace:*
-        version: link:../../packages/playwright
-      '@democraft/remotion':
-        specifier: workspace:*
-        version: link:../../packages/remotion
-      '@democraft/timeline':
-        specifier: workspace:*
-        version: link:../../packages/timeline
-      playwright:
-        specifier: ^1.58.2
-        version: 1.61.1
-
   packages/cli:
     dependencies:
       '@democraft/compiler':
