@@ -2,7 +2,6 @@
 
 import type { RenderTimeline } from "@democraft/schema";
 import { useStudio } from "@/lib/studio-context";
-import { usePlayerFrame } from "@/lib/hooks/use-player-frame";
 import { useSeek } from "@/lib/hooks/use-seek";
 import { TimelineBody } from "@/components/timeline/TimelineBody";
 
@@ -14,7 +13,6 @@ export function TimelineTrack() {
   const total = timeline?.durationInFrames ?? 0;
   const fps = timeline?.fps ?? 60;
 
-  const frame = usePlayerFrame(player);
   const seekToFrame = useSeek(playerRef, total);
 
   if (!timeline) {
@@ -30,7 +28,7 @@ export function TimelineTrack() {
       timeline={timeline}
       total={total}
       fps={fps}
-      frame={frame}
+      player={player}
       onSeek={seekToFrame}
     />
   );
