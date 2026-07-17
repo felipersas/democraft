@@ -1,6 +1,28 @@
 import type { CliResult } from "./types";
 
 export function help(command?: string): string {
+  if (command === "auth") {
+    return `democraft auth <command> [profile-id] [options]
+
+Manage reusable local authentication profiles.
+
+Commands:
+  create    Create profile metadata (--name and --origin required)
+  list      List profiles and their session status
+  login     Open a headed browser; press Enter after completing login
+  validate  Validate a saved session against its protected URL
+  rename    Rename a profile (--name required)
+  remove    Remove a profile (--force when associated with a demo)
+
+Options:
+  --name <name>              Profile display name
+  --origin <url>             Application origin
+  --validation-url <url>     Protected URL (defaults to origin)
+  --selector <selector>      Element expected after login
+  --force                    Confirm removal of an in-use profile
+  --json                     Emit stable machine-readable JSON
+`;
+  }
   if (command === "render") {
     return `democraft render [demo.ts] [options]
 
@@ -28,6 +50,7 @@ Common workflows:
   studio    Capture and open the interactive Studio
   render    Capture, resolve, and render an MP4
   validate  Validate a demo without opening a browser
+  auth      Manage reusable authentication profiles
 
 Other commands:
   inspect   Compile a demo and print readable inspection output
