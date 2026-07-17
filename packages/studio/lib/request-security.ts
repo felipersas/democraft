@@ -8,7 +8,8 @@ export const STUDIO_SESSION_TOKEN_ENV = "DEMOCRAFT_STUDIO_SESSION_TOKEN";
  * Authorizes a state-changing Studio request.
  *
  * The Studio is a local tool, so mutations must target a loopback origin, come
- * from that exact origin, and carry the per-process token created by the CLI.
+ * from an equivalent loopback origin (same protocol and port), and carry the
+ * per-process token created by the CLI.
  */
 export function authorizeStudioMutation(
   request: Request,
