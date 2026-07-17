@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import { RefreshCw, Camera } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { studioMutationRequest } from "@/lib/studio-api";
+import { cn } from "../lib/utils";
+import { studioMutationRequest } from "../lib/studio-api";
 
 type RecapturePhase =
   | { kind: "idle" }
@@ -26,6 +26,27 @@ const PHASE_LABELS: Record<string, string> = {
  */
 export function RecaptureButton() {
   const [state, setState] = React.useState<RecapturePhase>({ kind: "idle" });
+  const resetTimer = React.useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+  const finish = React.useCallback(
+    (terminal: Extract<RecapturePhase, { kind: "done" | "failed" }>) => {
+      setState(terminal);
+      clearTimeout(resetTimer.current);
+      resetTimer.current = setTimeout(
+        () => setState({ kind: "idle" }),
+        terminal.kind === "done" ? 2000 : 4000,
+      );
+    },
+    [],
+  );
+
+  React.useEffect(
+    () => () => {
+      clearTimeout(resetTimer.current);
+    },
+    [],
+  );
 
   React.useEffect(() => {
     const es = new EventSource("/api/events");
@@ -36,11 +57,9 @@ export function RecaptureButton() {
           error?: string;
         };
         if (data.phase === "done") {
-          setState({ kind: "done" });
-          setTimeout(() => setState({ kind: "idle" }), 2000);
+          finish({ kind: "done" });
         } else if (data.phase === "failed") {
-          setState({ kind: "failed", error: data.error ?? "Failed" });
-          setTimeout(() => setState({ kind: "idle" }), 4000);
+          finish({ kind: "failed", error: data.error ?? "Failed" });
         } else {
           setState({ kind: "running", phase: data.phase });
         }
@@ -53,7 +72,7 @@ export function RecaptureButton() {
       es.removeEventListener("recapture-progress", onProgress);
       es.close();
     };
-  }, []);
+  }, [finish]);
 
   const handleClick = async () => {
     if (state.kind === "running") return;
@@ -71,12 +90,14 @@ export function RecaptureButton() {
         { method: "POST" },
         "Re-capture request failed.",
       );
+      // The response is authoritative: it is returned only after capture and
+      // materialization finish. SSE remains best-effort progress reporting.
+      finish({ kind: "done" });
     } catch (err) {
-      setState({
+      finish({
         kind: "failed",
         error: err instanceof Error ? err.message : "Request failed",
       });
-      setTimeout(() => setState({ kind: "idle" }), 4000);
     }
   };
 

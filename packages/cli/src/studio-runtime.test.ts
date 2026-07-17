@@ -17,18 +17,20 @@ describe("Studio runtime", () => {
     const studioDirectory = await temporaryStudio();
     await mkdir(path.join(studioDirectory, ".next"));
     await writeFile(path.join(studioDirectory, ".next", "BUILD_ID"), "build");
-    const nextBin = path.join(studioDirectory, "node_modules", "next", "dist", "bin", "next");
+    const nextBin = path.join(
+      studioDirectory,
+      "node_modules",
+      "next",
+      "dist",
+      "bin",
+      "next",
+    );
 
-    expect(createStudioRuntime({ studioDirectory, nextBin, port: 4310 })).toEqual({
+    expect(
+      createStudioRuntime({ studioDirectory, nextBin, port: 4310 }),
+    ).toEqual({
       command: process.execPath,
-      args: [
-        nextBin,
-        "start",
-        "--hostname",
-        "127.0.0.1",
-        "--port",
-        "4310",
-      ],
+      args: [nextBin, "start", "--hostname", "127.0.0.1", "--port", "4310"],
       cwd: studioDirectory,
       mode: "production",
     });
@@ -37,19 +39,36 @@ describe("Studio runtime", () => {
   it("uses development mode only for a source checkout", async () => {
     const studioDirectory = await temporaryStudio();
     await mkdir(path.join(studioDirectory, "app"));
-    await writeFile(path.join(studioDirectory, "next.config.ts"), "export default {};");
+    await writeFile(
+      path.join(studioDirectory, "next.config.ts"),
+      "export default {};",
+    );
 
     expect(
       createStudioRuntime({ studioDirectory, nextBin: "/next", port: 3000 }),
     ).toMatchObject({
-      args: [
-        "/next",
-        "dev",
-        "--hostname",
-        "127.0.0.1",
-        "--port",
-        "3000",
-      ],
+      args: ["/next", "dev", "--hostname", "127.0.0.1", "--port", "3000"],
+      mode: "development",
+    });
+  });
+
+  it("does not run a stale production build from a source checkout", async () => {
+    const studioDirectory = await temporaryStudio();
+    await mkdir(path.join(studioDirectory, "app"));
+    await writeFile(
+      path.join(studioDirectory, "next.config.ts"),
+      "export default {};",
+    );
+    await mkdir(path.join(studioDirectory, ".next"));
+    await writeFile(
+      path.join(studioDirectory, ".next", "BUILD_ID"),
+      "stale-build",
+    );
+
+    expect(
+      createStudioRuntime({ studioDirectory, nextBin: "/next", port: 3000 }),
+    ).toMatchObject({
+      args: ["/next", "dev", "--hostname", "127.0.0.1", "--port", "3000"],
       mode: "development",
     });
   });

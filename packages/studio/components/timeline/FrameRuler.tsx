@@ -10,7 +10,6 @@ export function FrameRuler(props: {
   fps: number;
   pxPerFrame: number;
   labelColWidth: number;
-  frame: number;
   onSeek: (frame: number) => void;
   renderRange: [number, number] | null;
   onSetRenderRange: (range: [number, number] | null) => void;

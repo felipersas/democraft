@@ -10,14 +10,17 @@ import {
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
+import type { PlayerRef } from "@remotion/player";
 import type { RenderTimeline } from "@democraft/schema";
 import { useStudio } from "@/lib/studio-context";
 import { cn } from "@/lib/utils";
 import { isTypingTarget } from "@/lib/dom";
 import { isLayerVisible } from "@/lib/layers";
 import type { LayerKind } from "@/lib/types";
+import { useActiveSegmentIds } from "@/lib/hooks/use-active-segments";
 import { FrameRuler } from "@/components/timeline/FrameRuler";
 import { TrackRow } from "@/components/timeline/TrackRow";
+import TimelinePlayhead from "@/components/timeline/TimelinePlayhead";
 import {
   MIN_PX_PER_FRAME,
   MAX_PX_PER_FRAME,
@@ -37,7 +40,7 @@ export function TimelineBody(props: {
   timeline: RenderTimeline;
   total: number;
   fps: number;
-  frame: number;
+  player: PlayerRef | null;
   onSeek: (frame: number) => void;
 }) {
   const {
@@ -82,6 +85,46 @@ export function TimelineBody(props: {
   }, [pxPerFrame, containerWidth, trackWidth, props.total]);
 
   const contentWidth = props.total * effectiveZoom;
+
+  // Project the timeline's tracks into the flat { id, from, duration, label }
+  // shape the rows render. Memoized on the timeline reference so the segment
+  // arrays keep stable identities across the per-frame re-renders we are about
+  // to remove — the rows and the active-segment hook only recompute when the
+  // underlying timeline actually changes.
+  const segments = React.useMemo(
+    () => ({
+      camera: props.timeline.camera.map((t) => ({
+        id: t.id,
+        from: t.fromFrame,
+        duration: t.durationInFrames,
+        label: t.kind === "establish" ? "establish" : "focus",
+      })),
+      cursor: props.timeline.cursor.map((t) => ({
+        id: t.id,
+        from: t.fromFrame,
+        duration: Math.min(t.durationInFrames, 28),
+        label: "click",
+      })),
+      overlays: props.timeline.overlays.map((t) => ({
+        id: t.id,
+        from: t.fromFrame,
+        duration: t.durationInFrames,
+        label: t.kind,
+      })),
+      audio: (props.timeline.audio ?? []).map((t) => ({
+        id: t.id,
+        from: t.fromFrame,
+        duration: t.durationInFrames,
+        label: t.label ?? t.kind ?? "audio",
+      })),
+    }),
+    [props.timeline],
+  );
+
+  // Active-segment highlight is change-driven: it only updates React state when
+  // the active track entry actually changes (at segment boundaries), not on
+  // every frame. See use-active-segments.ts.
+  const active = useActiveSegmentIds(props.player, segments);
 
   const zoomBy = React.useCallback(
     (factor: number) => {
@@ -202,84 +245,75 @@ export function TimelineBody(props: {
               fps={props.fps}
               pxPerFrame={effectiveZoom}
               labelColWidth={labelColWidth}
-              frame={props.frame}
               onSeek={props.onSeek}
               renderRange={renderRange}
               onSetRenderRange={setRenderRange}
             />
           </div>
-          <div className="space-y-px py-1">
-            <TrackRow
-              icon={<Camera className="w-3 h-3" />}
-              label="Camera"
-              color="var(--studio-track-camera)"
-              total={props.total}
-              pxPerFrame={effectiveZoom}
-              frame={props.frame}
-              visible={isLayerOn("camera")}
-              onToggleVisible={() => toggleLayer("camera")}
-              onSolo={() => setSolo("camera")}
-              tracks={props.timeline.camera.map((t) => ({
-                id: t.id,
-                from: t.fromFrame,
-                duration: t.durationInFrames,
-                label: t.kind === "establish" ? "establish" : "focus",
-              }))}
-              onSeek={props.onSeek}
-            />
-            <TrackRow
-              icon={<MousePointer2 className="w-3 h-3" />}
-              label="Cursor"
-              color="var(--studio-track-cursor)"
-              total={props.total}
-              pxPerFrame={effectiveZoom}
-              frame={props.frame}
-              visible={isLayerOn("cursor")}
-              onToggleVisible={() => toggleLayer("cursor")}
-              onSolo={() => setSolo("cursor")}
-              tracks={props.timeline.cursor.map((t) => ({
-                id: t.id,
-                from: t.fromFrame,
-                duration: Math.min(t.durationInFrames, 28),
-                label: "click",
-              }))}
-              onSeek={props.onSeek}
-            />
-            <TrackRow
-              icon={<SquareStack className="w-3 h-3" />}
-              label="Overlays"
-              color="var(--studio-track-overlay)"
-              total={props.total}
-              pxPerFrame={effectiveZoom}
-              frame={props.frame}
-              visible={isLayerOn("overlays")}
-              onToggleVisible={() => toggleLayer("overlays")}
-              onSolo={() => setSolo("overlays")}
-              tracks={props.timeline.overlays.map((t) => ({
-                id: t.id,
-                from: t.fromFrame,
-                duration: t.durationInFrames,
-                label: t.kind,
-              }))}
-              onSeek={props.onSeek}
-            />
-            <TrackRow
+          {/* The playhead overlay spans all rows. It is positioned absolutely
+              over the rows region and offset by the label column so it tracks
+              the track content; its transform is driven imperatively by
+              TimelinePlayhead's own rAF loop, so it never re-renders the tree. */}
+          <div className="relative">
+            <div className="space-y-px py-1">
+              <TrackRow
+                icon={<Camera className="w-3 h-3" />}
+                label="Camera"
+                color="var(--studio-track-camera)"
+                total={props.total}
+                pxPerFrame={effectiveZoom}
+                activeSegmentId={active.camera}
+                visible={isLayerOn("camera")}
+                onToggleVisible={() => toggleLayer("camera")}
+                onSolo={() => setSolo("camera")}
+                tracks={segments.camera}
+                onSeek={props.onSeek}
+              />
+              <TrackRow
+                icon={<MousePointer2 className="w-3 h-3" />}
+                label="Cursor"
+                color="var(--studio-track-cursor)"
+                total={props.total}
+                pxPerFrame={effectiveZoom}
+                activeSegmentId={active.cursor}
+                visible={isLayerOn("cursor")}
+                onToggleVisible={() => toggleLayer("cursor")}
+                onSolo={() => setSolo("cursor")}
+                tracks={segments.cursor}
+                onSeek={props.onSeek}
+              />
+              <TrackRow
+                icon={<SquareStack className="w-3 h-3" />}
+                label="Overlays"
+                color="var(--studio-track-overlay)"
+                total={props.total}
+                pxPerFrame={effectiveZoom}
+                activeSegmentId={active.overlays}
+                visible={isLayerOn("overlays")}
+                onToggleVisible={() => toggleLayer("overlays")}
+                onSolo={() => setSolo("overlays")}
+                tracks={segments.overlays}
+                onSeek={props.onSeek}
+              />
+              <TrackRow
                 icon={<Music className="w-3 h-3" />}
                 label="Audio"
                 color="var(--studio-track-audio)"
                 total={props.total}
                 pxPerFrame={effectiveZoom}
-                frame={props.frame}
+                activeSegmentId={active.audio}
                 visible
                 onToggleVisible={() => undefined}
                 onSolo={() => undefined}
-                tracks={(props.timeline.audio ?? []).map((t) => ({
-                  id: t.id,
-                  from: t.fromFrame,
-                  duration: t.durationInFrames,
-                  label: t.label ?? t.kind ?? "audio",
-                }))}
+                tracks={segments.audio}
                 onSeek={props.onSeek}
+              />
+            </div>
+            <TimelinePlayhead
+              player={props.player}
+              pxPerFrame={effectiveZoom}
+              total={props.total}
+              labelColWidth={labelColWidth}
             />
           </div>
         </div>

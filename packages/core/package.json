@@ -1,6 +1,6 @@
 {
   "name": "@democraft/core",
-  "version": "0.1.0-beta.0",
+  "version": "0.1.0-beta.1",
   "description": "TypeScript authoring API for Democraft product demos.",
   "license": "MIT",
   "repository": {

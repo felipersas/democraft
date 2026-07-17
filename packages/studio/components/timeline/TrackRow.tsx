@@ -18,7 +18,7 @@ export function TrackRow(props: {
   color: string;
   total: number;
   pxPerFrame: number;
-  frame: number;
+  activeSegmentId: string | null;
   visible: boolean;
   onToggleVisible: () => void;
   onSolo: () => void;
@@ -71,8 +71,7 @@ export function TrackRow(props: {
           props.tracks.map((t) => {
             const left = t.from * props.pxPerFrame;
             const width = Math.max(2, t.duration * props.pxPerFrame);
-            const isActive =
-              props.frame >= t.from && props.frame < t.from + t.duration;
+            const isActive = t.id === props.activeSegmentId;
             return (
               <div
                 key={t.id}
@@ -90,12 +89,6 @@ export function TrackRow(props: {
               </div>
             );
           })}
-        {props.total > 0 && (
-          <div
-            className="absolute top-0 bottom-0 w-px bg-[var(--studio-accent)] pointer-events-none"
-            style={{ left: props.frame * props.pxPerFrame }}
-          />
-        )}
       </div>
     </div>
   );
