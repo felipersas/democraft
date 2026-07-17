@@ -22,7 +22,8 @@ export function authorizeStudioMutation(
   if (
     !origin ||
     !isLoopbackHostname(origin.hostname) ||
-    origin.origin !== requestUrl.origin
+    origin.protocol !== requestUrl.protocol ||
+    origin.port !== requestUrl.port
   ) {
     return forbidden("Studio mutation origin is not allowed.");
   }

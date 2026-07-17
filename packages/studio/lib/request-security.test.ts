@@ -22,6 +22,20 @@ describe("Studio request security", () => {
   });
 
   it.each([
+    ["http://localhost:3000", "http://127.0.0.1:3000"],
+    ["http://127.0.0.1:3000", "http://localhost:3000"],
+  ])(
+    "allows equivalent loopback aliases from %s to %s",
+    (requestOrigin, browserOrigin) => {
+      vi.stubEnv(STUDIO_SESSION_TOKEN_ENV, TOKEN);
+
+      expect(
+        authorizeStudioMutation(request(requestOrigin, browserOrigin)),
+      ).toBeUndefined();
+    },
+  );
+
+  it.each([
     [null, 403],
     ["https://attacker.example", 403],
     ["http://127.0.0.1:4000", 403],
