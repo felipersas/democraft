@@ -23,6 +23,7 @@ import {
 } from "../../../lib/studio-path-authority";
 import { mkdir } from "node:fs/promises";
 import { compileDemoModuleIsolated } from "../../../lib/compile-demo-isolated";
+import { createStudioAuthenticationExecution } from "../../../lib/authentication-server";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -109,6 +110,9 @@ async function performRecapture() {
       outputDir: explicitOutput ? captureDir : undefined,
       captureRootDir: managedCaptureRoot,
       headless: trustedCaptureHeadless(),
+      authentication: compilation.ir.authentication
+        ? await createStudioAuthenticationExecution()
+        : undefined,
       environment: (() => {
         const storageState = trustedStorageState();
         return storageState ? { storageState } : undefined;

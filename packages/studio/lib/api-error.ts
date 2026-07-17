@@ -7,7 +7,17 @@ export async function readApiError(
       error?: unknown;
       issues?: unknown;
     };
-    const message = typeof body.error === "string" ? body.error : fallback;
+    const semanticMessage =
+      body.error &&
+      typeof body.error === "object" &&
+      "message" in body.error &&
+      typeof body.error.message === "string"
+        ? body.error.message
+        : undefined;
+    const message =
+      typeof body.error === "string"
+        ? body.error
+        : (semanticMessage ?? fallback);
     const issue = Array.isArray(body.issues) ? body.issues[0] : undefined;
     if (
       issue &&

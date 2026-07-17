@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { publish } from "@/lib/event-bus";
 import { materializeStudioData } from "@/lib/materialize";
 import { compileDemoModuleIsolated } from "../../../lib/compile-demo-isolated";
+import { runDemo } from "@democraft/playwright";
+import { createStudioAuthenticationExecution } from "../../../lib/authentication-server";
 
 const capture = vi.hoisted(() => {
   let resolve!: (value: unknown) => void;
@@ -50,6 +52,11 @@ vi.mock("../../../lib/compile-demo-isolated", () => ({
   compileDemoModuleIsolated: vi.fn(async () => ({
     ir: { id: "demo" },
     diagnostics: [],
+  })),
+}));
+vi.mock("../../../lib/authentication-server", () => ({
+  createStudioAuthenticationExecution: vi.fn(async () => ({
+    prepare: vi.fn(),
   })),
 }));
 vi.mock("@democraft/playwright", async (importOriginal) => ({
@@ -101,6 +108,28 @@ describe("POST /api/recapture", () => {
         phase: "failed",
         error:
           "Failed https://[redacted]@example.test?token=[redacted]&safe=ok",
+      }),
+    );
+  });
+
+  it("restores the profile selected by the compiled demo during recapture", async () => {
+    const profileId = "auth_01arz3ndektsv4rrffq69g5fav";
+    vi.mocked(compileDemoModuleIsolated).mockResolvedValueOnce({
+      ir: { id: "demo", authentication: { profileId } },
+      diagnostics: [],
+      config: {},
+    } as unknown as Awaited<ReturnType<typeof compileDemoModuleIsolated>>);
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(200);
+    expect(createStudioAuthenticationExecution).toHaveBeenCalledOnce();
+    expect(runDemo).toHaveBeenCalledWith(
+      expect.objectContaining({ authentication: { profileId } }),
+      expect.objectContaining({
+        authentication: expect.objectContaining({
+          prepare: expect.any(Function),
+        }),
       }),
     );
   });
