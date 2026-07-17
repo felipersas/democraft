@@ -1,6 +1,6 @@
 import { ArrowRight, Github } from "lucide-react";
 import { BrandMark } from "@/components/landing/brand";
-import { CodePanel } from "@/components/landing/code-panel";
+import { CapabilityWorkbench } from "@/components/landing/capability-workbench";
 import { HeroAurora } from "@/components/landing/hero-aurora";
 import { InstallCommand } from "@/components/landing/install-command";
 import { Comparison, FAQ, HowItWorks } from "@/components/landing/sections";
@@ -11,51 +11,6 @@ const docsBase = (
 const docsHref = (path: string) => `${docsBase}${path}`;
 const docs = docsHref("/en/docs/introduction");
 const github = "https://github.com/felipersas/democraft";
-
-const talentoDemo = `import { byText, defineDemo, defineTargets } from "@democraft/core";
-
-const targets = defineTargets({
-  dashboard: byText("Operação de recrutamento"),
-  applications: byText("Candidaturas por mês"),
-});
-
-export default defineDemo({
-  id: "talento-overview",
-  source: { baseUrl: "http://localhost:3001" },
-  targets,
-  async run({ demo }) {
-    await demo.scene("overview", async (scene) => {
-      await scene.goto("/app/nimbus-tech");
-      await scene.establish("dashboard");
-      await scene.focus("applications");
-      await scene.callout("applications", {
-        title: "Hiring activity over time",
-        renderer: "remocn.callout-dark",
-      });
-    });
-  },
-});`;
-
-const remocnDemo = `import { defineDemo, defineVisual } from "@democraft/core";
-import { SoftBlurIn } from "./components/remocn/soft-blur-in";
-
-export default defineDemo({
-  id: "launch",
-  title: "Launch",
-  source: { baseUrl: "http://localhost:3000" },
-  visuals: {
-    "local.launch-title": defineVisual(SoftBlurIn),
-  },
-  async run({ demo }) {
-    await demo.scene("intro", async (scene) => {
-      await scene.visual(
-        "local.launch-title",
-        { text: "Analytics, redesigned", speed: 1.2 },
-        { duration: "1.5s" },
-      );
-    });
-  },
-});`;
 
 export function LandingPage() {
   return (
@@ -81,9 +36,9 @@ export function LandingPage() {
             </a>
             <a
               className="rounded-md px-2 py-1 text-[14px] text-[var(--landing-muted)] no-underline transition-colors duration-[90ms] hover:bg-[var(--landing-hover)] hover:text-[var(--landing-foreground-secondary)]"
-              href="#components"
+              href="#capabilities"
             >
-              Components
+              Capabilities
             </a>
             <a
               className="rounded-md px-2 py-1 text-[14px] text-[var(--landing-muted)] no-underline transition-colors duration-[90ms] hover:bg-[var(--landing-hover)] hover:text-[var(--landing-foreground-secondary)]"
@@ -112,24 +67,26 @@ export function LandingPage() {
           <HeroAurora />
         </div>
         <div className="landing-container relative z-10 grid min-h-[90svh] grid-cols-[minmax(320px,0.78fr)_minmax(520px,1.22fr)] items-center gap-12 py-[clamp(80px,9vw,128px)] max-[1000px]:grid-cols-1 max-[800px]:py-20">
-          <div className="flex max-w-[560px] flex-col items-start max-[1000px]:max-w-[680px]">
+          <div className="flex max-w-[590px] flex-col items-start max-[1000px]:max-w-[720px]">
+            <p className="landing-kicker mb-4">Open-source demos as code</p>
             <h1 className="max-w-[680px] text-[clamp(46px,5vw,68px)] leading-[1.02] font-[550] tracking-[-0.035em] text-balance max-[560px]:text-[clamp(40px,12vw,56px)]">
-              Product demos that behave like software.
+              Turn real product workflows into repeatable demo videos.
             </h1>
             <p className="mt-6 max-w-[60ch] text-[18px] leading-7 text-pretty text-[var(--landing-foreground-secondary)]">
-              Define the workflow in TypeScript. Playwright captures the real
-              product. Remotion renders a repeatable video you can version,
-              review, and regenerate.
+              Write the flow once in TypeScript. Democraft runs it against your
+              real app with Playwright, captures every step, then uses Remotion
+              to render a polished MP4 with camera direction, captions, audio,
+              authenticated sessions, and React visuals.
             </p>
             <div className="mt-7 flex flex-wrap gap-2">
               <a className="landing-button landing-button-primary" href={docs}>
-                Read the docs <ArrowRight size={14} />
+                Build your first demo <ArrowRight size={14} />
               </a>
               <a
                 className="landing-button landing-button-secondary"
                 href={github}
               >
-                <Github size={14} /> View on GitHub
+                <Github size={14} /> See the source
               </a>
             </div>
           </div>
@@ -151,61 +108,9 @@ export function LandingPage() {
         </div>
       </section>
 
-      <section className="landing-container grid grid-cols-[minmax(280px,0.7fr)_minmax(0,1.3fr)] items-center gap-20 py-[clamp(104px,10vw,144px)] max-[800px]:grid-cols-1 max-[800px]:gap-10">
-        <div>
-          <p className="landing-kicker mb-4">One file, one real workflow</p>
-          <h2 className="landing-heading">Author the path—not the take.</h2>
-          <p className="landing-copy mt-5">
-            Semantic targets, browser actions, camera direction, and overlays
-            live together in TypeScript. The definition remains understandable
-            long after the product changes.
-          </p>
-          <a
-            className="landing-link mt-5"
-            href={docsHref("/en/docs/sdk/define-demo")}
-          >
-            Explore the authoring API <ArrowRight size={14} />
-          </a>
-        </div>
-        <CodePanel
-          code={talentoDemo}
-          path="talento-saas / src"
-          filename="demo.ts"
-          label="TypeScript demo definition"
-        />
-      </section>
+      <CapabilityWorkbench docsHref={docsHref} />
 
       <HowItWorks />
-
-      <section
-        className="landing-container landing-section grid grid-cols-[minmax(280px,0.7fr)_minmax(0,1.3fr)] items-center gap-20 max-[800px]:grid-cols-1 max-[800px]:gap-10"
-        id="components"
-      >
-        <div>
-          <p className="landing-kicker mb-4">Visual components</p>
-          <h2 className="landing-heading">
-            Use ready-made components—or build and integrate your own.
-          </h2>
-          <p className="landing-copy mt-5">
-            Titles, captions, and callouts are React components rendered by
-            Remotion. Copy a cinematic one from remocn — Remotion meets shadcn —
-            or write your own. The source stays in your project, and TypeScript
-            checks both the renderer ID and its props.
-          </p>
-          <a
-            className="landing-link mt-5"
-            href={docsHref("/en/docs/concepts/components")}
-          >
-            Explore remocn components <ArrowRight size={14} />
-          </a>
-        </div>
-        <CodePanel
-          code={remocnDemo}
-          path="acme-app / src"
-          filename="demo.ts"
-          label="TypeScript demo registering a custom visual component"
-        />
-      </section>
 
       <Comparison />
 

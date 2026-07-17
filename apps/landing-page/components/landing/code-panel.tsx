@@ -9,6 +9,8 @@ type CodePanelProps = {
   filename: string;
   /** Accessible label for the panel. */
   label: string;
+  /** Tighter editor chrome for code embedded in the capability workbench. */
+  compact?: boolean;
 };
 
 export async function CodePanel({
@@ -16,6 +18,7 @@ export async function CodePanel({
   path,
   filename,
   label,
+  compact = false,
 }: CodePanelProps) {
   const highlighted = await codeToHtml(code, {
     lang: "typescript",
@@ -24,7 +27,7 @@ export async function CodePanel({
 
   return (
     <div
-      className="min-w-0 overflow-hidden rounded-xl border border-[var(--landing-border)] bg-[var(--landing-surface-1)]"
+      className={`min-w-0 overflow-hidden border border-[var(--landing-border)] bg-[var(--landing-surface-1)] ${compact ? "rounded-lg" : "rounded-xl"}`}
       aria-label={label}
     >
       <div className="flex h-8 items-center border-b border-[var(--landing-border-subtle)] bg-[var(--landing-surface-2)] px-3">
@@ -39,7 +42,7 @@ export async function CodePanel({
         </span>
       </div>
       <div
-        className="[&_pre]:m-0 [&_pre]:min-h-0 [&_pre]:overflow-auto [&_pre]:!bg-[#131416] [&_pre]:px-0 [&_pre]:py-4 [&_pre]:font-mono [&_pre]:text-[11px] [&_pre]:leading-[14px] [&_code]:block [&_code]:w-max [&_code]:min-w-full [&_code]:text-[0px] [&_code]:[counter-reset:code-line] [&_.line]:block [&_.line]:min-h-[14px] [&_.line]:pr-6 [&_.line]:text-[11px] [&_.line]:[counter-increment:code-line] [&_.line::before]:mr-4 [&_.line::before]:inline-block [&_.line::before]:w-10 [&_.line::before]:select-none [&_.line::before]:text-right [&_.line::before]:text-[var(--landing-subtle)] [&_.line::before]:content-[counter(code-line)]"
+        className={`[&_pre]:m-0 [&_pre]:min-h-0 [&_pre]:overflow-auto [&_pre]:!bg-[#131416] [&_pre]:px-0 [&_pre]:font-mono [&_code]:block [&_code]:w-max [&_code]:min-w-full [&_code]:text-[0px] [&_code]:[counter-reset:code-line] [&_.line]:block [&_.line]:pr-6 [&_.line]:[counter-increment:code-line] [&_.line::before]:inline-block [&_.line::before]:select-none [&_.line::before]:text-right [&_.line::before]:text-[var(--landing-subtle)] [&_.line::before]:content-[counter(code-line)] ${compact ? "[&_pre]:py-3 [&_pre]:text-[10px] [&_pre]:leading-[8px] [&_.line]:min-h-[13px] [&_.line]:text-[10px] [&_.line::before]:mr-3 [&_.line::before]:w-8" : "[&_pre]:py-4 [&_pre]:text-[11px] [&_pre]:leading-[14px] [&_.line]:min-h-[14px] [&_.line]:text-[11px] [&_.line::before]:mr-4 [&_.line::before]:w-10"}`}
         dangerouslySetInnerHTML={{ __html: highlighted }}
       />
     </div>
