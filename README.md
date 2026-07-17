@@ -15,6 +15,7 @@ developers or AI agents maintain it through the same API.
 [Quickstart](./apps/docs/content/quickstart.mdx) ·
 [Documentation](./apps/docs/content/introduction.mdx) ·
 [CLI](./apps/docs/content/cli/overview.mdx) ·
+[Authentication](./docs/authentication.md) ·
 [Architecture](./docs/architecture/overview.md) ·
 [LLM reference](./llms.txt)
 
@@ -143,16 +144,17 @@ validation diagnostics enough context to suggest repairs.
 
 The common path is intentionally short:
 
-| Command                                  | Purpose                                                       |
-| ---------------------------------------- | ------------------------------------------------------------- |
-| `democraft studio [demo.ts]`             | Capture or reuse artifacts and open the interactive Studio.   |
-| `democraft render [demo.ts] -o demo.mp4` | Run the complete capture-to-MP4 pipeline.                     |
-| `democraft validate [demo.ts]`           | Validate without opening a browser.                           |
-| `democraft inspect [demo.ts]`            | Print a readable or JSON representation of the compiled demo. |
-| `democraft targets [demo.ts]`            | List the target contracts used by the demo.                   |
-| `democraft capture [demo.ts]`            | Run only the Playwright capture stage.                        |
-| `democraft timeline [demo.ts]`           | Resolve a timeline from a capture manifest.                   |
-| `democraft preview`                      | Generate the deprecated standalone HTML preview.              |
+| Command                                                        | Purpose                                                       |
+| -------------------------------------------------------------- | ------------------------------------------------------------- |
+| `democraft studio [demo.ts]`                                   | Capture or reuse artifacts and open the interactive Studio.   |
+| `democraft render [demo.ts] -o demo.mp4`                       | Run the complete capture-to-MP4 pipeline.                     |
+| `democraft validate [demo.ts]`                                 | Validate without opening a browser.                           |
+| `democraft inspect [demo.ts]`                                  | Print a readable or JSON representation of the compiled demo. |
+| `democraft targets [demo.ts]`                                  | List the target contracts used by the demo.                   |
+| `democraft capture [demo.ts]`                                  | Run only the Playwright capture stage.                        |
+| `democraft timeline [demo.ts]`                                 | Resolve a timeline from a capture manifest.                   |
+| `democraft preview`                                            | Generate the deprecated standalone HTML preview.              |
+| `democraft auth create\|list\|login\|validate\|rename\|remove` | Manage reusable local authentication profiles.                |
 
 Artifact flags remain available for CI and debugging:
 
@@ -214,6 +216,12 @@ npx democraft studio demo.ts
 
 The Studio binds to the loopback interface and mutation endpoints require an
 ephemeral session token created by the CLI.
+
+Private applications use a reusable local authentication profile. The demo
+stores only its opaque profile ID; cookies and browser storage stay outside the
+source tree. See the [authentication guide](./docs/authentication.md) for the
+interactive Studio/CLI workflow, agent-safe JSON contracts, security model,
+protected example, and CI limitations.
 
 ## Project status
 

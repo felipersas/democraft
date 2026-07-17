@@ -1,0 +1,166 @@
+---
+title: Authentication profiles
+description: Capture private applications with reusable local browser sessions and no credentials in source.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+import { Steps } from "fumadocs-ui/components/steps";
+
+An authentication profile is a local, reusable Playwright browser session. A
+demo commits only its opaque profile ID—never a password, cookie, token, state
+path, or raw browser state.
+
+```ts title="demo.ts"
+export default defineDemo({
+  // ...
+  authentication: {
+    profileId: "auth_01arz3ndektsv4rrffq69g5fav",
+  },
+});
+```
+
+One demo can reference one profile in v1. The same immutable session snapshot
+is restored for every scene in that execution.
+
+## Set up a profile
+
+<Steps>
+  1. Create metadata and a protected-page validation rule.
+
+     ```bash
+     npx democraft auth create \
+       --name "Demo admin" \
+       --origin https://app.example.com \
+       --validation-url /dashboard \
+       --selector '[data-testid="user-menu"]'
+     ```
+
+  2. Sign in once in the headed browser. Complete password, OAuth, MFA, CAPTCHA,
+     magic link, or SSO yourself; Democraft does not bypass these steps.
+
+     ```bash
+     npx democraft auth login <profile-id>
+     ```
+
+     Return to the terminal and press Enter only after the protected page is
+     ready. Democraft validates before saving the new state.
+
+  3. Add the returned ID to `authentication.profileId`, then validate and
+     capture.
+
+     ```bash
+     npx democraft auth validate <profile-id>
+     npx democraft capture demo.ts
+     ```
+</Steps>
+
+`--validation-url` can be relative to `--origin`. `--selector` proves that a
+protected element is visible. A redirected login page is treated as expiry,
+not as a successful capture.
+
+## Studio workflow
+
+Open **Authentication** in Studio to create a profile, associate it with the
+current demo, perform or renew login, test the session, rename it, or remove it.
+Association updates only `authentication.profileId` in the source definition;
+browser state stays outside the demo.
+
+The visible status distinguishes not configured, authenticating,
+authenticated, expired, invalid, and error states. Use **Test session** before a
+long capture and **Renew login** when it expires.
+
+## CLI lifecycle
+
+```bash
+npx democraft auth list
+npx democraft auth login <profile-id>
+npx democraft auth validate <profile-id>
+npx democraft auth rename <profile-id> --name "New display name"
+npx democraft auth remove <profile-id>
+npx democraft auth remove <profile-id> --force
+```
+
+Normal removal refuses profiles referenced by demos. Resolve those associations
+first; `--force` is an explicit destructive override that deletes local state
+while source references remain.
+
+## Validation, expiry, and renewal
+
+Before capture artifacts exist, the runtime loads one immutable state
+generation and validates it in a separate, unrecorded browser context. Only a
+successful preflight creates the recorded context. Every scene shares it; the
+context is discarded at the end and never written back to the profile.
+
+If validation detects a login redirect, the profile becomes `expired` and the
+run stops without producing a misleading capture. Renew in Studio or run
+`democraft auth login <profile-id>`, then retry the original command. A renewal
+failure or cancellation preserves the previous usable generation when one
+exists.
+
+The deprecated `--storage-state <path>` remains a legacy escape hatch and
+cannot be combined with a demo profile.
+
+## Storage and security
+
+Profiles live under `.democraft/auth/v1/` in the canonical workspace. Democraft
+adds that directory to `.gitignore`, uses restrictive permissions where POSIX
+permissions are supported, hash-checks state generations, performs atomic
+writes, and excludes browser state from captures, Studio data, diagnostics, and
+CLI output.
+
+<Callout type="warn" title="Local isolation, not encryption">
+Anyone who can read browser state may be able to impersonate the signed-in
+user. Use a least-privileged demo account, full-disk encryption, normal
+workstation access controls, and remove unused profiles. Do not inspect or paste
+profile files into prompts, issues, logs, snapshots, or documentation.
+</Callout>
+
+Public errors sanitize URLs and must not expose cookies, authorization headers,
+tokens, passwords, secret values, local-storage content, raw state, or state
+paths. OAuth can capture state across compatible origins. Playwright storage
+state includes cookies and local storage, but not `sessionStorage`; applications
+that rely exclusively on session storage are unsupported in v1.
+
+## CI limitations
+
+Interactive login intentionally fails in CI with `AUTH_UNAVAILABLE_IN_CI` and
+`actionRequired: "provide-state"`. Profiles are workspace-local, not a cloud
+secret distribution system. Capture on the trusted workstation that owns the
+profile, or provision a compatible legacy state file through the CI secret
+system and pass `--storage-state`. Never commit either form of state.
+
+Encrypted import, provider-secret integration, and environment profile mapping
+are future extension points, not current APIs.
+
+## JSON workflow for coding agents
+
+All auth lifecycle commands support `--json`. Agents should use public metadata
+and semantic results only; they must never read `.democraft/auth`.
+
+1. Run `democraft auth list --json` and select an `authenticated` profile by its
+   stable ID and intended origin.
+2. Add only `authentication: { profileId: "…" }` to the demo.
+3. Run `democraft auth validate <id> --json` when freshness matters.
+4. If `actionRequired` is `interactive-login`, ask the user to renew and then
+   resume the original task.
+5. Treat `AUTH_SESSION_EXPIRED` as a prerequisite failure; `DCxxxx` or browser
+   step failures are demo failures.
+
+```json title="Expired session response"
+{
+  "ok": false,
+  "code": "AUTH_SESSION_EXPIRED",
+  "profileId": "auth_01arz3ndektsv4rrffq69g5fav",
+  "status": "expired",
+  "actionRequired": "interactive-login",
+  "message": "The authentication session expired. Renew login and retry.",
+  "stage": "validation"
+}
+```
+
+Other actionable errors include `AUTH_PROFILE_NOT_FOUND`,
+`AUTH_STATE_CORRUPT`, and `AUTH_VALIDATION_FAILED`. JSON output is safe to pass
+to an agent because it contains no credentials or browser state.
+
+Next, follow the [quickstart](../quickstart), review the
+[CLI reference](../cli/overview), or add [audio](./audio) without re-capturing.

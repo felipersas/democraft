@@ -42,6 +42,7 @@ If more than one conventional module exists, pass the path explicitly. The CLI n
 | `validate` | Run static validation without opening a browser. |
 | `inspect` | Compile a demo and print readable inspection output. |
 | `capture` | Validate and create reusable browser artifacts. |
+| `auth create\|list\|login\|validate\|rename\|remove` | Manage reusable local authentication profiles. |
 | `targets` | List target contracts used by a demo. |
 | `timeline` | Resolve a timeline from an explicit capture manifest. |
 | `preview` | *(Deprecated)* Write a standalone HTML preview. |
@@ -92,6 +93,23 @@ If more than one conventional module exists, pass the path explicitly. The CLI n
 | `--no-capture` | Studio only: require a compatible existing capture. |
 
 `--output-file` remains available as a backward-compatible alias for `--output`.
+
+## Authentication commands
+
+Authentication commands manage local browser sessions separately from demo
+source. Add `--json` for stable, redacted results intended for automation and
+coding agents.
+
+```bash
+npx democraft auth create --name "Demo admin" --origin https://app.example.com \
+  --validation-url /dashboard --selector '[data-testid="user-menu"]'
+npx democraft auth login <profile-id>
+npx democraft auth validate <profile-id> --json
+npx democraft auth list --json
+```
+
+See [authentication profiles](../guides/authentication) for Studio association,
+expiry and renewal, security guarantees, semantic exit codes, and CI limits.
 
 ## Advanced artifact mode
 

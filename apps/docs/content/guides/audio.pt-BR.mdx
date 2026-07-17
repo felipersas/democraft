@@ -1,0 +1,113 @@
+---
+title: Áudio
+description: Adicione música, narração, efeitos e ambiência sem recapturar o produto.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+Áudio é apenas apresentação. Ele entra na timeline do Remotion e no MP4 final,
+mas não participa do hash de captura. Alterar faixa, volume ou fade pode
+reutilizar uma captura de navegador compatível.
+
+## Defina as faixas em TypeScript
+
+Adicione quantas faixas precisar em `audioTracks`. Os tempos usam durações
+independentes de fps, como `"250ms"`, `"1s"` e `"1.5s"`.
+
+```ts title="demo.ts"
+import { defineDemo } from "@democraft/core";
+
+export default defineDemo({
+  id: "lancamento",
+  title: "Lançamento",
+  source: { baseUrl: "http://localhost:3000" },
+  audioTracks: [
+    {
+      id: "trilha-lancamento",
+      label: "Trilha do lançamento",
+      src: "./assets/lancamento.mp3",
+      kind: "music",
+      volume: 0.24,
+      loop: true,
+      fadeIn: "800ms",
+      fadeOut: "1s",
+    },
+    {
+      id: "narracao",
+      src: "./assets/narracao.wav",
+      kind: "narration",
+      startAt: "2s",
+    },
+    {
+      id: "publicado",
+      src: "https://example.com/publicado.mp3",
+      kind: "sfx",
+      startAt: "12.5s",
+      volume: 0.7,
+    },
+  ],
+  async run({ demo }) {
+    await demo.scene("lancamento", async (scene) => {
+      await scene.goto("/lancamento");
+      await scene.hold("15s");
+    });
+  },
+});
+```
+
+## Referência da faixa
+
+| Propriedade | Tipo | Padrão | Significado |
+| --- | --- | --- | --- |
+| `id` | `string` | obrigatório | Identificador estável e único no demo. |
+| `src` | `string` | obrigatório | Caminho relativo/absoluto, URL ou referência `staticFile("…")`. |
+| `label` | `string` | `id` | Nome legível no Studio. |
+| `kind` | `"music" \| "narration" \| "sfx" \| "ambient"` | `"sfx"` | Classificação semântica usada pelo Studio. |
+| `startAt` | `Duration` | `"0ms"` | Início na timeline da composição. |
+| `endAt` | `Duration` | fim da composição | Fim inclusivo na composição. |
+| `volume` | `number` | `1` | Ganho entre `0` e `1`. |
+| `muted` | `boolean` | `false` | Silencia a faixa. |
+| `loop` | `boolean` | `false` | Repete a fonte durante o intervalo. |
+| `fadeIn` | `Duration` | `"0ms"` | Rampa do silêncio ao volume configurado. |
+| `fadeOut` | `Duration` | `"0ms"` | Rampa do volume ao silêncio. |
+
+O compilador não verifica a existência da fonte porque a compilação independe
+do ambiente. Caminhos locais são resolvidos a partir do workspace e preparados
+para preview/render; fontes `https:`, `data:` e `blob:` vão direto ao Remotion.
+
+## Edite no Studio
+
+No painel **Audio**, adicione, edite, remova, habilite/desabilite, silencie ou
+repita faixas com preview ao vivo. O Studio grava o conjunto completo em
+`studio-data/audio-overrides.json` e nunca reescreve `demo.ts`. **Reset** remove
+o override. O mute mestre do transporte afeta apenas o preview.
+
+As faixas aparecem em uma linha própria da timeline. O resolver converte
+milissegundos em frames, limita tudo à composição e o Remotion aplica os fades
+quadro a quadro.
+
+## Valide e renderize
+
+```bash
+npx democraft validate demo.ts
+npx democraft studio demo.ts
+npx democraft render demo.ts -o demo.mp4
+```
+
+Os diagnósticos `DC300`–`DC306` cobrem IDs duplicados, fonte ausente, volume,
+intervalos/fades, extensões e durações inválidas.
+
+<Callout type="info" title="Capture uma vez">
+Edições de áudio não executam Playwright. Reutilize uma captura compatível e
+itere na mixagem. Veja [capture uma vez](../pipeline/capture-once).
+</Callout>
+
+## Limitações atuais
+
+- Não há recorte interno da fonte.
+- A duração da fonte não é sondada; use `endAt` quando o tempo exato importar.
+- O Studio referencia arquivos e URLs, mas não faz upload.
+- O preview HTML legado não toca áudio. Use o Studio.
+
+Continue na [referência de definição](../sdk/define-demo) ou na
+[integração com Remotion](../remotion/integration).

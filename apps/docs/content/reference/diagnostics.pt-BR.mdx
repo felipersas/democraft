@@ -20,6 +20,7 @@ O Democraft emite diagnostics `DCxxxx` estáveis durante a validação estática
 | `DC001`–`DC099` | Definição e falhas no callback do autor. |
 | `DC100`–`DC199` | Targets, cenas, steps, durações e renderers. |
 | `DC200`–`DC299` | Execução no navegador e falhas de captura. |
+| `DC300`–`DC399` | Falhas na definição e timing de áudio. |
 
 ## Lendo um diagnóstico
 
@@ -47,6 +48,14 @@ Um diagnóstico tem:
 - `DC107`: referência a visual customizado desconhecida.
 - `DC108`: props do visual customizado não são serializáveis em JSON.
 - `DC201`: falha no navegador, assertion, resolução de target ou screenshot.
+- `DC300`–`DC306`: IDs de áudio duplicados, fonte ausente, volume, intervalos
+  ou fades inválidos, extensões não suportadas e durações malformadas. Veja o
+  [guia de áudio](../guides/audio).
+
+Falhas de preflight de autenticação usam códigos semânticos `AUTH_*`, não
+`DCxxxx`, pois descrevem um pré-requisito de sessão reutilizável e não a
+definição do demo. Veja [perfis de autenticação](../guides/authentication) para
+expiração, renovação, JSON e ações para agentes.
 
 <Callout type="info">
 Os códigos canônicos e seus produtores vivem em `packages/schema/src/diagnostics.ts`, `packages/compiler/src/validation.ts` e `packages/playwright/src/diagnostics.ts`. Depois que um código é publicado, ele não deve ser reutilizado para uma falha diferente.

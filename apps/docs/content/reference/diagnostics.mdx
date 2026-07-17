@@ -20,6 +20,7 @@ Democraft emits stable `DCxxxx` diagnostics during static validation and live ca
 | `DC001`–`DC099` | Definition and author callback failures. |
 | `DC100`–`DC199` | Targets, scenes, steps, durations, and renderers. |
 | `DC200`–`DC299` | Browser execution and capture failures. |
+| `DC300`–`DC399` | Audio definition and timing failures. |
 
 ## Reading a diagnostic
 
@@ -47,6 +48,14 @@ A diagnostic has:
 - `DC107`: unknown custom visual reference.
 - `DC108`: custom visual props are not JSON-serializable.
 - `DC201`: browser execution, assertion, target resolution, or screenshot failure.
+- `DC300`–`DC306`: duplicate audio IDs, missing sources, invalid volume,
+  invalid spans or fades, unsupported extensions, and malformed durations. See
+  the [audio guide](../guides/audio).
+
+Authentication preflight failures use semantic `AUTH_*` error codes rather
+than `DCxxxx`, because they describe a reusable session prerequisite rather
+than the demo definition. See [authentication profiles](../guides/authentication)
+for expiry, renewal, JSON output, and agent actions.
 
 <Callout type="info">
 The canonical codes and their producers live in `packages/schema/src/diagnostics.ts`, `packages/compiler/src/validation.ts`, and `packages/playwright/src/diagnostics.ts`. Once a code is released, it must not be repurposed for a different failure.

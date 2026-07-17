@@ -1,0 +1,162 @@
+---
+title: Perfis de autenticação
+description: Capture aplicações privadas com sessões locais reutilizáveis e sem credenciais no código.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+import { Steps } from "fumadocs-ui/components/steps";
+
+Um perfil de autenticação é uma sessão local e reutilizável do Playwright. O
+demo versiona apenas um ID opaco—nunca senha, cookie, token, caminho de estado ou
+estado bruto do navegador.
+
+```ts title="demo.ts"
+export default defineDemo({
+  // ...
+  authentication: {
+    profileId: "auth_01arz3ndektsv4rrffq69g5fav",
+  },
+});
+```
+
+Na v1, um demo referencia um perfil. Todas as cenas da execução recebem o mesmo
+snapshot imutável da sessão.
+
+## Configure um perfil
+
+<Steps>
+  1. Crie os metadados e a regra de validação da página protegida.
+
+     ```bash
+     npx democraft auth create \
+       --name "Admin do demo" \
+       --origin https://app.example.com \
+       --validation-url /dashboard \
+       --selector '[data-testid="user-menu"]'
+     ```
+
+  2. Entre uma vez no navegador visível. Conclua senha, OAuth, MFA, CAPTCHA,
+     magic link ou SSO; o Democraft não contorna essas etapas.
+
+     ```bash
+     npx democraft auth login <profile-id>
+     ```
+
+     Volte ao terminal e pressione Enter apenas quando a página protegida estiver
+     pronta. O estado novo é validado antes de ser salvo.
+
+  3. Coloque o ID em `authentication.profileId`, valide e capture.
+
+     ```bash
+     npx democraft auth validate <profile-id>
+     npx democraft capture demo.ts
+     ```
+</Steps>
+
+`--validation-url` pode ser relativo a `--origin`. `--selector` prova que um
+elemento protegido está visível. Redirecionamento para login significa sessão
+expirada, não captura bem-sucedida.
+
+## Fluxo no Studio
+
+Abra **Authentication** para criar e associar um perfil, entrar ou renovar,
+testar a sessão, renomear ou remover. A associação altera somente
+`authentication.profileId`; o estado do navegador fica fora do demo.
+
+O status distingue não configurado, autenticando, autenticado, expirado,
+inválido e erro. Use **Test session** antes de capturas longas e **Renew login**
+quando necessário.
+
+## Ciclo de vida na CLI
+
+```bash
+npx democraft auth list
+npx democraft auth login <profile-id>
+npx democraft auth validate <profile-id>
+npx democraft auth rename <profile-id> --name "Novo nome"
+npx democraft auth remove <profile-id>
+npx democraft auth remove <profile-id> --force
+```
+
+A remoção normal recusa perfis usados por demos. Resolva as associações antes;
+`--force` é uma sobrescrita destrutiva explícita que apaga o estado local e
+deixa referências de código pendentes.
+
+## Validação, expiração e renovação
+
+Antes de criar artefatos, o runtime carrega uma geração imutável e a valida em
+um contexto separado e não gravado. Só o sucesso cria o contexto de captura.
+Todas as cenas compartilham esse contexto, que é descartado no final e nunca
+reescreve o perfil.
+
+Se houver redirecionamento para login, o perfil vira `expired` e a execução para
+sem produzir uma captura enganosa. Renove no Studio ou com
+`democraft auth login <profile-id>` e repita o comando original. Cancelar ou
+falhar uma renovação preserva a geração anterior quando ela existe.
+
+O `--storage-state <path>` legado continua disponível, mas não pode ser
+combinado com um perfil do demo.
+
+## Armazenamento e segurança
+
+Os perfis ficam em `.democraft/auth/v1/` no workspace canônico. O Democraft
+adiciona o diretório ao `.gitignore`, aplica permissões restritas quando POSIX é
+suportado, verifica hashes, grava atomicamente e exclui o estado de capturas,
+dados do Studio, diagnósticos e saídas da CLI.
+
+<Callout type="warn" title="Isolamento local, não criptografia">
+Quem lê o estado pode assumir a sessão. Use uma conta de demo com privilégio
+mínimo, criptografia de disco, controles normais da máquina e remova perfis sem
+uso. Não inspecione nem cole arquivos de perfil em prompts, issues, logs,
+snapshots ou documentação.
+</Callout>
+
+Erros públicos sanitizam URLs e nunca devem expor cookies, headers de
+autorização, tokens, senhas, segredos, local storage, estado bruto ou caminhos.
+OAuth pode abranger origens compatíveis. O estado do Playwright inclui cookies
+e local storage, mas não `sessionStorage`; apps que dependem só dele não são
+suportados na v1.
+
+## Limitações em CI
+
+Login interativo falha intencionalmente em CI com `AUTH_UNAVAILABLE_IN_CI` e
+`actionRequired: "provide-state"`. Perfis são locais ao workspace, não um
+sistema de distribuição de segredos. Capture na estação confiável ou forneça
+um estado legado pelo cofre de segredos do CI com `--storage-state`. Nunca
+versione nenhum deles.
+
+Import criptografado, integração com segredos do provedor e mapeamento por
+ambiente são extensões futuras, não APIs atuais.
+
+## Fluxo JSON para agentes
+
+Todos os comandos de auth aceitam `--json`. Agentes usam apenas metadados
+públicos e resultados semânticos; nunca leem `.democraft/auth`.
+
+1. Rode `democraft auth list --json` e escolha um perfil `authenticated` pelo ID
+   estável e origem correta.
+2. Adicione apenas `authentication: { profileId: "…" }` ao demo.
+3. Rode `democraft auth validate <id> --json` quando frescor importar.
+4. Se `actionRequired` for `interactive-login`, peça ao usuário para renovar e
+   retome a tarefa original.
+5. Trate `AUTH_SESSION_EXPIRED` como pré-requisito; `DCxxxx` e falhas de passos
+   pertencem ao demo.
+
+```json title="Resposta de sessão expirada"
+{
+  "ok": false,
+  "code": "AUTH_SESSION_EXPIRED",
+  "profileId": "auth_01arz3ndektsv4rrffq69g5fav",
+  "status": "expired",
+  "actionRequired": "interactive-login",
+  "message": "The authentication session expired. Renew login and retry.",
+  "stage": "validation"
+}
+```
+
+Outros erros acionáveis incluem `AUTH_PROFILE_NOT_FOUND`, `AUTH_STATE_CORRUPT`
+e `AUTH_VALIDATION_FAILED`. O JSON é seguro para agentes: não contém credenciais
+nem estado do navegador.
+
+Continue no [quickstart](../quickstart), na [referência da CLI](../cli/overview)
+ou adicione [áudio](./audio) sem recapturar.
