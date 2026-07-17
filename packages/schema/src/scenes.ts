@@ -1,3 +1,4 @@
+import type { AudioTrackIR } from "./audio";
 import type { DemoStep } from "./steps";
 import type { TargetDefinition } from "./geometry";
 import type { schemaVersion } from "./version";
@@ -39,5 +40,10 @@ export type DemoIR = {
   targets: Record<string, TargetDefinition>;
   /** Visual IDs declared by the author module. Component functions stay out of IR. */
   visuals?: string[];
+  /**
+   * Audio tracks (presentation-only). Never affects `captureHash`; included in
+   * `definitionHash`. Optional for back-compat with demos authored before audio.
+   */
+  audio?: AudioTrackIR[];
   scenes: DemoSceneIR[];
 };

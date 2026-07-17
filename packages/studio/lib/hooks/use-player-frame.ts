@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import type { PlayerRef } from "@remotion/player";
-import type { StudioStatus } from "@/lib/types";
 
 /**
  * Subscribes to the Remotion player's `frameupdate` event and returns the
@@ -15,10 +14,9 @@ import type { StudioStatus } from "@/lib/types";
  * Player mounts.
  */
 export function usePlayerFrame(
-  playerRef: React.RefObject<PlayerRef | null>,
-  status: StudioStatus,
+  player: PlayerRef | null,
 ): number {
-  return usePlayerState(playerRef, status).frame;
+  return usePlayerState(player).frame;
 }
 
 /**
@@ -26,30 +24,43 @@ export function usePlayerFrame(
  * Transport, which needs both values.
  */
 export function usePlayerState(
-  playerRef: React.RefObject<PlayerRef | null>,
-  status: StudioStatus,
+  player: PlayerRef | null,
 ): { frame: number; playing: boolean } {
   const [frame, setFrame] = React.useState(0);
   const [playing, setPlaying] = React.useState(false);
 
   React.useEffect(() => {
-    const player = playerRef.current;
     if (!player) return;
-    const onFrame = (e: { detail: { frame: number } }) =>
-      setFrame(e.detail.frame);
-    const onPlay = () => setPlaying(true);
-    const onPause = () => setPlaying(false);
-    player.addEventListener("frameupdate", onFrame);
-    player.addEventListener("play", onPlay);
-    player.addEventListener("pause", onPause);
-    setFrame(player.getCurrentFrame());
-    setPlaying(player.isPlaying());
-    return () => {
-      player.removeEventListener("frameupdate", onFrame);
-      player.removeEventListener("play", onPlay);
-      player.removeEventListener("pause", onPause);
-    };
-  }, [playerRef, status]);
+    return subscribeToPlayer(player, (state) => {
+      setFrame(state.frame);
+      setPlaying(state.playing);
+    });
+  }, [player]);
 
   return { frame, playing };
+}
+
+export function subscribeToPlayer(
+  player: PlayerRef,
+  onChange: (state: { frame: number; playing: boolean }) => void,
+): () => void {
+  const emit = () => onChange({
+    frame: player.getCurrentFrame(),
+    playing: player.isPlaying(),
+  });
+  const onFrame = (event: { detail: { frame: number } }) => onChange({
+    frame: event.detail.frame,
+    playing: player.isPlaying(),
+  });
+
+  player.addEventListener("frameupdate", onFrame);
+  player.addEventListener("play", emit);
+  player.addEventListener("pause", emit);
+  emit();
+
+  return () => {
+    player.removeEventListener("frameupdate", onFrame);
+    player.removeEventListener("play", emit);
+    player.removeEventListener("pause", emit);
+  };
 }

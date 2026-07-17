@@ -6,6 +6,7 @@ import {
   schemaVersion,
 } from "@democraft/schema";
 import { createSceneCapture } from "./capture";
+import { normalizeAudioTracks } from "./normalize-audio";
 import { normalizeScene } from "./normalize";
 import type {
   CapturedScene,
@@ -88,13 +89,20 @@ export async function compileDemo(
     source: definition.source,
     targets: definition.targets,
     visuals: Object.keys(definition.visuals ?? {}),
+    audio: normalizeAudioTracks(
+      definition.id,
+      definition.audioTracks,
+      diagnostics,
+    ),
     scenes: capturedScenes.map((scene) =>
       normalizeScene(definition.id, scene, diagnostics),
     ),
   };
   const validationDiagnostics = validateIR(ir);
   diagnostics.push(...validationDiagnostics);
-  if (!validationDiagnostics.some((diagnostic) => diagnostic.code === "DC108")) {
+  if (
+    !validationDiagnostics.some((diagnostic) => diagnostic.code === "DC108")
+  ) {
     ir.definitionHash = createDefinitionHash(ir);
   }
   ir.captureHash = createCaptureHash(ir);

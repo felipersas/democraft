@@ -17,6 +17,7 @@ import {
 } from "./stage";
 import { compositionId } from "./constants";
 import { createProductDemoVideoProps } from "./media";
+import { AudioLayer } from "./audio";
 
 // Re-exported so existing imports (e.g. tests) keep working from this module.
 export { cameraStateAt } from "./camera";
@@ -38,6 +39,13 @@ export type ProductDemoVideoProps = {
    * add or replace renderers without editing the library.
    */
   registry?: VisualRegistry;
+  /**
+   * Resolves each timeline audio track's `src` to a Remotion-loadable URL:
+   * a served path (Studio preview) or a `staticFile("audio/<name>")` reference
+   * (render). Tracks absent from the map are skipped. Optional because demos
+   * without audio, and the default props, carry no audio sources.
+   */
+  audioSrcById?: Record<string, string>;
 };
 
 export const defaultProductDemoProps: ProductDemoVideoProps =
@@ -57,6 +65,7 @@ export const defaultProductDemoProps: ProductDemoVideoProps =
       camera: [],
       cursor: [],
       overlays: [],
+      audio: [],
     },
     screenshotSrcByStepId: {},
   });
@@ -104,6 +113,10 @@ export function ProductDemoVideo(props: ProductDemoVideoProps) {
       registry,
       stage,
       timeline: props.timeline,
+    }),
+    React.createElement(AudioLayer, {
+      audio: props.timeline.audio ?? [],
+      audioSrcById: props.audioSrcById,
     }),
   );
 }

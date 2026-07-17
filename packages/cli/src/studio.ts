@@ -35,10 +35,7 @@ import {
 import { formatDiagnostics } from "./format";
 import { loadDemo } from "./loaders";
 import { userResolve } from "./paths";
-import {
-  resolveStudioRuntime,
-  STUDIO_LOOPBACK_HOST,
-} from "./studio-runtime";
+import { resolveStudioRuntime, STUDIO_LOOPBACK_HOST } from "./studio-runtime";
 
 export type StudioOptions = {
   demoPath: string;
@@ -48,6 +45,8 @@ export type StudioOptions = {
   headless?: boolean;
   fps?: number;
   workspaceRoot?: string;
+  /** Playwright storageState path for authenticated captures. */
+  storageState?: string;
 };
 
 export function studioUrl(port: number): string {
@@ -62,6 +61,9 @@ export async function launchStudio(
   const compilation = await compileDemo(demo);
   const captureEnvironment = await resolveCaptureEnvironment({
     headless: options.headless,
+    environment: options.storageState
+      ? { storageState: options.storageState }
+      : undefined,
   });
 
   if (compilation.diagnostics.some((d) => d.severity === "error")) {
@@ -146,6 +148,9 @@ export async function launchStudio(
       outputDir: explicitCaptureDir,
       captureRootDir: runsRoot,
       headless: options.headless,
+      environment: options.storageState
+        ? { storageState: options.storageState }
+        : undefined,
       onArtifactCreated: (artifact) => {
         captureDir = artifact.outputDir;
       },
@@ -200,6 +205,7 @@ export async function launchStudio(
     explicitCaptureDir,
     captureHeadless: captureEnvironment.environment.headless,
     captureEnvironmentHash: captureEnvironment.captureEnvironmentHash,
+    storageState: options.storageState,
   });
 
   return { port, dataDir: canonicalDataDir, url };
@@ -231,6 +237,9 @@ export async function materializeStudioData(args: {
   const manifest = parseRecordedDemoManifest(args.manifest);
   const timeline = parseRenderTimeline(args.timeline);
   const meta = args.meta ? parseStudioMeta(args.meta) : undefined;
+  // Workspace root for resolving relative audio paths in demo.ts. Prefer the
+  // recorded meta; fall back to the data dir's grandparent (.democraft/..).
+  const root = meta?.workspaceRoot ?? path.dirname(path.dirname(args.dataDir));
   const parent = path.dirname(args.dataDir);
   const generation = path.join(
     parent,
@@ -276,6 +285,28 @@ export async function materializeStudioData(args: {
         recordingDst,
         "Materialized recording",
       );
+    }
+
+    // Materialize audio files referenced by demo.ts into studio-data/audio/.
+    // URL sources (http/data/blob) are skipped — they're fetched at render.
+    const audioTracks = args.timeline.audio ?? [];
+    if (audioTracks.some((track) => !isAudioUrl(track.src))) {
+      const audioDst = path.join(generation, "audio");
+      await mkdir(audioDst, { recursive: true });
+      for (const track of audioTracks) {
+        if (isAudioUrl(track.src)) continue;
+        const resolved = path.isAbsolute(track.src)
+          ? track.src
+          : path.resolve(root, track.src);
+        if (await existsFile(resolved)) {
+          await copyAtomicTarget(
+            generation,
+            resolved,
+            path.join(audioDst, path.basename(resolved)),
+            `Materialized audio for track ${track.id}`,
+          );
+        }
+      }
     }
 
     await Promise.all([
@@ -324,6 +355,7 @@ async function startStudioServer(args: {
   explicitCaptureDir?: string;
   captureHeadless: boolean;
   captureEnvironmentHash: string;
+  storageState?: string;
 }): Promise<string> {
   const runtime = resolveStudioRuntime(args.port);
   return new Promise((resolve, reject) => {
@@ -377,6 +409,7 @@ export function studioServerEnvironment(
     explicitCaptureDir?: string;
     captureHeadless: boolean;
     captureEnvironmentHash: string;
+    storageState?: string;
   },
   sessionToken: string,
 ): NodeJS.ProcessEnv {
@@ -388,6 +421,7 @@ export function studioServerEnvironment(
     DEMOCRAFT_STUDIO_EXPLICIT_CAPTURE_DIR: args.explicitCaptureDir ?? "",
     DEMOCRAFT_STUDIO_CAPTURE_HEADLESS: String(args.captureHeadless),
     DEMOCRAFT_STUDIO_CAPTURE_ENVIRONMENT_HASH: args.captureEnvironmentHash,
+    DEMOCRAFT_STUDIO_STORAGE_STATE: args.storageState ?? "",
     DEMOCRAFT_STUDIO_SESSION_TOKEN: sessionToken,
     // Register the tsx loader so Studio can import the authorized .ts demo.
     NODE_OPTIONS: [process.env.NODE_OPTIONS, "--import tsx"]
@@ -566,6 +600,11 @@ function isNodeError(error: unknown, code: string): boolean {
     "code" in error &&
     (error as NodeJS.ErrnoException).code === code
   );
+}
+
+/** True for http(s)/data/blob audio sources that are never copied to disk. */
+function isAudioUrl(value: string): boolean {
+  return /^(https?:|data:|blob:)/i.test(value);
 }
 
 async function readArtifactIfExists<T>(

@@ -9,6 +9,14 @@ export const diagnosticCodes = {
   unknownRenderer: "DC105",
   invalidTarget: "DC106",
   runtimeStepFailed: "DC201",
+  // Audio track diagnostics (presentation-only; never affect capture).
+  audioDuplicateId: "DC300",
+  audioMissingSource: "DC301",
+  audioInvalidVolume: "DC302",
+  audioInvalidTime: "DC303",
+  audioInvalidFade: "DC304",
+  audioUnsupportedFormat: "DC305",
+  audioInvalidDuration: "DC306",
 } as const;
 
 export function diagnosticDocsUrl(code: string): string {
@@ -28,6 +36,7 @@ export type Diagnostic = {
   sceneId?: string;
   stepId?: string;
   targetId?: string;
+  audioTrackId?: string;
   details?: Record<string, unknown>;
 };
 

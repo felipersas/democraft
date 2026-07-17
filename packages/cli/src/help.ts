@@ -47,6 +47,7 @@ Common options:
   --crf <number>       h264 CRF (default 15, lower = better quality)
   --port <number>      Studio server port (default 3000)
   --no-capture         Reuse existing capture for studio
+  --storage-state <p>  Playwright storageState for authenticated captures
   --headless           Run browser headless
   --headed             Run browser headed
 

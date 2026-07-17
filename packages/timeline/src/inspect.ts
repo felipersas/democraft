@@ -22,6 +22,7 @@ export function inspectTimeline(timeline: RenderTimeline): string {
   lines.push(`Camera tracks: ${timeline.camera.length}`);
   lines.push(`Cursor tracks: ${timeline.cursor.length}`);
   lines.push(`Overlay tracks: ${timeline.overlays.length}`);
+  lines.push(`Audio tracks: ${(timeline.audio ?? []).length}`);
 
   return lines.join("\n").trimEnd();
 }

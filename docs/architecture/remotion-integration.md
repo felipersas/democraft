@@ -172,6 +172,31 @@ When a `timeline.transition` step appears in the timeline, `StageMedia` (`stage.
 
 When `recordingSrc` is set (the captured `.webm`), `StageMedia` instead renders a single `<OffthreadVideo>` and the screenshot logic is bypassed (`stage.ts:181-201`).
 
+## Audio layer
+
+Audio is **presentation-only** — like captions and overlays, it never affects Playwright capture (no `captureHash` contribution). It flows through the same three representations as the rest of the pipeline:
+
+```
+demo.ts audioTracks  (Duration strings)  →  AudioTrackIR (ms)  →  AudioTrack (frames)
+   @democraft/core         compiler             timeline resolver
+```
+
+`AudioLayer` (`packages/remotion/src/audio.ts`) is a fifth, non-visual child of the `AbsoluteFill` in `ProductDemoVideo`. It renders one `<Sequence><Audio/></Sequence>` per timeline audio track:
+
+- **Timing**: `<Sequence from={track.fromFrame} durationInFrames={track.durationInFrames}>` clips each track to its span on the composition timeline. Tracks overshooting the composition end are silenced past `durationInFrames` by the Sequence.
+- **Fades**: the inner `<Audio volume={(frame) => number}>` callback computes a per-frame multiplier via `audioVolumeAtFrame` (a pure function in the same module). The curve ramps `0 → track.volume` across `fadeInFrames`, holds, then ramps `track.volume → 0` across the last `fadeOutFrames`. Both fades are clamped to the span.
+- **`muted` / `loop`**: forwarded verbatim to `<Audio>`.
+- **Source resolution**: `audioSrcById` (an optional `ProductDemoVideoProps` field) maps each track id to a Remotion-loadable source. Absolute URLs (`http(s)://`, `data:`, `blob:`) are used as-is; publicDir-relative paths (e.g. `"audio/music.mp3"`) are wrapped in `staticFile()`. Tracks missing from the map are skipped (the Studio flags them as validation errors).
+
+`renderDemoVideo` (`packages/remotion/src/server.ts`) builds `audioSrcById` at render time: it copies each path-based source into a temp publicDir under `audio/` and maps the id to the publicDir-relative path; URL sources pass through. Callers can supply a pre-resolved `audioSrcById` (the Studio does, since it serves files from `studio-data/audio/` rather than workspace paths).
+
+The Studio `<Player>` runs the same composition, so audio plays in the preview identically to the rendered MP4. A master mute toggle in the Transport silences the preview (the Player has no built-in audio controls).
+
+### Known limitations
+
+- Source files are not opened at compile time (compilation is environment-agnostic); missing files surface at render/preview.
+- There is no audio duration probe, so a non-looping track without `endAt` fills to the composition end and goes silent when the source finishes. Use `endAt` or `loop` for deterministic behavior.
+
 ## Render knobs
 
 `renderDemoVideo` accepts `width`, `height`, `scale`, and `crf` (`packages/remotion/src/index.ts:14-24`). Defaults: 1920x1080, `scale: 1`, `crf: 15`. `jpegQuality: 100` is hard-coded. Lower `crf` = better quality and bigger files; `--scale 2` doubles the output resolution (3840x2160 from a 1920x1080 composition). The CLI exposes both as `--crf` and `--scale` flags (`packages/cli/src/index.ts:273-278`).

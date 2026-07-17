@@ -7,14 +7,14 @@ import { useSeek } from "@/lib/hooks/use-seek";
 import { TimelineBody } from "@/components/timeline/TimelineBody";
 
 export function TimelineTrack() {
-  const { status, playerRef } = useStudio();
+  const { status, player, playerRef } = useStudio();
 
   const timeline: RenderTimeline | undefined =
     status.kind === "ready" ? status.data.timeline : undefined;
   const total = timeline?.durationInFrames ?? 0;
   const fps = timeline?.fps ?? 60;
 
-  const frame = usePlayerFrame(playerRef, status);
+  const frame = usePlayerFrame(player);
   const seekToFrame = useSeek(playerRef, total);
 
   if (!timeline) {

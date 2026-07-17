@@ -77,7 +77,8 @@ export function validateIR(ir: DemoIR): Diagnostic[] {
           severity: "error",
           message: "Step ids must be non-empty.",
           path: `scenes.${scene.id}.steps`,
-          suggestion: "Remove the empty id to generate one or provide a stable id.",
+          suggestion:
+            "Remove the empty id to generate one or provide a stable id.",
           demoId: ir.id,
           sceneId: scene.id,
         });
@@ -156,10 +157,129 @@ export function validateIR(ir: DemoIR): Diagnostic[] {
     }
   }
 
+  validateAudioTracks(ir, diagnostics);
+
   return diagnostics.map((diagnostic) => ({
     ...diagnostic,
     docsUrl: diagnostic.docsUrl ?? diagnosticDocsUrl(diagnostic.code),
   }));
+}
+
+/**
+ * Validate audio tracks: duplicate ids, missing src, volume range, time
+ * ordering, and fade-vs-span. Format/extension checks (DC305) and duration
+ * parsing (DC306) run in the normalizer; this layer handles the richer,
+ * IR-level cross-field invariants that need a demo id + diagnostic sink.
+ */
+function validateAudioTracks(ir: DemoIR, diagnostics: Diagnostic[]): void {
+  const tracks = ir.audio ?? [];
+  const seenIds = new Set<string>();
+  for (const track of tracks) {
+    if (!track.id) {
+      diagnostics.push({
+        code: "DC300",
+        severity: "error",
+        message: "Audio track ids must be non-empty.",
+        path: "audioTracks",
+        suggestion: "Give every audio track a stable non-empty id.",
+        demoId: ir.id,
+      });
+      continue;
+    }
+    if (seenIds.has(track.id)) {
+      diagnostics.push({
+        code: "DC300",
+        severity: "error",
+        message: `Duplicate audio track id "${track.id}".`,
+        path: `audioTracks.${track.id}`,
+        suggestion: "Rename one of the tracks so every audio id is unique.",
+        demoId: ir.id,
+        audioTrackId: track.id,
+      });
+    }
+    seenIds.add(track.id);
+
+    if (!track.src) {
+      diagnostics.push({
+        code: "DC301",
+        severity: "error",
+        message: `Audio track "${track.id}" is missing a source (src).`,
+        path: `audioTracks.${track.id}.src`,
+        suggestion:
+          "Provide a path, URL, or staticFile reference to an audio file.",
+        demoId: ir.id,
+        audioTrackId: track.id,
+      });
+    }
+
+    if (track.volume < 0 || track.volume > 1) {
+      diagnostics.push({
+        code: "DC302",
+        severity: "error",
+        message: `Audio track "${track.id}" volume ${track.volume} is out of range.`,
+        path: `audioTracks.${track.id}.volume`,
+        suggestion: "Use a volume between 0 (silent) and 1 (full).",
+        demoId: ir.id,
+        audioTrackId: track.id,
+        details: { volume: track.volume },
+      });
+    }
+
+    if (track.endAtMs !== undefined && track.endAtMs <= track.startAtMs) {
+      diagnostics.push({
+        code: "DC303",
+        severity: "error",
+        message: `Audio track "${track.id}" endAt (${track.endAtMs}ms) must be greater than startAt (${track.startAtMs}ms).`,
+        path: `audioTracks.${track.id}.endAt`,
+        suggestion: "Set endAt to a time after startAt, or omit it.",
+        demoId: ir.id,
+        audioTrackId: track.id,
+        details: { startAtMs: track.startAtMs, endAtMs: track.endAtMs },
+      });
+    }
+
+    const spanMs =
+      track.endAtMs === undefined
+        ? Number.POSITIVE_INFINITY
+        : Math.max(0, track.endAtMs - track.startAtMs);
+    if (track.fadeInMs > spanMs || track.fadeOutMs > spanMs) {
+      diagnostics.push({
+        code: "DC304",
+        severity: "error",
+        message: `Audio track "${track.id}" fades exceed its span of ${spanMs === Number.POSITIVE_INFINITY ? "∞" : `${spanMs}ms`}.`,
+        path: `audioTracks.${track.id}.fadeIn`,
+        suggestion: `Reduce fadeIn/fadeOut to at most the track span${track.endAtMs === undefined ? "" : ` (${spanMs}ms)`}.`,
+        demoId: ir.id,
+        audioTrackId: track.id,
+        details: {
+          fadeInMs: track.fadeInMs,
+          fadeOutMs: track.fadeOutMs,
+          spanMs,
+        },
+      });
+    } else if (
+      track.fadeInMs + track.fadeOutMs > spanMs &&
+      track.fadeInMs > 0 &&
+      track.fadeOutMs > 0 &&
+      Number.isFinite(spanMs)
+    ) {
+      diagnostics.push({
+        code: "DC304",
+        severity: "error",
+        message: `Audio track "${track.id}" fadeIn + fadeOut overlap within its span of ${spanMs}ms.`,
+        path: `audioTracks.${track.id}.fadeIn`,
+        suggestion:
+          "Ensure fadeIn and fadeOut together fit within the track span.",
+        demoId: ir.id,
+        audioTrackId: track.id,
+        details: {
+          fadeInMs: track.fadeInMs,
+          fadeOutMs: track.fadeOutMs,
+          spanMs,
+        },
+      });
+    }
+  }
 }
 
 function isJsonValue(value: unknown, seen = new Set<object>()): boolean {

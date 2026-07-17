@@ -26,8 +26,13 @@ export function ShortcutsOverlay() {
         setOpen(false);
       }
     };
+    const onOpen = () => setOpen(true);
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("studio:open-shortcuts", onOpen);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("studio:open-shortcuts", onOpen);
+    };
   }, [open]);
 
   if (!open) return null;

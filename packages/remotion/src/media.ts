@@ -33,5 +33,6 @@ export function createProductDemoVideoProps(
     width: options.width ?? DEFAULT_COMPOSITION_WIDTH,
     height: options.height ?? DEFAULT_COMPOSITION_HEIGHT,
     registry: options.registry,
+    audioSrcById: options.audioSrcById,
   };
 }

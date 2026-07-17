@@ -18,6 +18,7 @@ import {
   trustedCaptureHeadless,
   trustedDemoPath,
   trustedExplicitCaptureDirectory,
+  trustedStorageState,
   trustedWorkspaceRoot,
 } from "../../../lib/studio-path-authority";
 import { mkdir } from "node:fs/promises";
@@ -108,6 +109,10 @@ async function performRecapture() {
       outputDir: explicitOutput ? captureDir : undefined,
       captureRootDir: managedCaptureRoot,
       headless: trustedCaptureHeadless(),
+      environment: (() => {
+        const storageState = trustedStorageState();
+        return storageState ? { storageState } : undefined;
+      })(),
       onArtifactCreated: (artifact) => {
         captureDir = artifact.outputDir;
       },

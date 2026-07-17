@@ -133,6 +133,8 @@ The studio's data dir is overridable via `DEMOCRAFT_STUDIO_DATA` env var.
 | **Re-resolve**       | Automatic on `demo.ts` save, or `POST /api/resolve`                          |
 | **Layer visibility** | Eye icon next to Camera/Cursor/Overlays in the timeline (shift-click = solo) |
 | **Caption editor**   | Inspector panel (right side) — edits are live in the preview                 |
+| **Audio tracks**     | Audio panel (right side) — add/edit/remove background music, narration, SFX  |
+| **Audio mute**       | Volume icon in the transport — silences the preview only                     |
 | **Render queue**     | Render panel (right side) — "Add to queue" with progress + ETA + cancel      |
 | **Render range**     | "Range" button in the timeline → drag In/Out handles on the ruler            |
 | **Command palette**  | `Cmd+K`                                                                      |
