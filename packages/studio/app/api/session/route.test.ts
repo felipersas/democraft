@@ -24,7 +24,28 @@ describe("GET /api/session", () => {
     );
 
     expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "non_loopback_target",
+    });
   });
+
+  it.each(["cross-site", "same-site", "none"])(
+    "rejects a %s fetch before returning the token",
+    async (fetchSite) => {
+      vi.stubEnv("DEMOCRAFT_STUDIO_SESSION_TOKEN", "session-token");
+
+      const response = await GET(
+        new Request("http://127.0.0.1:3000/api/session", {
+          headers: { "sec-fetch-site": fetchSite },
+        }),
+      );
+
+      expect(response.status).toBe(403);
+      await expect(response.json()).resolves.toMatchObject({
+        code: "cross_site_request",
+      });
+    },
+  );
 
   it("fails closed without a CLI-provided token", async () => {
     vi.stubEnv("DEMOCRAFT_STUDIO_SESSION_TOKEN", "");
