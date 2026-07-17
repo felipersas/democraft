@@ -72,6 +72,9 @@ export type LayerState = {
 export type StudioContextValue = {
   status: StudioStatus;
   playerRef: React.RefObject<PlayerRef | null>;
+  /** Reactive player instance. Unlike ref.current, this updates consumers on mount. */
+  player: PlayerRef | null;
+  bindPlayer: (player: PlayerRef | null) => void;
   loop: boolean;
   setLoop: (value: boolean) => void;
   reload: () => void;
@@ -127,7 +130,4 @@ export type StudioContextValue = {
   resetAudioTracks: () => Promise<void>;
   audioError: string | null;
 
-  /** Master mute for the preview player (the Player has no audio controls). */
-  audioMuted: boolean;
-  setAudioMuted: (value: boolean) => void;
 };

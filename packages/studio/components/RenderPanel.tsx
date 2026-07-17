@@ -7,6 +7,7 @@ import { useStudio } from "@/lib/studio-context";
 import { JobRow } from "./render/JobRow";
 import { PresetField } from "./render/PresetField";
 import { ScaleField, QualityField } from "./render/SettingsFields";
+import { InspectorSection } from "./ui/InspectorSection";
 
 export function RenderPanel() {
   const {
@@ -40,15 +41,11 @@ export function RenderPanel() {
   );
 
   return (
-    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-panel)] p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Film className="w-4 h-4 text-[var(--color-accent)]" />
-          <div className="text-[11px] font-medium uppercase tracking-wider text-[var(--color-fg-muted)]">
-            Render
-          </div>
-        </div>
-        {renderJobs.length > 0 && (
+    <InspectorSection
+      icon={<Film className="h-4 w-4" />}
+      title="Render"
+      description="Create a reproducible output from the resolved timeline and selected Studio overrides."
+      action={renderJobs.length > 0 ? (
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] text-[var(--color-fg-dim)] tabular-nums">
               {renderJobs.length} job{renderJobs.length === 1 ? "" : "s"}
@@ -65,8 +62,8 @@ export function RenderPanel() {
               </Button>
             )}
           </div>
-        )}
-      </div>
+        ) : undefined}
+    >
 
       <div className="space-y-3">
         <PresetField
@@ -77,8 +74,13 @@ export function RenderPanel() {
             setCrf(p.crf);
           }}
         />
-        <ScaleField value={scale} onChange={setScale} disabled={!ready} />
-        <QualityField value={crf} onChange={setCrf} disabled={!ready} />
+        <details className="rounded-md border border-[var(--studio-border)] bg-[var(--studio-surface-1)]">
+          <summary className="flex h-9 cursor-pointer items-center px-2.5 text-[11px] font-medium text-[var(--studio-fg-muted)]">Advanced output settings</summary>
+          <div className="space-y-3 border-t border-[var(--studio-border)] p-3">
+            <ScaleField value={scale} onChange={setScale} disabled={!ready} />
+            <QualityField value={crf} onChange={setCrf} disabled={!ready} />
+          </div>
+        </details>
       </div>
 
       <Button
@@ -89,31 +91,31 @@ export function RenderPanel() {
         disabled={!ready}
       >
         <Film className="w-4 h-4" />
-        Add to queue
+        Render video
       </Button>
 
       {renderError && (
-        <div role="alert" className="text-[10px] text-red-400/90 leading-snug">
+        <div role="alert" className="mt-3 rounded-md border border-[var(--studio-error)]/40 bg-[var(--studio-error)]/10 p-2.5 text-[11px] text-[var(--studio-error)] leading-snug">
           {renderError}
         </div>
       )}
 
       {hasCaptionEdits && !applyCaptionsToRender && (
-        <div className="text-[10px] text-[var(--color-fg-dim)] leading-snug">
+        <div className="mt-3 text-[11px] text-[var(--studio-warning)] leading-snug">
           Caption edits won&apos;t apply to renders unless you enable it in the
           Inspector.
         </div>
       )}
 
       {renderRange !== null && (
-        <label className="flex items-center gap-2 cursor-pointer select-none">
+        <label className="mt-3 flex items-center gap-2 cursor-pointer select-none">
           <input
             type="checkbox"
             checked={applyRenderRange}
             onChange={(e) => setApplyRenderRange(e.target.checked)}
             className="accent-[var(--color-accent)]"
           />
-          <span className="text-[10px] text-[var(--color-fg-muted)]">
+          <span className="text-[11px] text-[var(--studio-fg-muted)]">
             Render range{" "}
             <span className="text-[var(--color-fg-dim)] tabular-nums">
               ({renderRange[0]}–{renderRange[1]})
@@ -123,7 +125,7 @@ export function RenderPanel() {
       )}
 
       {renderJobs.length > 0 ? (
-        <div className="space-y-1.5">
+        <div className="mt-4 space-y-2 border-t border-[var(--studio-border)] pt-4">
           {renderJobs
             .slice()
             .reverse()
@@ -132,12 +134,11 @@ export function RenderPanel() {
             ))}
         </div>
       ) : (
-        <div className="text-[10px] text-[var(--color-fg-dim)] text-center py-1">
-          No renders queued. Click{" "}
-          <span className="text-[var(--color-fg-muted)]">Add to queue</span> to
-          start.
+        <div className="studio-empty mt-4">
+          <span className="font-medium text-[var(--studio-fg)]">Render queue is empty</span>
+          Active and completed renders will appear here with their output status.
         </div>
       )}
-    </div>
+    </InspectorSection>
   );
 }

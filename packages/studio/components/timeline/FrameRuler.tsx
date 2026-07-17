@@ -135,6 +135,9 @@ export function FrameRuler(props: {
               label="In"
               onPointerDown={() => setDragging("in")}
               side="left"
+              min={0}
+              max={Math.max(0, outFrame - 1)}
+              onChange={(frame) => props.onSetRenderRange([frame, outFrame])}
             />
             <RangeHandle
               frame={outFrame}
@@ -142,6 +145,9 @@ export function FrameRuler(props: {
               label="Out"
               onPointerDown={() => setDragging("out")}
               side="right"
+              min={Math.min(props.total - 1, inFrame + 1)}
+              max={Math.max(0, props.total - 1)}
+              onChange={(frame) => props.onSetRenderRange([inFrame, frame])}
             />
           </>
         )}
