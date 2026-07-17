@@ -1,6 +1,6 @@
 {
   "name": "@democraft/studio",
-  "version": "0.1.0-beta.0",
+  "version": "0.1.0-beta.1",
   "description": "Local visual Studio runtime for Democraft demos.",
   "license": "MIT",
   "repository": {
