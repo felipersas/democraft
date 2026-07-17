@@ -44,6 +44,7 @@ export const diagnosticSchema: z.ZodType<Diagnostic> = z
     sceneId: z.string().optional(),
     stepId: z.string().optional(),
     targetId: z.string().optional(),
+    audioTrackId: z.string().optional(),
     details: z.record(z.unknown()).optional(),
   })
   .passthrough();

@@ -59,6 +59,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
       if (value !== undefined) parsed.port = Number(value);
     } else if (flag === "--no-capture") {
       parsed.noCapture = true;
+    } else if (flag === "--storage-state") {
+      parsed.storageState = readValue();
     } else if (flag === "--recording") {
       parsed.useRecording = true;
     } else if (flag === "--entry") {

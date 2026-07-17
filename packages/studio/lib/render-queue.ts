@@ -16,6 +16,7 @@ import {
 import { loadStudioData } from "./server-data";
 import { publish } from "./event-bus";
 import { applyCaptionOverrides } from "./captions";
+import { buildRenderAudio } from "./audio-overrides";
 import { makeId } from "./id";
 import { loadScreenshotDataUris } from "./render-assets";
 import { findRemotionEntry } from "./remotion-entry";
@@ -29,10 +30,7 @@ import {
 } from "./render-history";
 import path from "node:path";
 import type { StudioRenderRequest } from "@democraft/schema";
-import {
-  trustedDemoPath,
-  trustedWorkspaceRoot,
-} from "./studio-path-authority";
+import { trustedDemoPath, trustedWorkspaceRoot } from "./studio-path-authority";
 
 // Render types come from the single source of truth in types/render.ts,
 // shared with the client. Re-export for backward compatibility with anything
@@ -204,8 +202,16 @@ async function runJob(job: RenderJob): Promise<void> {
 
   // Build a derived timeline with caption overrides applied (hybrid render path).
   const captionOverrides = job.captionOverrides;
-  const timeline =
-    captionOverrides && Object.keys(captionOverrides).length > 0
+  // Apply audio overrides (if any): re-resolve the effective IR tracks to
+  // frames and rewrite path-based srcs to the materialized studio-data/audio/
+  // files so renderDemoVideo can copy them into its temp publicDir.
+  const effectiveAudio = buildRenderAudio({
+    timeline: data.timeline,
+    overrides: data.audioOverrides,
+    dataDir: data.dataDir,
+  });
+  const timeline = {
+    ...(captionOverrides && Object.keys(captionOverrides).length > 0
       ? {
           ...data.timeline,
           overlays: applyCaptionOverrides(
@@ -213,7 +219,9 @@ async function runJob(job: RenderJob): Promise<void> {
             captionOverrides,
           ),
         }
-      : data.timeline;
+      : data.timeline),
+    audio: effectiveAudio,
+  };
 
   let artifact: Awaited<ReturnType<typeof createRenderArtifact>>;
   try {

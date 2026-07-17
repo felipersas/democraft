@@ -8,6 +8,8 @@ import {
   SkipForward,
   Repeat,
   Repeat1,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { useStudio } from "@/lib/studio-context";
@@ -17,9 +19,11 @@ import { formatFrames, formatTimecode } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
 export function Transport() {
-  const { status, playerRef, loop, setLoop } = useStudio();
+  const { status, playerRef, loop, setLoop, audioMuted, setAudioMuted } =
+    useStudio();
 
-  const total = status.kind === "ready" ? status.data.timeline.durationInFrames : 0;
+  const total =
+    status.kind === "ready" ? status.data.timeline.durationInFrames : 0;
   const fps = status.kind === "ready" ? status.data.timeline.fps : 60;
 
   const { frame, playing } = usePlayerState(playerRef, status);
@@ -80,6 +84,20 @@ export function Transport() {
             <Repeat1 className="w-4 h-4" />
           ) : (
             <Repeat className="w-4 h-4" />
+          )}
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setAudioMuted(!audioMuted)}
+          disabled={status.kind !== "ready"}
+          className={cn(!audioMuted && "text-[var(--color-accent)]")}
+          title={audioMuted ? "Unmute audio preview" : "Mute audio preview"}
+        >
+          {audioMuted ? (
+            <VolumeX className="w-4 h-4" />
+          ) : (
+            <Volume2 className="w-4 h-4" />
           )}
         </Button>
       </div>

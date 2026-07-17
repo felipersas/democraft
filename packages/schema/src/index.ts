@@ -1,6 +1,7 @@
 export * from "./version";
 export * from "./diagnostics";
 export * from "./geometry";
+export * from "./audio";
 export * from "./steps";
 export * from "./scenes";
 export * from "./recorded";

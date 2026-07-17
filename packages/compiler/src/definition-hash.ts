@@ -11,19 +11,26 @@ export const CAPTURE_HASH_PREFIX = "capture-v1:sha256:";
  * excluded. Object keys are sorted recursively while array order is retained.
  */
 export function canonicalizeDefinition(
-  ir: Pick<DemoIR, "title" | "source" | "targets" | "scenes" | "visuals">,
+  ir: Pick<
+    DemoIR,
+    "title" | "source" | "targets" | "scenes" | "visuals" | "audio"
+  >,
 ): string {
   return canonicalJson({
     title: ir.title,
     source: ir.source,
     targets: ir.targets,
     visuals: ir.visuals,
+    audio: ir.audio,
     scenes: ir.scenes,
   });
 }
 
 export function createDefinitionHash(
-  ir: Pick<DemoIR, "title" | "source" | "targets" | "scenes" | "visuals">,
+  ir: Pick<
+    DemoIR,
+    "title" | "source" | "targets" | "scenes" | "visuals" | "audio"
+  >,
 ): string {
   return `${DEFINITION_HASH_PREFIX}${sha256(canonicalizeDefinition(ir))}`;
 }

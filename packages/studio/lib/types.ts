@@ -1,5 +1,6 @@
 import type { PlayerRef } from "@remotion/player";
 import type {
+  AudioTrackIR,
   RecordedDemoManifest,
   RenderTimeline,
   Staleness,
@@ -29,6 +30,12 @@ export type StudioData = {
   dataDir: string;
   meta?: StudioMeta;
   staleness?: Staleness;
+  /**
+   * Persisted Studio audio overrides (full track set, IR/ms form). When
+   * present, these replace the demo.ts `audioTracks` for preview + render.
+   * Undefined when no overrides file exists (use the timeline's audio).
+   */
+  audioOverrides?: AudioTrackIR[];
 };
 
 export type StudioStatus =
@@ -104,4 +111,23 @@ export type StudioContextValue = {
   /** Whether the render range is forwarded to the next render. */
   applyRenderRange: boolean;
   setApplyRenderRange: (value: boolean) => void;
+
+  /**
+   * Audio tracks being edited (IR/ms form). Reflects the override file when it
+   * exists, otherwise seeds from the timeline's audio. Mutations persist to
+   * `studio-data/audio-overrides.json` via POST /api/audio.
+   */
+  audioTracks: AudioTrackIR[] | undefined;
+  /** True when an override file exists (tracks diverge from demo.ts). */
+  hasAudioOverrides: boolean;
+  setAudioTracks: (tracks: AudioTrackIR[]) => Promise<void>;
+  addAudioTrack: (track: AudioTrackIR) => Promise<void>;
+  updateAudioTrack: (id: string, patch: Partial<AudioTrackIR>) => Promise<void>;
+  removeAudioTrack: (id: string) => Promise<void>;
+  resetAudioTracks: () => Promise<void>;
+  audioError: string | null;
+
+  /** Master mute for the preview player (the Player has no audio controls). */
+  audioMuted: boolean;
+  setAudioMuted: (value: boolean) => void;
 };

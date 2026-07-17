@@ -4,6 +4,7 @@ import * as React from "react";
 import {
   Camera,
   MousePointer2,
+  Music,
   SquareStack,
   RotateCcw,
   ZoomIn,
@@ -160,9 +161,7 @@ export function TimelineBody(props: {
           <button
             type="button"
             onClick={() =>
-              setRenderRange(
-                renderRange === null ? [0, props.total - 1] : null,
-              )
+              setRenderRange(renderRange === null ? [0, props.total - 1] : null)
             }
             title={
               renderRange === null
@@ -264,6 +263,26 @@ export function TimelineBody(props: {
               }))}
               onSeek={props.onSeek}
             />
+            {(props.timeline.audio ?? []).length > 0 && (
+              <TrackRow
+                icon={<Music className="w-3 h-3" />}
+                label="Audio"
+                color="#79e3c7"
+                total={props.total}
+                pxPerFrame={effectiveZoom}
+                frame={props.frame}
+                visible
+                onToggleVisible={() => undefined}
+                onSolo={() => undefined}
+                tracks={(props.timeline.audio ?? []).map((t) => ({
+                  id: t.id,
+                  from: t.fromFrame,
+                  duration: t.durationInFrames,
+                  label: t.label ?? t.kind ?? "audio",
+                }))}
+                onSeek={props.onSeek}
+              />
+            )}
           </div>
         </div>
       </div>

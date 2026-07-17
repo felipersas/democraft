@@ -1,3 +1,4 @@
+import type { AudioTrack } from "./audio";
 import type { BoundingBox } from "./geometry";
 import type { DemoStep } from "./steps";
 import type { TargetSnapshot } from "./recorded";
@@ -95,4 +96,10 @@ export type RenderTimeline = {
   camera: CameraTrack[];
   cursor: CursorTrack[];
   overlays: OverlayTrack[];
+  /**
+   * Audio tracks (presentation-only). Optional for back-compat with timelines
+   * resolved before audio support; consumers treat `undefined` as "no audio".
+   * The timeline resolver always sets it (possibly to `[]`).
+   */
+  audio?: AudioTrack[];
 };

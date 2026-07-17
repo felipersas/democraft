@@ -9,6 +9,22 @@ export default defineDemo({
     initialPath: "/dashboard",
   },
   targets,
+  // Background music: presentation-only (never affects capture). Loops under
+  // the whole demo at low volume, fading in/out at the boundaries. Audio is
+  // fully managed in the Studio (Audio panel) and composited in the final MP4.
+  audioTracks: [
+    {
+      id: "background-music",
+      // Replace with a local path (./assets/music.mp3) or your own URL.
+      src: "https://cdn.pixabay.com/audio/2022/10/30/audio_347abf1d4e.mp3",
+      kind: "music",
+      startAt: "0s",
+      volume: 0.2,
+      loop: true,
+      fadeIn: "1s",
+      fadeOut: "1s",
+    },
+  ],
   async run({ demo }) {
     await demo.scene("introduction", async (scene) => {
       await scene.goto("/dashboard");

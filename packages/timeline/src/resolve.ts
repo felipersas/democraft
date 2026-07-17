@@ -1,5 +1,7 @@
 import {
   assertCaptureCompatibility,
+  type AudioTrack,
+  type AudioTrackIR,
   type BoundingBox,
   type DemoIR,
   type DemoStep,
@@ -43,6 +45,7 @@ export function resolveTimeline(
     camera: [],
     cursor: [],
     overlays: [],
+    audio: [],
   };
 
   for (const scene of ir.scenes) {
@@ -74,7 +77,80 @@ export function resolveTimeline(
   }
 
   timeline.durationInFrames = cursorFrame;
+  timeline.audio = resolveAudioTracks(
+    ir.audio ?? [],
+    fps,
+    timeline.durationInFrames,
+  );
   return timeline;
+}
+
+/**
+ * Convert IR audio tracks (ms) into timeline audio tracks (frames), clipping
+ * each track to the composition duration. Disabled tracks are dropped. A track
+ * with a non-positive span after clipping is dropped (nothing to play).
+ *
+ * Fades are clamped to the effective span so the Remotion volume curve never
+ * extrapolates beyond the audible region. Non-looping tracks without an endAt
+ * fill to the composition end (they go silent when the source finishes — see
+ * "Known limitations" in the audio docs).
+ */
+export function resolveAudioTracks(
+  tracks: AudioTrackIR[],
+  fps: number,
+  durationInFrames: number,
+): AudioTrack[] {
+  const resolved: AudioTrack[] = [];
+  for (const track of tracks) {
+    if (track.disabled) continue;
+
+    // NOTE: the module-level `msToFrames` enforces a minimum of 1 frame (it is
+    // used for step *durations*, which must never be zero). Audio start times
+    // and spans need faithful rounding instead — 0ms must be frame 0, and a
+    // zero span must be detectable so the track can be dropped.
+    const fromFrame = audioMsToFrames(track.startAtMs, fps);
+    if (fromFrame >= durationInFrames && durationInFrames > 0) continue;
+
+    const endFrame =
+      track.endAtMs === undefined
+        ? durationInFrames
+        : audioMsToFrames(track.endAtMs, fps);
+    const spanFrames = Math.max(0, endFrame - fromFrame);
+
+    // Clamp the audible span to the composition; a track overshooting the end
+    // is silenced past durationInFrames by the Sequence's durationInFrames.
+    const clampedSpan = Math.min(spanFrames, durationInFrames - fromFrame);
+    if (clampedSpan <= 0) continue;
+
+    const fadeInFrames = Math.min(
+      audioMsToFrames(track.fadeInMs, fps),
+      clampedSpan,
+    );
+    const fadeOutFrames = Math.min(
+      audioMsToFrames(track.fadeOutMs, fps),
+      clampedSpan,
+    );
+
+    resolved.push({
+      id: track.id,
+      src: track.src,
+      label: track.label,
+      kind: track.kind,
+      fromFrame,
+      durationInFrames: clampedSpan,
+      volume: track.volume,
+      muted: track.muted,
+      loop: track.loop,
+      fadeInFrames,
+      fadeOutFrames,
+    });
+  }
+  return resolved;
+}
+
+/** Faithful ms→frame round for audio (no minimum-1 enforcement). */
+function audioMsToFrames(ms: number, fps: number): number {
+  return Math.round((ms / 1000) * fps);
 }
 
 function collectTracks(

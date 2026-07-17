@@ -103,6 +103,7 @@ export async function runCli(argv = process.argv.slice(2)): Promise<CliResult> {
       headless: args.headless,
       fps: args.fps,
       workspaceRoot: workspaceRoot(),
+      storageState: args.storageState,
     });
     return ok(
       `Studio ready at ${url}\nData: ${dataDir}\nPress Ctrl+C to stop.\n`,

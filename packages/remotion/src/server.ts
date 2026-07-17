@@ -1,4 +1,4 @@
-import { copyFile, mkdir, mkdtemp, rm } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, rm, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -68,6 +68,13 @@ export type RenderDemoVideoOptions = {
    * markers. See docs/architecture/studio-roadmap.md "Render range".
    */
   frameRange?: FrameRange;
+  /**
+   * Pre-resolved audio sources (id → publicDir-relative path or URL). When
+   * supplied, the renderer skips its own audio-source resolution. Used by the
+   * Studio, which serves audio from `studio-data/audio/` rather than the
+   * workspace paths referenced in demo.ts.
+   */
+  audioSrcById?: Record<string, string>;
 };
 
 export async function renderDemoVideo(
@@ -80,16 +87,30 @@ export async function renderDemoVideo(
     (options.recordingFile ? "recording" : DEFAULT_DEMO_MEDIA_MODE);
   const selectedRecordingFile =
     mediaMode === "recording" ? options.recordingFile : undefined;
+  // Resolve audio sources before building props: path-based files are copied
+  // into the temp publicDir under `audio/`; URLs pass through verbatim. The
+  // resulting map (id → publicDir-relative path or URL) is consumed by
+  // `AudioLayer`, which wraps publicDir paths in `staticFile()`. When the
+  // caller supplies a pre-resolved map (e.g. the Studio, which serves files
+  // from studio-data/audio), resolution is skipped.
+  const audioTracks = options.timeline.audio ?? [];
+  const callerAudioSrcById = options.audioSrcById;
+  const publicDir =
+    callerAudioSrcById !== undefined
+      ? await createRenderPublicDir(selectedRecordingFile)
+      : await createRenderPublicDir(selectedRecordingFile, audioTracks);
+  const audioSrcById =
+    callerAudioSrcById ?? (await resolveAudioSources(audioTracks, publicDir));
   const inputProps = createProductDemoVideoProps({
     manifest: options.manifest,
     mediaMode,
     recordingSrc: selectedRecordingFile ? "recording.webm" : undefined,
     timeline: options.timeline,
     screenshotSrcByStepId: options.screenshotSrcByStepId,
+    audioSrcById,
     width: options.width,
     height: options.height,
   });
-  const publicDir = await createRenderPublicDir(selectedRecordingFile);
   const scale = options.scale ?? 1;
   try {
     const entryPoint =
@@ -121,11 +142,82 @@ export async function renderDemoVideo(
   }
 }
 
+/**
+ * Allocate a temp publicDir for Remotion's bundler to serve local assets:
+ * the recording (when rendering from it) and any path-based audio files.
+ * Returns null when neither is needed (pure-URL or no-audio renders).
+ */
 async function createRenderPublicDir(
   recordingFile?: string,
+  audioTracks?: { src: string }[],
 ): Promise<string | null> {
-  if (!recordingFile) return null;
+  const hasPathAudio =
+    audioTracks?.some((track) => !isAbsoluteUrl(track.src)) ?? false;
+  if (!recordingFile && !hasPathAudio) return null;
   const publicDir = await mkdtemp(join(tmpdir(), "democraft-remotion-"));
-  await copyFile(recordingFile, join(publicDir, "recording.webm"));
+  if (recordingFile) {
+    await copyFile(recordingFile, join(publicDir, "recording.webm"));
+  }
   return publicDir;
+}
+
+/**
+ * Build the `audioSrcById` map. URL sources (http(s)/data/blob) are passed
+ * through; path-based sources are copied into the publicDir under `audio/`
+ * with a stable name (the basename) and referenced as a publicDir-relative
+ * path that `AudioLayer` will wrap in `staticFile()`.
+ *
+ * Missing files are skipped (not mapped) — the Studio reports them as
+ * validation errors so the render still completes for the resolvable tracks.
+ */
+async function resolveAudioSources(
+  tracks: { id: string; src: string }[],
+  publicDir: string | null,
+): Promise<Record<string, string>> {
+  const map: Record<string, string> = {};
+  if (!publicDir) {
+    // Only URL sources can resolve without a publicDir.
+    for (const track of tracks) {
+      if (isAbsoluteUrl(track.src)) map[track.id] = track.src;
+    }
+    return map;
+  }
+
+  const audioDir = join(publicDir, "audio");
+  await mkdir(audioDir, { recursive: true });
+  for (const track of tracks) {
+    if (isAbsoluteUrl(track.src)) {
+      map[track.id] = track.src;
+      continue;
+    }
+    if (!(await existsFile(track.src))) continue;
+    const dest = join(audioDir, basename(track.src));
+    await copyFile(track.src, dest);
+    map[track.id] = `audio/${basename(track.src)}`;
+  }
+  return map;
+}
+
+async function existsFile(filePath: string): Promise<boolean> {
+  try {
+    return (await stat(filePath)).isFile();
+  } catch {
+    return false;
+  }
+}
+
+function basename(filePath: string): string {
+  const queryless = filePath.split("?")[0]!.split("#")[0]!;
+  const slash = Math.max(
+    queryless.lastIndexOf("/"),
+    queryless.lastIndexOf("\\"),
+  );
+  const name = slash >= 0 ? queryless.slice(slash + 1) : queryless;
+  // Disallow path traversal in the copied filename.
+  return name === ".." || name === "." ? "audio-track" : name;
+}
+
+/** True for http(s)/data/blob URLs (must not be treated as local files). */
+function isAbsoluteUrl(value: string): boolean {
+  return /^(https?:|data:|blob:)/i.test(value);
 }

@@ -50,3 +50,5 @@ export {
   SoftBlurIn,
   type SoftBlurInProps,
 } from "./components/remocn/soft-blur-in";
+
+export { AudioLayer, audioVolumeAtFrame } from "./audio";

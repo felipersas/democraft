@@ -6,6 +6,7 @@ import { PlayerPane } from "./PlayerPane";
 import { Transport } from "./Transport";
 import { TimelineTrack } from "./TimelineTrack";
 import { InspectorPanel } from "./InspectorPanel";
+import { AudioPanel } from "./AudioPanel";
 import { RenderPanel } from "./RenderPanel";
 import { CommandPalette } from "./CommandPalette";
 import { ShortcutsOverlay } from "./ShortcutsOverlay";
@@ -59,6 +60,7 @@ export function StudioShell() {
         </section>
         <aside className="w-[320px] border-l border-[var(--color-border)] p-4 space-y-4 overflow-y-auto scrollbar-thin">
           <InspectorPanel />
+          <AudioPanel />
           <RenderPanel />
         </aside>
       </main>
@@ -74,7 +76,8 @@ export function StudioShell() {
 
 function useKeyboardShortcuts() {
   const { playerRef, status } = useStudio();
-  const total = status.kind === "ready" ? status.data.timeline.durationInFrames : 0;
+  const total =
+    status.kind === "ready" ? status.data.timeline.durationInFrames : 0;
 
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

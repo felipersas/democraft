@@ -39,6 +39,7 @@ vi.mock("../../../lib/studio-path-authority", () => ({
   trustedDemoPath: vi.fn(async () => "/workspace/demo.ts"),
   trustedWorkspaceRoot: vi.fn(async () => "/workspace"),
   trustedExplicitCaptureDirectory: vi.fn(() => "/workspace/explicit"),
+  trustedStorageState: vi.fn(() => undefined),
 }));
 vi.mock("@/lib/materialize", () => ({
   buildMetaAfterCapture: vi.fn((meta) => meta),

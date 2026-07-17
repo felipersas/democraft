@@ -60,6 +60,15 @@ export function trustedCaptureHeadless(): boolean {
   throw new PathBoundaryError("Invalid capture headless mode.");
 }
 
+/**
+ * The Playwright storageState path authorized at Studio launch (via
+ * `democraft studio --storage-state <path>`). Empty when not set.
+ */
+export function trustedStorageState(): string | undefined {
+  const configured = process.env.DEMOCRAFT_STUDIO_STORAGE_STATE?.trim();
+  return configured ? path.resolve(configured) : undefined;
+}
+
 async function canonicalEnvDirectory(name: string, label: string) {
   const configured = requiredEnv(name, label.toLowerCase());
   const canonical = await realpath(configured);

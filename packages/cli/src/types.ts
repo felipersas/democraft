@@ -23,6 +23,13 @@ export type ParsedArgs = {
   noCapture?: boolean;
   entryPath?: string;
   /**
+   * Path to a Playwright storageState file (cookies + localStorage) used during
+   * capture so authenticated demos capture logged-in. Also fed to the capture
+   * environment fingerprint so `studio --no-capture` can reuse an authenticated
+   * capture made with the same storageState (otherwise the env hash diverges).
+   */
+  storageState?: string;
+  /**
    * Render from the raw browser recording (webm) instead of the per-step
    * screenshots. Off by default: screenshots show the stable, post-settle
    * states captured for each step (no loading flash, no half-rendered frames),

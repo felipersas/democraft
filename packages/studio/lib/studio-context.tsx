@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import type { PlayerRef } from "@remotion/player";
+import type { AudioTrackIR } from "@democraft/schema";
 import type {
   CaptionOverrides,
   LayerKind,
@@ -13,6 +14,7 @@ import type {
   StudioStatus,
 } from "./types";
 import { studioMutationRequest } from "./studio-api";
+import { effectiveAudioTracks } from "./audio-overrides";
 
 const StudioContext = React.createContext<StudioContextValue | null>(null);
 
@@ -43,6 +45,24 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     null,
   );
   const [applyRenderRange, setApplyRenderRange] = React.useState(true);
+
+  // Audio editing state. `audioTracks` mirrors the server data (override file
+  // when present, else the timeline's audio). Edits persist to
+  // audio-overrides.json; the server-pushed reload re-syncs local state.
+  const [audioTracks, setAudioTracksState] = React.useState<
+    AudioTrackIR[] | undefined
+  >(undefined);
+  const [audioError, setAudioError] = React.useState<string | null>(null);
+  const [audioMuted, setAudioMuted] = React.useState(false);
+
+  // Seed local audio state from server data whenever it changes. When no
+  // override file exists, the effective tracks are derived from the timeline.
+  React.useEffect(() => {
+    if (status.kind !== "ready") return;
+    setAudioTracksState(
+      effectiveAudioTracks(status.data.timeline, status.data.audioOverrides),
+    );
+  }, [status]);
 
   const fetchData = React.useCallback(async () => {
     setStatus({ kind: "loading" });
@@ -197,6 +217,82 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     setCaptionOverrides({});
   }, []);
 
+  // ----- Audio overrides (persisted to audio-overrides.json) -------------------
+
+  /** Persist a full track set to the server (creates/replaces the override). */
+  const persistAudio = React.useCallback(async (tracks: AudioTrackIR[]) => {
+    setAudioError(null);
+    try {
+      await studioMutationRequest(
+        "/api/audio",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(tracks),
+        },
+        "Audio save failed.",
+      );
+      // The file watcher fires `reload`, which re-fetches and re-seeds state.
+    } catch (error) {
+      setAudioError(
+        error instanceof Error ? error.message : "Audio save failed.",
+      );
+    }
+  }, []);
+
+  const setAudioTracks = React.useCallback(
+    async (tracks: AudioTrackIR[]) => {
+      setAudioTracksState(tracks);
+      await persistAudio(tracks);
+    },
+    [persistAudio],
+  );
+
+  const addAudioTrack = React.useCallback(
+    async (track: AudioTrackIR) => {
+      const next = [...(audioTracks ?? []), track];
+      setAudioTracksState(next);
+      await persistAudio(next);
+    },
+    [audioTracks, persistAudio],
+  );
+
+  const updateAudioTrack = React.useCallback(
+    async (id: string, patch: Partial<AudioTrackIR>) => {
+      const next = (audioTracks ?? []).map((t) =>
+        t.id === id ? { ...t, ...patch } : t,
+      );
+      setAudioTracksState(next);
+      await persistAudio(next);
+    },
+    [audioTracks, persistAudio],
+  );
+
+  const removeAudioTrack = React.useCallback(
+    async (id: string) => {
+      const next = (audioTracks ?? []).filter((t) => t.id !== id);
+      setAudioTracksState(next);
+      await persistAudio(next);
+    },
+    [audioTracks, persistAudio],
+  );
+
+  const resetAudioTracks = React.useCallback(async () => {
+    setAudioError(null);
+    setAudioTracksState(undefined);
+    try {
+      await studioMutationRequest(
+        "/api/audio",
+        { method: "DELETE" },
+        "Audio reset failed.",
+      );
+    } catch (error) {
+      setAudioError(
+        error instanceof Error ? error.message : "Audio reset failed.",
+      );
+    }
+  }, []);
+
   React.useEffect(() => {
     void fetchData();
     void refreshJobs();
@@ -275,6 +371,17 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
       setRenderRange,
       applyRenderRange,
       setApplyRenderRange,
+      audioTracks,
+      hasAudioOverrides:
+        status.kind === "ready" && status.data.audioOverrides !== undefined,
+      setAudioTracks,
+      addAudioTrack,
+      updateAudioTrack,
+      removeAudioTrack,
+      resetAudioTracks,
+      audioError,
+      audioMuted,
+      setAudioMuted,
     }),
     [
       status,
@@ -303,6 +410,14 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
       setRenderRange,
       applyRenderRange,
       setApplyRenderRange,
+      audioTracks,
+      setAudioTracks,
+      addAudioTrack,
+      updateAudioTrack,
+      removeAudioTrack,
+      resetAudioTracks,
+      audioError,
+      audioMuted,
     ],
   );
 

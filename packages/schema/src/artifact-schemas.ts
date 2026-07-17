@@ -13,6 +13,7 @@ import {
   locatorSchema,
   targetDefinitionSchema,
 } from "./schemas";
+import { audioTrackIRSchema, audioTrackSchema } from "./audio";
 
 export type ArtifactKind =
   | "demo IR"
@@ -22,7 +23,8 @@ export type ArtifactKind =
   | "capture artifact metadata"
   | "latest capture pointer"
   | "studio metadata"
-  | "studio render request";
+  | "studio render request"
+  | "audio overrides";
 
 export type ArtifactValidationIssue = {
   path: string;
@@ -199,6 +201,7 @@ export const demoIRSchema: z.ZodType<DemoIR> = z
       .passthrough(),
     targets: z.record(targetDefinitionSchema),
     visuals: z.array(z.string().min(1)).optional(),
+    audio: z.array(audioTrackIRSchema).optional(),
     scenes: z.array(demoSceneSchema),
   })
   .passthrough();
@@ -373,6 +376,8 @@ export const renderTimelineSchema: z.ZodType<RenderTimeline> = z
     camera: z.array(cameraTrackSchema),
     cursor: z.array(cursorTrackSchema),
     overlays: z.array(overlayTrackSchema),
+    // Optional so timelines written before audio support still parse.
+    audio: z.array(audioTrackSchema).optional(),
   })
   .passthrough();
 
@@ -643,6 +648,17 @@ export const parseStudioRenderRequest = parser(
   studioRenderRequestSchema,
 );
 
+/**
+ * The Studio's persisted audio overrides. The full set of tracks replaces the
+ * demo.ts `audioTracks` for preview + render (mirrors how the Studio never
+ * edits demo.ts directly). Written to `studio-data/audio-overrides.json`.
+ */
+export const audioOverridesSchema = z.array(audioTrackIRSchema);
+export const parseAudioOverrides = parser(
+  "audio overrides",
+  audioOverridesSchema,
+);
+
 export const parseDemoIRJson = jsonParser("demo IR", parseDemoIR);
 export const parseRecordedDemoManifestJson = jsonParser(
   "recorded demo manifest",
@@ -667,6 +683,10 @@ export const parseLatestCapturePointerJson = jsonParser(
 export const parseStudioMetaJson = jsonParser(
   "studio metadata",
   parseStudioMeta,
+);
+export const parseAudioOverridesJson = jsonParser(
+  "audio overrides",
+  parseAudioOverrides,
 );
 
 function parser<T>(

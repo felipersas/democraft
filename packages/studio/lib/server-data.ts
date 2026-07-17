@@ -3,6 +3,7 @@ import { readMeta, computeStaleness } from "./staleness";
 import path from "node:path";
 import type { StudioData } from "./types";
 import {
+  parseAudioOverridesJson,
   parseRecordedDemoManifestJson,
   parseRenderTimelineJson,
 } from "@democraft/schema";
@@ -39,9 +40,10 @@ export async function readJson<T>(
 
 export async function loadStudioData(): Promise<StudioData | undefined> {
   const dir = studioDataDir();
-  // manifest + timeline + meta are independent reads — fetch them concurrently
-  // rather than sequentially to avoid paying disk latency twice.
-  const [manifest, timeline, meta] = await Promise.all([
+  // manifest + timeline + meta + audio-overrides are independent reads —
+  // fetch them concurrently rather than sequentially to avoid paying disk
+  // latency twice.
+  const [manifest, timeline, meta, audioOverrides] = await Promise.all([
     readJson(
       path.join(dir, "manifest.json"),
       parseRecordedDemoManifestJson,
@@ -49,6 +51,13 @@ export async function loadStudioData(): Promise<StudioData | undefined> {
     ),
     readJson(path.join(dir, "timeline.json"), parseRenderTimelineJson, dir),
     readMeta(dir),
+    // Audio overrides are optional and best-effort: a malformed file must not
+    // break studio loading (the user can reset it from the UI).
+    readJson(
+      path.join(dir, "audio-overrides.json"),
+      parseAudioOverridesJson,
+      dir,
+    ).catch(() => undefined),
   ]);
   if (!manifest || !timeline) return undefined;
   // Staleness requires re-compiling demo.ts, which is heavier — compute it
@@ -63,5 +72,6 @@ export async function loadStudioData(): Promise<StudioData | undefined> {
     dataDir: dir,
     meta,
     staleness,
+    audioOverrides,
   };
 }

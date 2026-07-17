@@ -1,4 +1,5 @@
 import type {
+  AudioKind,
   Locator,
   SceneMetadata,
   TargetDefinition,
@@ -47,6 +48,54 @@ export type SceneStepOptions = {
 };
 
 export type Duration = `${number}ms` | `${number}s`;
+
+/**
+ * An audio track declared on a demo. Times use the project's `Duration` string
+ * convention (`"250ms"`, `"1s"`) so authoring stays fps-independent — the
+ * compiler converts them to milliseconds, the timeline to frames. Audio is
+ * presentation-only: it never affects Playwright capture.
+ *
+ * @example
+ * ```ts
+ * defineDemo({
+ *   audioTracks: [
+ *     {
+ *       id: "background-music",
+ *       src: "./assets/music.mp3",
+ *       kind: "music",
+ *       volume: 0.25,
+ *       loop: true,
+ *       fadeIn: "500ms",
+ *       fadeOut: "500ms",
+ *     },
+ *   ],
+ *   // ...
+ * });
+ * ```
+ */
+export type AudioTrackInput = {
+  /** Stable, demo-unique id. Used by the Studio and diagnostics. */
+  id: string;
+  /**
+   * Path (workspace-relative or absolute), URL, or `staticFile("…")` reference
+   * to the audio file. Resolved at render time; not checked at compile time.
+   */
+  src: string;
+  label?: string;
+  kind?: AudioKind;
+  /** When the track starts on the composition timeline. Defaults to `"0ms"`. */
+  startAt?: Duration;
+  /** Inclusive end on the timeline. Omit to play to composition end. */
+  endAt?: Duration;
+  /** 0..1. Defaults to 1. */
+  volume?: number;
+  muted?: boolean;
+  loop?: boolean;
+  /** Fade-in duration. Defaults to `"0ms"`. */
+  fadeIn?: Duration;
+  /** Fade-out duration. Defaults to `"0ms"`. */
+  fadeOut?: Duration;
+};
 
 /** A renderer-owned component whose props are inferred without coupling core to React. */
 export type VisualDefinition<TProps = unknown> = {
@@ -182,6 +231,8 @@ export type DemoInput<
   };
   targets?: TTargets;
   visuals?: TVisuals;
+  /** Optional background music, narration, sound effects, and ambient tracks. */
+  audioTracks?: AudioTrackInput[];
   run(args: {
     demo: DemoCapture<Extract<keyof TTargets, string>, TVisuals>;
   }): Promise<void> | void;
@@ -190,7 +241,4 @@ export type DemoInput<
 export type DemoDefinition<
   TTargets extends TargetMap = TargetMap,
   TVisuals extends VisualMap = VisualMap,
-> = Omit<
-  DemoInput<TTargets, TVisuals>,
-  "targets"
-> & { targets: TTargets };
+> = Omit<DemoInput<TTargets, TVisuals>, "targets"> & { targets: TTargets };

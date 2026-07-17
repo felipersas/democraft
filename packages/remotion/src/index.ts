@@ -54,5 +54,8 @@ export {
 } from "./registry";
 export { createDemoEntrySource, materializeDemoEntry } from "./demo-entry";
 
+// --- Audio layer ---
+export { AudioLayer, audioVolumeAtFrame } from "./audio";
+
 // --- Adapters ---
 export { remocnAdapter, type DemocraftAdapter } from "./adapters/remocn";

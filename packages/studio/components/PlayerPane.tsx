@@ -9,19 +9,66 @@ import {
 } from "@democraft/remotion/client";
 import userDemo from "@democraft/user-demo";
 import type { ProductDemoVideoProps } from "@democraft/remotion/client";
-import type { RenderTimeline, RecordedDemoManifest } from "@democraft/schema";
+import type {
+  AudioTrackIR,
+  RecordedDemoManifest,
+  RenderTimeline,
+} from "@democraft/schema";
 import { useStudio } from "@/lib/studio-context";
 import { cn } from "@/lib/utils";
 import { isLayerVisible } from "@/lib/layers";
 import { applyCaptionOverrides } from "@/lib/captions";
+import {
+  resolveAudioSrcById,
+  resolveEffectiveAudio,
+} from "@/lib/audio-overrides";
 import { fitPlayerSize } from "@/lib/player-size";
 import type { CaptionOverrides, LayerState } from "@/lib/types";
 
 const userVisualRegistry = visualRegistryFromDefinitions(userDemo.visuals);
 
 export function PlayerPane() {
-  const { status, playerRef, loop, layerState, soloLayer, captionOverrides } =
-    useStudio();
+  const {
+    status,
+    playerRef,
+    loop,
+    layerState,
+    soloLayer,
+    captionOverrides,
+    audioTracks,
+    audioMuted,
+  } = useStudio();
+
+  // Memoize the derived timeline + input props so the Remotion <Player> only
+  // recomputes when the editing state or source data actually changes. Without
+  // this, every provider render allocates fresh objects passed to the Player,
+  // which can trigger it to recompute composition props unnecessarily.
+  // Vercel rule: rerender-derived-state-no-effect.
+  //
+  // This hook MUST run on every render (before any early return) to satisfy
+  // the Rules of Hooks — its inputs are simply undefined while not ready.
+  const inputProps = React.useMemo(() => {
+    if (status.kind !== "ready") return null;
+    const { manifest, timeline, screenshotBaseUrl } = status.data;
+    return buildInputProps({
+      manifest,
+      timeline: applyEphemeralEdits(timeline, {
+        layerState,
+        soloLayer,
+        captionOverrides,
+        audioTracks,
+        audioMuted,
+      }),
+      screenshotBaseUrl,
+    });
+  }, [
+    status,
+    layerState,
+    soloLayer,
+    captionOverrides,
+    audioTracks,
+    audioMuted,
+  ]);
 
   if (status.kind === "loading") {
     return (
@@ -46,39 +93,14 @@ export function PlayerPane() {
     );
   }
 
-  const { manifest, timeline, screenshotBaseUrl } = status.data;
-
-  // Memoize the derived timeline + input props so the Remotion <Player> only
-  // recomputes when the editing state or source data actually changes. Without
-  // this, every provider render allocates fresh objects passed to the Player,
-  // which can trigger it to recompute composition props unnecessarily.
-  // Vercel rule: rerender-derived-state-no-effect.
-  const inputProps = React.useMemo(
-    () =>
-      buildInputProps({
-        manifest,
-        timeline: applyEphemeralEdits(timeline, {
-          layerState,
-          soloLayer,
-          captionOverrides,
-        }),
-        screenshotBaseUrl,
-      }),
-    [
-      manifest,
-      timeline,
-      layerState,
-      soloLayer,
-      captionOverrides,
-      screenshotBaseUrl,
-    ],
-  );
+  // inputProps is non-null here because status.kind === "ready".
+  const { timeline } = status.data;
 
   return (
     <div className="flex-1 grid place-items-center p-6 bg-[var(--color-bg)] overflow-hidden">
       <FittedPlayer
         playerRef={playerRef}
-        inputProps={inputProps}
+        inputProps={inputProps!}
         durationInFrames={timeline.durationInFrames}
         fps={timeline.fps}
         loop={loop}
@@ -170,9 +192,12 @@ function applyEphemeralEdits(
     layerState: LayerState;
     soloLayer: import("@/lib/types").LayerKind | null;
     captionOverrides: CaptionOverrides;
+    audioTracks: AudioTrackIR[] | undefined;
+    audioMuted: boolean;
   },
 ): RenderTimeline {
-  const { layerState, soloLayer, captionOverrides } = state;
+  const { layerState, soloLayer, captionOverrides, audioTracks, audioMuted } =
+    state;
 
   const cameraVisible = isLayerVisible(layerState, soloLayer, "camera");
   const cursorVisible = isLayerVisible(layerState, soloLayer, "cursor");
@@ -187,11 +212,27 @@ function applyEphemeralEdits(
       )
     : [];
 
+  // Resolve the edited IR tracks (audioTracks reflects override file or demo.ts
+  // seed) to frames for the preview, applying the master mute toggle. When the
+  // editor has no tracks, keep the timeline's own audio (e.g. fresh load).
+  const resolvedAudio =
+    audioTracks !== undefined
+      ? resolveEffectiveAudio(
+          audioTracks,
+          timeline.fps,
+          timeline.durationInFrames,
+        ).map((track) => ({
+          ...track,
+          muted: audioMuted ? true : track.muted,
+        }))
+      : timeline.audio;
+
   return {
     ...timeline,
     camera: cameraVisible ? timeline.camera : [],
     cursor: cursorVisible ? timeline.cursor : [],
     overlays,
+    audio: resolvedAudio,
   };
 }
 
@@ -207,12 +248,18 @@ function buildInputProps(args: {
     screenshotSrcByStepId[step.stepId] =
       `${args.screenshotBaseUrl}/${encodeURIComponent(filename)}`;
   }
+  // Audio sources for the preview: served from /data/audio/<basename>.
+  const audioSrcById = resolveAudioSrcById(
+    args.timeline.audio ?? [],
+    "/data/audio",
+  );
   return {
     ...createProductDemoVideoProps({
       manifest: args.manifest,
       mediaMode: "screenshots",
       timeline: args.timeline,
       screenshotSrcByStepId,
+      audioSrcById,
     }),
     registry: userVisualRegistry,
   };
