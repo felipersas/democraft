@@ -29,7 +29,10 @@ export function createStudioRuntime(args: {
     );
   }
 
-  const mode = productionBuild ? "production" : "development";
+  // A source checkout may contain a .next directory left by packaging or a
+  // previous production build. Source must win so local edits are never served
+  // from that stale bundle; published packages contain only .next artifacts.
+  const mode = sourceCheckout ? "development" : "production";
   return {
     command: process.execPath,
     args: [
