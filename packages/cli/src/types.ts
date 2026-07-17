@@ -29,6 +29,13 @@ export type ParsedArgs = {
    * capture made with the same storageState (otherwise the env hash diverges).
    */
   storageState?: string;
+  authCommand?: "create" | "list" | "login" | "validate" | "remove" | "rename";
+  profileId?: string;
+  name?: string;
+  origin?: string;
+  validationUrl?: string;
+  selector?: string;
+  force?: boolean;
   /**
    * Render from the raw browser recording (webm) instead of the per-step
    * screenshots. Off by default: screenshots show the stable, post-settle

@@ -1,16 +1,26 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
 import { renderDemoVideo } from "@democraft/remotion";
 import { runDemo } from "@democraft/playwright";
+import {
+  AuthenticationPaths,
+  LocalAuthenticationRepository,
+} from "@democraft/authentication";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { formatDiagnostics, parseArgs, runCli } from "./index";
 import { resolveDemoPath } from "./paths";
-import {
-  captureActionForCompatibility,
-  studioUrl,
-} from "./studio";
+import { captureActionForCompatibility, studioUrl } from "./studio";
+import { runAuthCommand } from "./auth";
+import type { PlaywrightBindings } from "@democraft/playwright";
 
 vi.mock("@democraft/remotion", async () => {
   const actual = await vi.importActual<typeof import("@democraft/remotion")>(
@@ -73,6 +83,204 @@ afterEach(async () => {
 });
 
 describe("cli", () => {
+  it("parses authentication subcommands without treating profile IDs as demos", () => {
+    expect(
+      parseArgs([
+        "auth",
+        "validate",
+        "auth_01arz3ndektsv4rrffq69g5fav",
+        "--json",
+      ]),
+    ).toMatchObject({
+      command: "auth",
+      authCommand: "validate",
+      profileId: "auth_01arz3ndektsv4rrffq69g5fav",
+      demoPath: undefined,
+      json: true,
+    });
+  });
+
+  it("returns a stable, state-free JSON contract for auth list", async () => {
+    const result = await withTemporaryInvocationRoot(() =>
+      runCli(["auth", "list", "--json"]),
+    );
+    expect(result).toMatchObject({ exitCode: 0, stderr: "" });
+    expect(JSON.parse(result.stdout)).toEqual({
+      ok: true,
+      profiles: [],
+      actionRequired: "none",
+    });
+    expect(result.stdout).not.toMatch(/cookies|localStorage|token/i);
+  });
+
+  it("runs the complete auth CLI lifecycle through trusted headed bindings", async () => {
+    const root = await mkdtemp(join(tmpdir(), "democraft-cli-auth-cycle-"));
+    tempDirs.push(root);
+    const launches: Array<{ headless?: boolean }> = [];
+    let currentUrl = "https://private.example/dashboard";
+    const bindings = {
+      chromium: {
+        launch: async (options?: { headless?: boolean }) => {
+          launches.push(options ?? {});
+          return {
+            close: async () => undefined,
+            newContext: async () => ({
+              close: async () => undefined,
+              storageState: async () => ({
+                cookies: [{ name: "session", value: "private" }],
+                origins: [],
+              }),
+              newPage: async () => ({
+                goto: async (url: string) => {
+                  currentUrl = url;
+                },
+                url: () => currentUrl,
+                locator: () => ({ waitFor: async () => undefined }),
+              }),
+            }),
+          };
+        },
+      },
+    } as unknown as PlaywrightBindings;
+
+    await withTemporaryInvocationRoot(async () => {
+      const created = await runAuthCommand(
+        parseArgs([
+          "auth",
+          "create",
+          "--name",
+          "Private admin",
+          "--origin",
+          "https://private.example",
+          "--validation-url",
+          "/dashboard",
+          "--json",
+        ]),
+        { bindings },
+      );
+      const profileId = JSON.parse(created.stdout).profile.id as string;
+      const loggedIn = await runAuthCommand(
+        parseArgs(["auth", "login", profileId, "--json"]),
+        {
+          bindings,
+          interactiveCompletion: Promise.resolve("complete"),
+        },
+      );
+      expect(loggedIn.exitCode).toBe(0);
+      expect(launches[0]).toEqual({ headless: false });
+
+      const listed = await runAuthCommand(
+        parseArgs(["auth", "list", "--json"]),
+        { bindings },
+      );
+      expect(JSON.parse(listed.stdout).profiles).toEqual([
+        expect.objectContaining({ id: profileId, status: "authenticated" }),
+      ]);
+      const validated = await runAuthCommand(
+        parseArgs(["auth", "validate", profileId, "--json"]),
+        { bindings },
+      );
+      expect(JSON.parse(validated.stdout)).toMatchObject({
+        ok: true,
+        profile: { id: profileId, status: "authenticated" },
+        actionRequired: "none",
+      });
+      const removed = await runAuthCommand(
+        parseArgs(["auth", "remove", profileId, "--json"]),
+        { bindings },
+      );
+      expect(removed.exitCode).toBe(0);
+      expect(
+        `${created.stdout}${loggedIn.stdout}${listed.stdout}${validated.stdout}${removed.stdout}`,
+      ).not.toMatch(/"cookies"|"session"|"private"\s*:/i);
+    }, root);
+  });
+
+  it("maps missing auth profiles to the semantic LLM exit contract", async () => {
+    const result = await withTemporaryInvocationRoot(() =>
+      runCli(["auth", "validate", "auth_01arz3ndektsv4rrffq69g5fav", "--json"]),
+    );
+    expect(result.exitCode).toBe(4);
+    expect(result.stderr).toBe("");
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: false,
+      code: "AUTH_PROFILE_NOT_FOUND",
+      profileId: "auth_01arz3ndektsv4rrffq69g5fav",
+      actionRequired: "choose-profile",
+    });
+  });
+
+  it("refuses to remove an associated profile unless force is explicit", async () => {
+    const root = await mkdtemp(join(tmpdir(), "democraft-cli-auth-remove-"));
+    tempDirs.push(root);
+    const repository = new LocalAuthenticationRepository(
+      await AuthenticationPaths.fromWorkspace(root),
+    );
+    const profile = await repository.create({
+      name: "Admin",
+      origin: "http://localhost:3000",
+    });
+    const demoPath = await writeDemoFixture(
+      undefined,
+      profile.id,
+      root,
+      "private-dashboard.ts",
+    );
+    await writeFile(
+      join(root, "unrelated.ts"),
+      'throw new Error("unrelated module must never execute");\n',
+    );
+    await writeFile(
+      join(root, "broken-private.ts"),
+      `
+import {defineDemo as makeDemo} from "@democraft/core";
+throw new Error("broken candidate");
+export default makeDemo({
+  id: "broken-private",
+  title: "Broken",
+  source: {baseUrl: "http://localhost:3000"},
+  authentication: {profileId: ${JSON.stringify(profile.id)}},
+  async run() {}
+} satisfies Parameters<typeof makeDemo>[0]);
+`,
+    );
+
+    const rejected = await withTemporaryInvocationRoot(
+      () => runCli(["auth", "remove", profile.id, "--json"]),
+      root,
+    );
+    expect(rejected.exitCode).toBe(9);
+    expect(JSON.parse(rejected.stdout)).toMatchObject({
+      ok: false,
+      code: "AUTH_PROFILE_IN_USE",
+      profileId: profile.id,
+      actionRequired: "confirm-force-remove",
+      usage: expect.arrayContaining([{ demoId: "demo" }]),
+    });
+    expect(JSON.parse(rejected.stdout).usage).toContainEqual({
+      demoId: "unresolved:broken-private.ts",
+    });
+    await expect(repository.list()).resolves.toHaveLength(1);
+
+    const removed = await withTemporaryInvocationRoot(
+      () => runCli(["auth", "remove", profile.id, "--force", "--json"]),
+      root,
+    );
+    expect(removed.exitCode).toBe(0);
+    expect(JSON.parse(removed.stdout)).toEqual({
+      ok: true,
+      profileId: profile.id,
+      removed: true,
+      actionRequired: "none",
+    });
+    await expect(repository.load(profile.id)).rejects.toMatchObject({
+      public: { code: "AUTH_PROFILE_NOT_FOUND" },
+    });
+    expect(await readFile(demoPath, "utf8")).toContain(profile.id);
+    expect(`${rejected.stdout}${removed.stdout}`).not.toMatch(
+      /cookies|localStorage|password|token/i,
+    );
+  });
   it("builds the Studio loopback URL without exposing secrets", () => {
     expect(studioUrl(4310)).toBe("http://127.0.0.1:4310");
     expect(studioUrl(4310)).not.toContain("token");
@@ -838,30 +1046,37 @@ describe("cli", () => {
   });
 });
 
-async function writeDemoFixture(fps?: number): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), "democraft-cli-"));
-  tempDirs.push(dir);
-  const demoPath = join(dir, "demo.mjs");
+async function writeDemoFixture(
+  fps?: number,
+  authenticationProfileId?: string,
+  existingDirectory?: string,
+  filename = "demo.mjs",
+): Promise<string> {
+  const dir =
+    existingDirectory ?? (await mkdtemp(join(tmpdir(), "democraft-cli-")));
+  if (!existingDirectory) tempDirs.push(dir);
+  const demoPath = join(dir, filename);
 
-  const coreModule = resolve(
-    process.cwd(),
-    "../../packages/core/dist/index.js",
-  );
+  const coreModule = authenticationProfileId
+    ? "@democraft/core"
+    : resolve(process.cwd(), "../../packages/core/dist/index.js");
+  if (authenticationProfileId) await linkCorePackage(dir);
 
   await writeFile(
     demoPath,
     `
-import {defineDemo, defineTargets, byTestId} from "${coreModule}";
+import {defineDemo as makeDemo, defineTargets, byTestId} from "${coreModule}";
 
 const targets = defineTargets({
   dashboard: byTestId("dashboard")
 });
 
-export default defineDemo({
+export default makeDemo({
   id: "demo",
   title: "Demo",
   ${fps === undefined ? "" : `config: {fps: ${fps}},`}
   source: {baseUrl: "http://localhost:3000"},
+  ${authenticationProfileId ? `authentication: {profileId: ${JSON.stringify(authenticationProfileId)}},` : ""}
   targets,
   async run({demo}) {
     await demo.scene("intro", async (scene) => {
@@ -869,11 +1084,20 @@ export default defineDemo({
       await scene.expectVisible("dashboard");
     });
   }
-});
+}${authenticationProfileId ? " satisfies Parameters<typeof makeDemo>[0]" : ""});
 `,
   );
 
   return demoPath;
+}
+
+async function linkCorePackage(root: string) {
+  const scope = join(root, "node_modules", "@democraft");
+  await mkdir(scope, { recursive: true });
+  await symlink(
+    resolve(process.cwd(), "../../packages/core"),
+    join(scope, "core"),
+  );
 }
 
 async function writeManifestFixture(

@@ -36,6 +36,7 @@ import { formatDiagnostics } from "./format";
 import { loadDemo } from "./loaders";
 import { userResolve } from "./paths";
 import { resolveStudioRuntime, STUDIO_LOOPBACK_HOST } from "./studio-runtime";
+import { authenticationExecution } from "./auth";
 
 export type StudioOptions = {
   demoPath: string;
@@ -59,18 +60,41 @@ export async function launchStudio(
   const demo = await loadDemo(options.demoPath);
   const demoPath = await realpath(userResolve(options.demoPath));
   const compilation = await compileDemo(demo);
-  const captureEnvironment = await resolveCaptureEnvironment({
-    headless: options.headless,
-    environment: options.storageState
-      ? { storageState: options.storageState }
-      : undefined,
-  });
-
   if (compilation.diagnostics.some((d) => d.severity === "error")) {
     throw new Error(
       `Static validation failed.\n${formatDiagnostics(compilation.diagnostics)}`,
     );
   }
+  if (compilation.ir.authentication && options.storageState) {
+    throw new Error(
+      "A demo authentication profile and --storage-state cannot be used together.",
+    );
+  }
+  const authExecution = compilation.ir.authentication
+    ? await authenticationExecution()
+    : undefined;
+  const preparedAuthentication =
+    compilation.ir.authentication && authExecution
+      ? await authExecution.prepare(compilation.ir.authentication.profileId)
+      : undefined;
+  const fixedAuthentication = preparedAuthentication
+    ? { prepare: async () => preparedAuthentication }
+    : undefined;
+  const captureEnvironment = await resolveCaptureEnvironment(
+    {
+      headless: options.headless,
+      environment: options.storageState
+        ? { storageState: options.storageState }
+        : undefined,
+    },
+    undefined,
+    compilation.ir.authentication && preparedAuthentication
+      ? {
+          profileId: compilation.ir.authentication.profileId,
+          stateSha256: preparedAuthentication.stateSha256,
+        }
+      : undefined,
+  );
 
   const root = await realpath(options.workspaceRoot ?? process.cwd());
   const artifactsRoot = await prepareManagedStudioDirectory(
@@ -148,6 +172,7 @@ export async function launchStudio(
       outputDir: explicitCaptureDir,
       captureRootDir: runsRoot,
       headless: options.headless,
+      authentication: fixedAuthentication,
       environment: options.storageState
         ? { storageState: options.storageState }
         : undefined,

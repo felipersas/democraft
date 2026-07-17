@@ -34,7 +34,7 @@
     "build": "tsup src/index.ts --format esm --dts --clean",
     "prepack": "pnpm build",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run --minWorkers=1 --maxWorkers=1"
   },
   "dependencies": {
     "@democraft/schema": "workspace:*",

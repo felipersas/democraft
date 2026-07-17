@@ -199,6 +199,10 @@ export const demoIRSchema: z.ZodType<DemoIR> = z
         initialPath: z.string().optional(),
       })
       .passthrough(),
+    authentication: z
+      .object({ profileId: z.string() })
+      .passthrough()
+      .optional(),
     targets: z.record(targetDefinitionSchema),
     visuals: z.array(z.string().min(1)).optional(),
     audio: z.array(audioTrackIRSchema).optional(),

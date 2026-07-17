@@ -87,6 +87,9 @@ export async function compileDemo(
     id: definition.id,
     title: definition.title,
     source: definition.source,
+    ...(definition.authentication
+      ? { authentication: { ...definition.authentication } }
+      : {}),
     targets: definition.targets,
     visuals: Object.keys(definition.visuals ?? {}),
     audio: normalizeAudioTracks(

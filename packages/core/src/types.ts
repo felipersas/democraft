@@ -229,6 +229,8 @@ export type DemoInput<
     baseUrl: string;
     initialPath?: string;
   };
+  /** Stable local profile reference. Sensitive browser state never enters source. */
+  authentication?: { profileId: string };
   targets?: TTargets;
   visuals?: TVisuals;
   /** Optional background music, narration, sound effects, and ambient tracks. */

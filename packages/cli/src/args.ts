@@ -10,10 +10,21 @@ export function parseArgs(argv: string[]): ParsedArgs {
     staticOnly: false,
   };
 
+  if (command === "auth" && tokens[0] && !tokens[0].startsWith("-")) {
+    parsed.authCommand = tokens.shift() as ParsedArgs["authCommand"];
+  }
+
   for (let index = 0; index < tokens.length; index += 1) {
     const flag = tokens[index];
 
-    if (!flag.startsWith("-")) {
+    if (!flag.startsWith("-") && command === "auth") {
+      if (!parsed.profileId) {
+        parsed.profileId = flag;
+        continue;
+      }
+      parsed.parseError = `Unexpected argument "${flag}".`;
+      break;
+    } else if (!flag.startsWith("-")) {
       if (!parsed.demoPath) {
         parsed.demoPath = flag;
         continue;
@@ -61,6 +72,16 @@ export function parseArgs(argv: string[]): ParsedArgs {
       parsed.noCapture = true;
     } else if (flag === "--storage-state") {
       parsed.storageState = readValue();
+    } else if (flag === "--name") {
+      parsed.name = readValue();
+    } else if (flag === "--origin") {
+      parsed.origin = readValue();
+    } else if (flag === "--validation-url") {
+      parsed.validationUrl = readValue();
+    } else if (flag === "--selector") {
+      parsed.selector = readValue();
+    } else if (flag === "--force") {
+      parsed.force = true;
     } else if (flag === "--recording") {
       parsed.useRecording = true;
     } else if (flag === "--entry") {

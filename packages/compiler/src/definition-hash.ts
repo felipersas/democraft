@@ -13,12 +13,19 @@ export const CAPTURE_HASH_PREFIX = "capture-v1:sha256:";
 export function canonicalizeDefinition(
   ir: Pick<
     DemoIR,
-    "title" | "source" | "targets" | "scenes" | "visuals" | "audio"
+    | "title"
+    | "source"
+    | "targets"
+    | "scenes"
+    | "visuals"
+    | "audio"
+    | "authentication"
   >,
 ): string {
   return canonicalJson({
     title: ir.title,
     source: ir.source,
+    authentication: ir.authentication,
     targets: ir.targets,
     visuals: ir.visuals,
     audio: ir.audio,
@@ -29,7 +36,13 @@ export function canonicalizeDefinition(
 export function createDefinitionHash(
   ir: Pick<
     DemoIR,
-    "title" | "source" | "targets" | "scenes" | "visuals" | "audio"
+    | "title"
+    | "source"
+    | "targets"
+    | "scenes"
+    | "visuals"
+    | "audio"
+    | "authentication"
   >,
 ): string {
   return `${DEFINITION_HASH_PREFIX}${sha256(canonicalizeDefinition(ir))}`;
@@ -43,10 +56,11 @@ export function createDefinitionHash(
  * prefix must change whenever capture runtime semantics change this boundary.
  */
 export function canonicalizeCaptureDefinition(
-  ir: Pick<DemoIR, "source" | "targets" | "scenes">,
+  ir: Pick<DemoIR, "source" | "targets" | "scenes" | "authentication">,
 ): string {
   return canonicalJson({
     source: { baseUrl: ir.source.baseUrl },
+    authentication: ir.authentication,
     targets: Object.fromEntries(
       Object.entries(ir.targets).map(([id, target]) => [
         id,
@@ -61,7 +75,7 @@ export function canonicalizeCaptureDefinition(
 }
 
 export function createCaptureHash(
-  ir: Pick<DemoIR, "source" | "targets" | "scenes">,
+  ir: Pick<DemoIR, "source" | "targets" | "scenes" | "authentication">,
 ): string {
   return `${CAPTURE_HASH_PREFIX}${sha256(canonicalizeCaptureDefinition(ir))}`;
 }

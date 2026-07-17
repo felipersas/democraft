@@ -40,8 +40,15 @@ function defineDemo<TTargets extends Record<string, TargetInput>>(
 | `config` | `DemoConfig` | No | Reusable config attached to this demo. |
 | `source.baseUrl` | `string` | Yes | Origin of the target app. Must be live during capture. |
 | `source.initialPath` | `string` | No | Starting path. Defaults to the first scene's `goto`. |
+| `authentication.profileId` | `string` | No | Opaque local authentication profile reference. No browser state enters source. |
 | `targets` | `TTargets` | Yes | Named element contracts. Literal keys become the allowed target IDs in scene methods. See [locators](./locators). |
+| `visuals` | `VisualMap` | No | Local typed React/Remotion-compatible visual definitions. |
+| `audioTracks` | `AudioTrackInput[]` | No | Presentation-only music, narration, sound effects, or ambient tracks. |
 | `run` | `({ demo }) => Promise<void> \| void` | Yes | Drives the capture via `demo.scene(...)`. |
+
+See [audio](../guides/audio) for track timing and Studio editing, and
+[authentication profiles](../guides/authentication) for the complete local
+session lifecycle.
 
 ## Minimal example
 

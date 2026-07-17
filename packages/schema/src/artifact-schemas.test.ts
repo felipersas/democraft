@@ -146,6 +146,18 @@ describe("artifact schemas v1", () => {
     expect(diagnosticSchema.parse(diagnostic)).toEqual(diagnostic);
   });
 
+  it("parses optional demo authentication while remaining backward compatible", async () => {
+    const legacy = await parseFixture("demo-ir.valid.json", parseDemoIRJson);
+    expect(legacy.authentication).toBeUndefined();
+    const authenticated = parseDemoIR({
+      ...legacy,
+      authentication: { profileId: "auth_01arz3ndektsv4rrffq69g5fav" },
+    });
+    expect(authenticated.authentication).toEqual({
+      profileId: "auth_01arz3ndektsv4rrffq69g5fav",
+    });
+  });
+
   it("covers the complete author step union and preserves compatible extensions", async () => {
     const fixture = JSON.parse(
       await readFile(new URL("demo-ir.valid.json", fixtures), "utf8"),

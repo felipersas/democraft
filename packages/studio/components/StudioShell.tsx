@@ -1,7 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { Command, HelpCircle, Sparkles } from "lucide-react";
+import {
+  Command,
+  HelpCircle,
+  Sparkles,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
 import { PlayerPane } from "./PlayerPane";
 import { Transport } from "./Transport";
 import { TimelineTrack } from "./TimelineTrack";
@@ -10,12 +16,14 @@ import { CommandPalette } from "./CommandPalette";
 import { ShortcutsOverlay } from "./ShortcutsOverlay";
 import { StalenessBadge } from "./StalenessBadge";
 import { RecaptureButton } from "./RecaptureButton";
+import { AuthenticationHeaderStatus } from "./AuthenticationHeaderStatus";
 import { useStudio } from "@/lib/studio-context";
 import { isTypingTarget } from "@/lib/dom";
 
 export function StudioShell() {
   useKeyboardShortcuts();
   const { status } = useStudio();
+  const [inspectorOpen, setInspectorOpen] = React.useState(false);
 
   return (
     <div className="studio-shell">
@@ -25,26 +33,63 @@ export function StudioShell() {
             <Sparkles className="h-3.5 w-3.5" strokeWidth={2.2} />
           </div>
           <div className="leading-tight">
-            <div className="text-[13px] font-semibold tracking-[-0.015em]">Democraft</div>
-            <div className="text-[10px] text-[var(--studio-fg-dim)]">Studio</div>
+            <div className="text-[13px] font-semibold tracking-[-0.015em]">
+              Democraft
+            </div>
+            <div className="text-[10px] text-[var(--studio-fg-dim)]">
+              Studio
+            </div>
           </div>
         </div>
         <div className="h-5 w-px bg-[var(--studio-border)]" />
         <div className="min-w-0">
           <div className="truncate text-xs font-medium text-[var(--studio-fg)]">
-            {status.kind === "ready" ? status.data.timeline.demoId : "Opening demo…"}
+            {status.kind === "ready"
+              ? status.data.timeline.demoId
+              : "Opening demo…"}
           </div>
-          <div className="hidden text-[10px] text-[var(--studio-fg-dim)] md:block">demo.ts · local workspace</div>
+          <div className="hidden text-[10px] text-[var(--studio-fg-dim)] md:block">
+            demo.ts · local workspace
+          </div>
         </div>
         {status.kind === "ready" && (
           <StalenessBadge staleness={status.data.staleness} />
         )}
+        {status.kind === "ready" && <AuthenticationHeaderStatus />}
         {status.kind === "ready" && <RecaptureButton />}
         <div className="flex-1" />
-        <button type="button" onClick={() => window.dispatchEvent(new Event("studio:open-commands"))} className="hidden h-8 items-center gap-2 rounded-md px-2.5 text-xs text-[var(--studio-fg-muted)] hover:bg-[var(--studio-hover)] hover:text-[var(--studio-fg)] sm:flex" aria-label="Open command palette">
-          <Command className="h-3.5 w-3.5" /><span>Commands</span><kbd className="rounded border border-[var(--studio-border-strong)] bg-[var(--studio-canvas)] px-1.5 py-0.5 text-[10px]">⌘K</kbd>
+        <button
+          type="button"
+          onClick={() => setInspectorOpen(true)}
+          className="studio-inspector-trigger"
+          aria-label="Open inspector"
+          aria-expanded={inspectorOpen}
+        >
+          <SlidersHorizontal />
         </button>
-        <button type="button" onClick={() => window.dispatchEvent(new Event("studio:open-shortcuts"))} className="grid h-8 w-8 place-items-center rounded-md text-[var(--studio-fg-muted)] hover:bg-[var(--studio-hover)] hover:text-[var(--studio-fg)]" aria-label="Open keyboard shortcuts" title="Keyboard shortcuts (?)">
+        <button
+          type="button"
+          onClick={() =>
+            window.dispatchEvent(new Event("studio:open-commands"))
+          }
+          className="hidden h-8 items-center gap-2 rounded-md px-2.5 text-xs text-[var(--studio-fg-muted)] hover:bg-[var(--studio-hover)] hover:text-[var(--studio-fg)] sm:flex"
+          aria-label="Open command palette"
+        >
+          <Command className="h-3.5 w-3.5" />
+          <span>Commands</span>
+          <kbd className="rounded border border-[var(--studio-border-strong)] bg-[var(--studio-canvas)] px-1.5 py-0.5 text-[10px]">
+            ⌘K
+          </kbd>
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            window.dispatchEvent(new Event("studio:open-shortcuts"))
+          }
+          className="grid h-8 w-8 place-items-center rounded-md text-[var(--studio-fg-muted)] hover:bg-[var(--studio-hover)] hover:text-[var(--studio-fg)]"
+          aria-label="Open keyboard shortcuts"
+          title="Keyboard shortcuts (?)"
+        >
           <HelpCircle className="h-4 w-4" />
         </button>
       </header>
@@ -58,7 +103,28 @@ export function StudioShell() {
           <PlayerPane />
           <Transport />
         </section>
-        <aside className="studio-inspector scrollbar-thin" aria-label="Inspector">
+        {inspectorOpen && (
+          <button
+            type="button"
+            className="studio-inspector-scrim"
+            aria-label="Close inspector"
+            onClick={() => setInspectorOpen(false)}
+          />
+        )}
+        <aside
+          className={`studio-inspector scrollbar-thin${inspectorOpen ? " is-open" : ""}`}
+          aria-label="Inspector"
+        >
+          <div className="studio-inspector-mobile-header">
+            <span>Inspector</span>
+            <button
+              type="button"
+              onClick={() => setInspectorOpen(false)}
+              aria-label="Close inspector"
+            >
+              <X />
+            </button>
+          </div>
           <InspectorRail />
         </aside>
       </main>

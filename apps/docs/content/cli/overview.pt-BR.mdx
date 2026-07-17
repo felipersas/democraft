@@ -42,6 +42,7 @@ Se mais de um módulo convencional existir, passe o caminho explicitamente. A CL
 | `validate` | Roda validação estática sem abrir o navegador. |
 | `inspect` | Compila uma demo e imprime uma inspeção legível. |
 | `capture` | Valida e cria artefatos reutilizáveis do navegador. |
+| `auth create\|list\|login\|validate\|rename\|remove` | Gerencia perfis locais de autenticação reutilizáveis. |
 | `targets` | Lista os contratos de alvo usados pela demo. |
 | `timeline` | Resolve uma timeline a partir de um manifest explícito. |
 | `preview` | *(Depreciado)* Escreve uma pré-visualização HTML autônoma. |
@@ -92,6 +93,23 @@ Se mais de um módulo convencional existir, passe o caminho explicitamente. A CL
 | `--no-capture` | Apenas Studio: exige uma captura existente compatível. |
 
 `--output-file` continua disponível como alias retrocompatível de `--output`.
+
+## Comandos de autenticação
+
+Os comandos de autenticação gerenciam sessões locais fora do código do demo.
+Use `--json` para resultados estáveis e sanitizados destinados a automação e
+agentes.
+
+```bash
+npx democraft auth create --name "Admin do demo" --origin https://app.example.com \
+  --validation-url /dashboard --selector '[data-testid="user-menu"]'
+npx democraft auth login <profile-id>
+npx democraft auth validate <profile-id> --json
+npx democraft auth list --json
+```
+
+Veja [perfis de autenticação](../guides/authentication) para associação no
+Studio, expiração e renovação, segurança, códigos semânticos e limites de CI.
 
 ## Modo avançado por artefatos
 

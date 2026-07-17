@@ -12,6 +12,8 @@
     "targets": "democraft targets src/demo.ts --json",
     "validate": "democraft validate src/demo.ts",
     "capture": "democraft capture src/demo.ts",
+    "validate:private": "democraft validate src/private-demo.ts",
+    "capture:private": "democraft capture src/private-demo.ts",
     "timeline": "democraft timeline src/demo.ts --manifest .democraft/runs/create-project-live/manifest.json -o .democraft/timelines/create-project-live.landscape.json",
     "preview": "democraft preview --manifest .democraft/runs/create-project-live/manifest.json --timeline .democraft/timelines/create-project-live.landscape.json -o .democraft/previews/create-project-live.html",
     "render": "democraft render src/demo.ts -o .democraft/renders/create-project-live.mp4"

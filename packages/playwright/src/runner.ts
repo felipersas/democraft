@@ -47,7 +47,34 @@ export async function runDemoWithBindings(
 ): Promise<RecordedDemoManifest> {
   ir = parseDemoIR(ir);
   const configuredEnvironment = options.environment ?? {};
-  const resolvedEnvironment = await resolveCaptureEnvironment(options);
+  if (ir.authentication && configuredEnvironment.storageState) {
+    throw new AuthenticationConfigurationError(
+      "A demo authentication profile and --storage-state cannot be used together.",
+      ir.authentication.profileId,
+    );
+  }
+  if (ir.authentication && !options.authentication) {
+    throw new AuthenticationConfigurationError(
+      `Authentication profile ${ir.authentication.profileId} cannot be resolved by this runtime.`,
+      ir.authentication.profileId,
+    );
+  }
+  const prepared = ir.authentication
+    ? await options.authentication!.prepare(ir.authentication.profileId)
+    : undefined;
+  const restoredState = prepared
+    ? parseAuthenticationState(prepared.state)
+    : undefined;
+  const resolvedEnvironment = await resolveCaptureEnvironment(
+    options,
+    undefined,
+    ir.authentication && prepared
+      ? {
+          profileId: ir.authentication.profileId,
+          stateSha256: prepared.stateSha256,
+        }
+      : undefined,
+  );
   const environment = resolvedEnvironment.environment;
   const viewport = environment.viewport;
   const deviceScaleFactor = environment.deviceScaleFactor;
@@ -98,7 +125,7 @@ export async function runDemoWithBindings(
       deviceScaleFactor,
       locale: environment.locale,
       timezoneId: environment.timezone,
-      storageState: configuredEnvironment.storageState,
+      storageState: restoredState ?? configuredEnvironment.storageState,
       recordVideo: { dir: artifact.directory, size: viewport },
     });
     let executionFailed = false;
@@ -222,6 +249,57 @@ export async function runDemoWithBindings(
     await browser?.close().catch(() => undefined);
     await artifact.releaseLock?.();
   }
+}
+
+export class AuthenticationConfigurationError extends Error {
+  readonly public;
+  readonly stage = "capture-preflight";
+  constructor(
+    message: string,
+    readonly profileId?: string,
+    readonly code:
+      "AUTH_NOT_CONFIGURED" | "AUTH_STATE_CORRUPT" = "AUTH_NOT_CONFIGURED",
+  ) {
+    super(message);
+    this.name = "AuthenticationConfigurationError";
+    this.public = {
+      code,
+      profileId,
+      status: code === "AUTH_STATE_CORRUPT" ? ("invalid" as const) : undefined,
+      actionRequired:
+        code === "AUTH_STATE_CORRUPT"
+          ? ("repair-state" as const)
+          : ("choose-profile" as const),
+      message,
+      stage: this.stage,
+    };
+  }
+}
+
+function parseAuthenticationState(state: Uint8Array): {
+  cookies: unknown[];
+  origins: unknown[];
+} {
+  try {
+    const envelope = JSON.parse(Buffer.from(state).toString("utf8")) as {
+      schemaVersion?: unknown;
+      data?: { cookies?: unknown; origins?: unknown };
+    };
+    if (
+      envelope.schemaVersion === 1 &&
+      Array.isArray(envelope.data?.cookies) &&
+      Array.isArray(envelope.data.origins)
+    ) {
+      return { cookies: envelope.data.cookies, origins: envelope.data.origins };
+    }
+  } catch {
+    // Converted to a public, state-free error below.
+  }
+  throw new AuthenticationConfigurationError(
+    "The authentication state is corrupt and must be renewed.",
+    undefined,
+    "AUTH_STATE_CORRUPT",
+  );
 }
 
 function assertPositiveFinite(name: string, value: number): void {

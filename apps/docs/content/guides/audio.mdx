@@ -1,0 +1,117 @@
+---
+title: Audio
+description: Add music, narration, sound effects, and ambient tracks without re-capturing the product.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+Audio is presentation-only. It is resolved into the Remotion timeline and the
+final MP4, but it does not contribute to the capture hash. Changing a track,
+volume, or fade can reuse a compatible browser capture.
+
+## Define tracks in TypeScript
+
+Add any number of tracks to `audioTracks` on the demo definition. Times use
+fps-independent duration strings such as `"250ms"`, `"1s"`, and `"1.5s"`.
+
+```ts title="demo.ts"
+import { defineDemo } from "@democraft/core";
+
+export default defineDemo({
+  id: "launch",
+  title: "Launch",
+  source: { baseUrl: "http://localhost:3000" },
+  audioTracks: [
+    {
+      id: "launch-score",
+      label: "Launch score",
+      src: "./assets/launch.mp3",
+      kind: "music",
+      volume: 0.24,
+      loop: true,
+      fadeIn: "800ms",
+      fadeOut: "1s",
+    },
+    {
+      id: "voiceover",
+      src: "./assets/voiceover.wav",
+      kind: "narration",
+      startAt: "2s",
+    },
+    {
+      id: "published",
+      src: "https://example.com/published.mp3",
+      kind: "sfx",
+      startAt: "12.5s",
+      volume: 0.7,
+    },
+  ],
+  async run({ demo }) {
+    await demo.scene("launch", async (scene) => {
+      await scene.goto("/launch");
+      await scene.hold("15s");
+    });
+  },
+});
+```
+
+## Track reference
+
+| Property | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `id` | `string` | required | Stable, demo-unique identifier used by Studio and diagnostics. |
+| `src` | `string` | required | Workspace-relative/absolute path, URL, or `staticFile("…")` reference. |
+| `label` | `string` | `id` | Human-readable label in Studio. |
+| `kind` | `"music" \| "narration" \| "sfx" \| "ambient"` | `"sfx"` | Semantic classification for the Studio. |
+| `startAt` | `Duration` | `"0ms"` | Composition time where playback begins. |
+| `endAt` | `Duration` | composition end | Inclusive composition end time. |
+| `volume` | `number` | `1` | Gain from `0` to `1`. |
+| `muted` | `boolean` | `false` | Silences the track. |
+| `loop` | `boolean` | `false` | Repeats the source across its timeline span. |
+| `fadeIn` | `Duration` | `"0ms"` | Ramp from silence to the configured volume. |
+| `fadeOut` | `Duration` | `"0ms"` | Ramp from the configured volume to silence. |
+
+The compiler does not check source existence because compilation is
+environment-independent. Local paths are resolved from the workspace and
+materialized for preview/render; `https:`, `data:`, and `blob:` sources are
+consumed directly by Remotion.
+
+## Edit in Studio
+
+Open the **Audio** panel to add, edit, remove, enable/disable, mute, or loop
+tracks with live preview. Studio writes the complete edited set to
+`studio-data/audio-overrides.json`; it never rewrites `demo.ts`. **Reset**
+deletes the override and returns to the source definition. The transport's
+master mute affects preview only.
+
+Audio appears as its own timeline row. Each track resolves from milliseconds
+to frames at the project fps, is clipped to the composition, and renders as a
+Remotion audio sequence with per-frame fades.
+
+## Validate and render
+
+```bash
+npx democraft validate demo.ts
+npx democraft studio demo.ts
+npx democraft render demo.ts -o demo.mp4
+```
+
+Audio diagnostics use `DC300`–`DC306` for duplicate IDs, missing sources,
+invalid volume, invalid spans/fades, unsupported extensions, and malformed
+durations.
+
+<Callout type="info" title="Capture once">
+Audio edits do not trigger Playwright. Keep a compatible capture and iterate on
+the mix in Studio or source. See [capture once](../pipeline/capture-once).
+</Callout>
+
+## Current limitations
+
+- Source trimming is not available.
+- Source duration is not probed. Give non-looping tracks an `endAt` when exact
+  timing matters.
+- Studio references paths and URLs; it does not upload audio files.
+- The deprecated standalone HTML preview does not play audio. Use Studio.
+
+Continue with the [demo definition reference](../sdk/define-demo) or the
+[Remotion integration](../remotion/integration).

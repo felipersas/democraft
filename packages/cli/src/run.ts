@@ -33,8 +33,20 @@ import {
 import { resolveDemoPath, userResolve, workspaceRoot } from "./paths";
 import { launchStudio } from "./studio";
 import type { CliResult, ParsedArgs } from "./types";
+import { authFailure, authenticationExecution, runAuthCommand } from "./auth";
 
 export async function runCli(argv = process.argv.slice(2)): Promise<CliResult> {
+  try {
+    return await executeCli(argv);
+  } catch (error) {
+    if (isAuthenticationFailure(error)) {
+      return authFailure(error, parseArgs(argv).json);
+    }
+    throw error;
+  }
+}
+
+async function executeCli(argv: string[]): Promise<CliResult> {
   const args = parseArgs(argv);
 
   if (args.parseError) {
@@ -50,6 +62,11 @@ export async function runCli(argv = process.argv.slice(2)): Promise<CliResult> {
     return ok(help());
   }
 
+  if (args.command === "auth") {
+    if (args.helpRequested) return ok(help("auth"));
+    return runAuthCommand(args);
+  }
+
   if (
     ![
       "inspect",
@@ -60,6 +77,7 @@ export async function runCli(argv = process.argv.slice(2)): Promise<CliResult> {
       "render",
       "studio",
       "targets",
+      "auth",
     ].includes(args.command)
   ) {
     return fail(`Unknown command "${args.command}".\n\n${help()}`);
@@ -211,6 +229,9 @@ export async function runCli(argv = process.argv.slice(2)): Promise<CliResult> {
         ? undefined
         : resolve(workspaceRoot(), ".democraft/runs"),
       headless: args.headless,
+      authentication: compilation.ir.authentication
+        ? await authenticationExecution()
+        : undefined,
       onArtifactCreated: (artifact) => {
         captureArtifact = artifact;
       },
@@ -321,6 +342,9 @@ export async function runCli(argv = process.argv.slice(2)): Promise<CliResult> {
   const manifest = await runDemo(compilation.ir, {
     outputDir: args.outputDir,
     headless: args.headless,
+    authentication: compilation.ir.authentication
+      ? await authenticationExecution()
+      : undefined,
     onArtifactCreated: (artifact) => {
       captureArtifact = artifact;
     },
@@ -330,6 +354,18 @@ export async function runCli(argv = process.argv.slice(2)): Promise<CliResult> {
     args.json
       ? `${JSON.stringify(manifest, null, 2)}\n`
       : `Captured ${manifest.demoId}\nCapture run ID: ${captureArtifact?.captureRunId ?? manifest.captureRunId ?? "unknown"}\nManifest: ${captureArtifact?.manifestPath ?? `${args.outputDir}/manifest.json`}\n`,
+  );
+}
+
+function isAuthenticationFailure(error: unknown): boolean {
+  return Boolean(
+    error &&
+    typeof error === "object" &&
+    (("public" in error &&
+      typeof (error as { public?: { code?: unknown } }).public?.code ===
+        "string") ||
+      ("code" in error &&
+        String((error as { code?: unknown }).code).startsWith("AUTH_"))),
   );
 }
 

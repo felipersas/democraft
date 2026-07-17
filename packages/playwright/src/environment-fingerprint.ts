@@ -24,6 +24,7 @@ export async function resolveCaptureEnvironment(
     arch: process.arch,
     engine: "chromium",
   },
+  authentication?: { profileId: string; stateSha256: string },
 ): Promise<{
   environment: CaptureArtifactMetadata["environment"];
   captureEnvironmentHash: string;
@@ -46,6 +47,7 @@ export async function resolveCaptureEnvironment(
   const fingerprint = JSON.stringify({
     ...environment,
     storageStateHash,
+    authentication: authentication ?? null,
     runtime: {
       node: runtime.node,
       platform: runtime.platform,

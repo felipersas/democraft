@@ -39,6 +39,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@democraft/authentication": "workspace:*",
     "@democraft/compiler": "workspace:*",
     "@democraft/core": "workspace:*",
     "@democraft/playwright": "workspace:*",
@@ -47,6 +48,7 @@
     "@democraft/schema": "workspace:*",
     "@democraft/studio": "workspace:*",
     "@democraft/timeline": "workspace:*",
-    "tsx": "^4.23.0"
+    "tsx": "^4.23.0",
+    "typescript": "^5.7.3"
   }
 }

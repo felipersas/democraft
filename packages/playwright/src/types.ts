@@ -96,6 +96,13 @@ export type RunDemoOptions = {
   environment?: RuntimeEnvironment;
   timeoutMs?: number;
   signal?: AbortSignal;
+  /** Authentication preflight supplied by the application composition root. */
+  authentication?: {
+    prepare(profileId: string): Promise<{
+      state: Uint8Array;
+      stateSha256: string;
+    }>;
+  };
   /** Called after the capture directory and initial metadata exist. */
   onArtifactCreated?: (artifact: {
     captureRunId: string;
@@ -113,6 +120,7 @@ export type BrowserLike = {
 export type BrowserContextLike = {
   newPage(): Promise<PageLike>;
   close(): Promise<void>;
+  storageState?(): Promise<{ cookies: unknown[]; origins: unknown[] }>;
   tracing?: {
     start(options?: Record<string, unknown>): Promise<void>;
     stop(options?: Record<string, unknown>): Promise<void>;
@@ -120,8 +128,9 @@ export type BrowserContextLike = {
 };
 
 export type PageLike = {
-  goto(url: string): Promise<unknown>;
+  goto(url: string, options?: { timeout?: number }): Promise<unknown>;
   url(): string;
+  locator(selector: string): LocatorLike;
   getByRole(role: string, options?: { name?: string }): LocatorLike;
   getByLabel(text: string): LocatorLike;
   getByTestId(id: string): LocatorLike;
