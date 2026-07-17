@@ -37,6 +37,7 @@ export type DemoIR = {
   captureHash?: string;
   title: string;
   source: DemoSource;
+  authentication?: { profileId: string };
   targets: Record<string, TargetDefinition>;
   /** Visual IDs declared by the author module. Component functions stay out of IR. */
   visuals?: string[];

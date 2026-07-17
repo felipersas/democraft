@@ -20,6 +20,22 @@ export function validateIR(ir: DemoIR): Diagnostic[] {
     });
   }
 
+  if (
+    ir.authentication &&
+    !/^auth_[0-9a-hjkmnp-tv-z]{26}$/.test(ir.authentication.profileId)
+  ) {
+    diagnostics.push({
+      code: "DC109",
+      severity: "error",
+      message:
+        "Authentication profileId must be a stable Democraft profile ID.",
+      path: "authentication.profileId",
+      suggestion:
+        "Select a profile in Studio or use an ID such as auth_01arz3ndektsv4rrffq69g5fav.",
+      demoId: ir.id,
+    });
+  }
+
   for (const [targetKey, target] of Object.entries(ir.targets)) {
     if (!targetKey || !target.id) {
       diagnostics.push({

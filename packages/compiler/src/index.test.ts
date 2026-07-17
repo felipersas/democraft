@@ -20,6 +20,47 @@ const targets = defineTargets({
 });
 
 describe("compiler", () => {
+  it("propagates and validates authentication profile references", async () => {
+    const validId = "auth_01arz3ndektsv4rrffq69g5fav";
+    const valid = await compileDemo(
+      defineDemo({
+        id: "auth-demo",
+        title: "Auth",
+        source: { baseUrl: "https://app.example" },
+        authentication: { profileId: validId },
+        async run() {},
+      }),
+    );
+    expect(valid.ir.authentication).toEqual({ profileId: validId });
+    expect(valid.diagnostics).toEqual([]);
+
+    const invalid = await compileDemo(
+      defineDemo({
+        id: "auth-demo",
+        title: "Auth",
+        source: { baseUrl: "https://app.example" },
+        authentication: { profileId: "  " },
+        async run() {},
+      }),
+    );
+    expect(invalid.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "DC109",
+        path: "authentication.profileId",
+        severity: "error",
+      }),
+    );
+  });
+
+  it("includes authentication in definition and capture hashes", () => {
+    const first = definitionFixture();
+    const second = {
+      ...definitionFixture(),
+      authentication: { profileId: "auth_01arz3ndektsv4rrffq69g5fav" },
+    };
+    expect(createDefinitionHash(second)).not.toBe(createDefinitionHash(first));
+    expect(createCaptureHash(second)).not.toBe(createCaptureHash(first));
+  });
   it("carries serializable definition config without changing the IR", async () => {
     const result = await compileDemo(
       defineDemo({
@@ -207,10 +248,9 @@ describe("compiler", () => {
         visuals: { "local.title": title },
         async run({ demo }) {
           await demo.scene("intro", async (scene) => {
-            await scene.visual(
-              "local.missing" as "local.title",
-              { value: () => "not JSON" },
-            );
+            await scene.visual("local.missing" as "local.title", {
+              value: () => "not JSON",
+            });
           });
         },
       }),

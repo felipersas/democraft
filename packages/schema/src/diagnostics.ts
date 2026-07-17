@@ -8,6 +8,7 @@ export const diagnosticCodes = {
   invalidStep: "DC104",
   unknownRenderer: "DC105",
   invalidTarget: "DC106",
+  invalidAuthenticationProfile: "DC109",
   runtimeStepFailed: "DC201",
   // Audio track diagnostics (presentation-only; never affect capture).
   audioDuplicateId: "DC300",
