@@ -137,6 +137,117 @@ describe("playwright runtime", () => {
     await expect(readFile(join(outputDir, "manifest.json"))).rejects.toThrow();
   });
 
+  it("completes authentication preflight before creating capture artifacts", async () => {
+    const parent = await mkdtemp(join(tmpdir(), "democraft-auth-preflight-"));
+    tempDirs.push(parent);
+    const outputDir = join(parent, "capture");
+    const launch = vi.fn(createBindings(createMockPage({})).chromium.launch);
+    const ir = {
+      ...createIR([{ kind: "testId", id: "button" }]),
+      authentication: { profileId: "auth_01arz3ndektsv4rrffq69g5fav" },
+    };
+    const failure = Object.assign(new Error("Session expired"), {
+      public: {
+        code: "AUTH_SESSION_EXPIRED",
+        profileId: ir.authentication.profileId,
+        actionRequired: "interactive-login",
+        message: "Session expired",
+        stage: "capture-preflight",
+      },
+    });
+
+    await expect(
+      runDemoWithBindings(
+        ir,
+        { chromium: { launch } },
+        {
+          outputDir,
+          authentication: { prepare: async () => Promise.reject(failure) },
+        },
+      ),
+    ).rejects.toBe(failure);
+    expect(launch).not.toHaveBeenCalled();
+    await expect(readFile(join(outputDir, "metadata.json"))).rejects.toThrow();
+  });
+
+  it("restores one immutable profile snapshot into one context for all scenes", async () => {
+    const outputDir = await mkdtemp(join(tmpdir(), "democraft-auth-runtime-"));
+    tempDirs.push(outputDir);
+    const page = createMockPage({});
+    const base = createIR([{ kind: "testId", id: "button" }]);
+    const ir = {
+      ...base,
+      authentication: { profileId: "auth_01arz3ndektsv4rrffq69g5fav" },
+      scenes: [base.scenes[0], { ...base.scenes[0], id: "second" }],
+    };
+    const contextOptions: Record<string, unknown>[] = [];
+    const bindings = createBindings(page);
+    const originalLaunch = bindings.chromium.launch;
+    bindings.chromium.launch = async (options) => {
+      const browser = await originalLaunch(options);
+      const originalNewContext = browser.newContext;
+      browser.newContext = async (context) => {
+        contextOptions.push(context ?? {});
+        return originalNewContext(context);
+      };
+      return browser;
+    };
+    const prepare = vi.fn(async () => ({
+      state: Buffer.from(
+        JSON.stringify({
+          schemaVersion: 1,
+          data: {
+            cookies: [{ name: "session", value: "secret" }],
+            origins: [],
+          },
+        }),
+      ),
+      stateSha256: "c".repeat(64),
+    }));
+
+    await runDemoWithBindings(ir, bindings, {
+      outputDir,
+      environment: { settle: false },
+      authentication: { prepare },
+    });
+
+    expect(prepare).toHaveBeenCalledOnce();
+    expect(contextOptions).toHaveLength(1);
+    expect(contextOptions[0].storageState).toEqual({
+      cookies: [{ name: "session", value: "secret" }],
+      origins: [],
+    });
+  });
+
+  it("rejects profile and legacy storage state together before side effects", async () => {
+    const parent = await mkdtemp(join(tmpdir(), "democraft-auth-conflict-"));
+    tempDirs.push(parent);
+    const outputDir = join(parent, "capture");
+    const launch = vi.fn(createBindings(createMockPage({})).chromium.launch);
+    const ir = {
+      ...createIR([{ kind: "testId", id: "button" }]),
+      authentication: { profileId: "auth_01arz3ndektsv4rrffq69g5fav" },
+    };
+    await expect(
+      runDemoWithBindings(
+        ir,
+        { chromium: { launch } },
+        {
+          outputDir,
+          environment: { storageState: "legacy.json" },
+          authentication: {
+            prepare: async () => ({
+              state: new Uint8Array(),
+              stateSha256: "x",
+            }),
+          },
+        },
+      ),
+    ).rejects.toMatchObject({ code: "AUTH_NOT_CONFIGURED" });
+    expect(launch).not.toHaveBeenCalled();
+    await expect(readFile(join(outputDir, "metadata.json"))).rejects.toThrow();
+  });
+
   it.each([
     [{ width: 0, height: 600 }, "viewport.width"],
     [{ width: 800, height: Number.NaN }, "viewport.height"],
@@ -622,6 +733,7 @@ function createMockPage(
       calls.push(`goto:${url}`);
     },
     url: () => "http://localhost:3000/dashboard",
+    locator: () => locatorFor("text"),
     getByRole: () => locatorFor("role"),
     getByLabel: () => locatorFor("label"),
     getByTestId: () => locatorFor("testId"),

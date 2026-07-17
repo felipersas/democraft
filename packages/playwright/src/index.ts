@@ -14,7 +14,21 @@ export {
   resolveCaptureEnvironment,
   type CaptureRuntimeIdentity,
 } from "./environment-fingerprint";
-export { runDemo, runDemoWithBindings } from "./runner";
+export {
+  AuthenticationConfigurationError,
+  runDemo,
+  runDemoWithBindings,
+} from "./runner";
+export { defaultBindings } from "./bindings";
+export {
+  createAuthenticationValidationBrowser,
+  type AuthenticationValidationBrowserAdapter,
+} from "./authentication-validation";
+export {
+  createInteractiveAuthenticationBrowser,
+  InteractiveAuthenticationCancelledError,
+  type InteractiveAuthenticationBrowserAdapter,
+} from "./authentication-interactive";
 export { resolveTarget } from "./locator";
 export {
   canonicalScreenshotFilename,
