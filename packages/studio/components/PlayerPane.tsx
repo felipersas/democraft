@@ -14,8 +14,8 @@ import type {
   RecordedDemoManifest,
   RenderTimeline,
 } from "@democraft/schema";
-import { useStudio } from "@/lib/studio-context";
-import { cn } from "@/lib/utils";
+import { useAudioPreview, useStudio } from "@/lib/studio-context";
+import { AlertCircle, RefreshCw } from "lucide-react";
 import { isLayerVisible } from "@/lib/layers";
 import { applyCaptionOverrides } from "@/lib/captions";
 import {
@@ -30,14 +30,14 @@ const userVisualRegistry = visualRegistryFromDefinitions(userDemo.visuals);
 export function PlayerPane() {
   const {
     status,
-    playerRef,
+    bindPlayer,
     loop,
     layerState,
     soloLayer,
     captionOverrides,
     audioTracks,
-    audioMuted,
   } = useStudio();
+  const { audioMuted } = useAudioPreview();
 
   // Memoize the derived timeline + input props so the Remotion <Player> only
   // recomputes when the editing state or source data actually changes. Without
@@ -72,8 +72,11 @@ export function PlayerPane() {
 
   if (status.kind === "loading") {
     return (
-      <div className="flex-1 grid place-items-center text-[var(--color-fg-muted)] text-sm">
-        Loading studio data…
+      <div className="flex-1 grid place-items-center p-6" aria-busy="true" aria-label="Loading Studio data">
+        <div className="w-full max-w-4xl space-y-3">
+          <div className="studio-skeleton aspect-video w-full" />
+          <div className="mx-auto h-3 w-40 studio-skeleton" />
+        </div>
       </div>
     );
   }
@@ -81,13 +84,15 @@ export function PlayerPane() {
   if (status.kind === "error") {
     return (
       <div className="flex-1 grid place-items-center p-8 text-center">
-        <div className="max-w-md space-y-2">
-          <div className="text-sm font-medium text-[var(--color-fg)]">
+        <div className="max-w-md rounded-xl border border-[var(--studio-error)]/35 bg-[var(--studio-surface-1)] p-5 text-left">
+          <AlertCircle className="mb-3 h-5 w-5 text-[var(--studio-error)]" />
+          <div className="text-sm font-semibold text-[var(--studio-fg)]">
             Studio data unavailable
           </div>
-          <div className="text-xs text-[var(--color-fg-muted)]">
+          <div className="mt-1.5 text-xs leading-relaxed text-[var(--studio-fg-muted)]">
             {status.message}
           </div>
+          <button type="button" onClick={() => window.location.reload()} className="mt-4 inline-flex h-8 items-center gap-2 rounded-md border border-[var(--studio-border-strong)] px-2.5 text-xs text-[var(--studio-fg)] hover:bg-[var(--studio-hover)]"><RefreshCw className="h-3.5 w-3.5" />Retry loading</button>
         </div>
       </div>
     );
@@ -97,9 +102,9 @@ export function PlayerPane() {
   const { timeline } = status.data;
 
   return (
-    <div className="flex-1 grid place-items-center p-6 bg-[var(--color-bg)] overflow-hidden">
+    <div className="flex-1 grid place-items-center overflow-hidden bg-[var(--studio-canvas)] p-5 lg:p-8">
       <FittedPlayer
-        playerRef={playerRef}
+        bindPlayer={bindPlayer}
         inputProps={inputProps!}
         durationInFrames={timeline.durationInFrames}
         fps={timeline.fps}
@@ -110,7 +115,7 @@ export function PlayerPane() {
 }
 
 function FittedPlayer(props: {
-  playerRef: React.RefObject<PlayerRef | null>;
+  bindPlayer: (player: PlayerRef | null) => void;
   inputProps: ProductDemoVideoProps;
   durationInFrames: number;
   fps: number;
@@ -148,14 +153,11 @@ function FittedPlayer(props: {
     <div ref={containerRef} className="w-full h-full grid place-items-center">
       {size ? (
         <div
-          className={cn(
-            "relative rounded-xl overflow-hidden shadow-2xl",
-            "shadow-black/40 ring-1 ring-[var(--color-border)]",
-          )}
+          className="relative overflow-hidden rounded-lg ring-1 ring-[var(--studio-border-strong)] shadow-[0_8px_24px_rgba(0,0,0,0.35)]"
           style={size}
         >
           <Player
-            ref={props.playerRef}
+            ref={props.bindPlayer}
             component={ProductDemoVideo}
             inputProps={props.inputProps}
             durationInFrames={props.durationInFrames}
@@ -196,8 +198,7 @@ function applyEphemeralEdits(
     audioMuted: boolean;
   },
 ): RenderTimeline {
-  const { layerState, soloLayer, captionOverrides, audioTracks, audioMuted } =
-    state;
+  const { layerState, soloLayer, captionOverrides, audioTracks, audioMuted } = state;
 
   const cameraVisible = isLayerVisible(layerState, soloLayer, "camera");
   const cursorVisible = isLayerVisible(layerState, soloLayer, "cursor");

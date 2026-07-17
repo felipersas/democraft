@@ -12,18 +12,18 @@ export interface ButtonProps
 
 const variantClasses: Record<ButtonVariant, string> = {
   default:
-    "bg-[var(--color-bg-panel)] text-[var(--color-fg)] hover:bg-[var(--color-bg-hover)] border border-[var(--color-border)]",
+    "bg-[var(--studio-surface-3)] text-[var(--studio-fg)] hover:bg-[var(--studio-hover)] border border-[var(--studio-border-strong)]",
   ghost:
-    "bg-transparent text-[var(--color-fg-muted)] hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-fg)]",
+    "bg-transparent text-[var(--studio-fg-muted)] hover:bg-[var(--studio-hover)] hover:text-[var(--studio-fg)]",
   outline:
-    "bg-transparent text-[var(--color-fg)] border border-[var(--color-border-strong)] hover:bg-[var(--color-bg-hover)]",
+    "bg-transparent text-[var(--studio-fg)] border border-[var(--studio-border-strong)] hover:bg-[var(--studio-hover)]",
   primary:
-    "bg-[var(--color-accent)] text-[#062019] hover:bg-[var(--color-accent-strong)] font-medium",
+    "bg-[var(--studio-accent)] text-[#09090b] hover:bg-[var(--studio-accent-hover)] font-semibold",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: "h-7 px-2.5 text-xs rounded-md",
-  md: "h-9 px-3 text-sm rounded-md",
+  sm: "h-8 px-2.5 text-xs rounded-md",
+  md: "h-10 px-3.5 text-sm rounded-md",
   icon: "h-8 w-8 rounded-md grid place-items-center",
 };
 
@@ -32,7 +32,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     <button
       ref={ref}
       className={cn(
-        "inline-flex items-center justify-center gap-1.5 transition-colors disabled:opacity-40 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-muted)] select-none",
+        "inline-flex items-center justify-center gap-1.5 transition-colors duration-100 disabled:opacity-50 disabled:pointer-events-none select-none",
         variantClasses[variant],
         sizeClasses[size],
         className,

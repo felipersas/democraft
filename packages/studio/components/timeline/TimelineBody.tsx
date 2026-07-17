@@ -131,21 +131,19 @@ export function TimelineBody(props: {
   }, [zoomBy, trackWidth, props.total]);
 
   return (
-    <div className="h-full flex flex-col bg-[var(--color-bg-panel)] overflow-hidden">
-      <div className="px-4 py-2 border-b border-[var(--color-border)] flex items-center justify-between gap-2">
-        <div className="text-[11px] font-medium uppercase tracking-wider text-[var(--color-fg-muted)]">
-          Timeline
+    <div className="h-full flex flex-col bg-[var(--studio-surface-2)] overflow-hidden">
+      <div className="h-10 px-3 border-b border-[var(--studio-border)] flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-xs font-semibold text-[var(--studio-fg)]">
+          Timeline <span className="studio-mono text-[10px] font-normal text-[var(--studio-fg-dim)]">{props.total} frames</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="text-[10px] text-[var(--color-fg-dim)] tabular-nums">
-            {props.total} frames
-          </div>
           <div className="flex items-center gap-0.5">
             <button
               type="button"
               onClick={() => zoomBy(1 / ZOOM_STEP)}
               title="Zoom out (-)"
-              className="text-[var(--color-fg-dim)] hover:text-[var(--color-fg-muted)] transition-colors p-0.5"
+              aria-label="Zoom timeline out"
+              className="grid h-8 w-8 place-items-center rounded-md text-[var(--studio-fg-dim)] hover:bg-[var(--studio-hover)] hover:text-[var(--studio-fg)]"
             >
               <ZoomOut className="w-3 h-3" />
             </button>
@@ -153,7 +151,8 @@ export function TimelineBody(props: {
               type="button"
               onClick={() => zoomBy(ZOOM_STEP)}
               title="Zoom in (+)"
-              className="text-[var(--color-fg-dim)] hover:text-[var(--color-fg-muted)] transition-colors p-0.5"
+              aria-label="Zoom timeline in"
+              className="grid h-8 w-8 place-items-center rounded-md text-[var(--studio-fg-dim)] hover:bg-[var(--studio-hover)] hover:text-[var(--studio-fg)]"
             >
               <ZoomIn className="w-3 h-3" />
             </button>
@@ -169,10 +168,10 @@ export function TimelineBody(props: {
                 : "Disable render range"
             }
             className={cn(
-              "text-[10px] px-1.5 py-0.5 rounded transition-colors tabular-nums",
+              "h-8 text-[11px] px-2.5 rounded-md transition-colors studio-mono",
               renderRange !== null
-                ? "bg-[var(--color-accent-muted)] text-[var(--color-accent)]"
-                : "text-[var(--color-fg-dim)] hover:text-[var(--color-fg-muted)]",
+                ? "bg-[var(--studio-accent-soft)] text-[var(--studio-accent-hover)]"
+                : "text-[var(--studio-fg-muted)] hover:bg-[var(--studio-hover)] hover:text-[var(--studio-fg)]",
             )}
           >
             {renderRange !== null
@@ -183,7 +182,8 @@ export function TimelineBody(props: {
             type="button"
             onClick={resetLayers}
             title="Reset layer visibility"
-            className="text-[var(--color-fg-dim)] hover:text-[var(--color-fg-muted)] transition-colors"
+            aria-label="Reset layer visibility"
+            className="grid h-8 w-8 place-items-center rounded-md text-[var(--studio-fg-dim)] hover:bg-[var(--studio-hover)] hover:text-[var(--studio-fg)]"
           >
             <RotateCcw className="w-3 h-3" />
           </button>
@@ -196,7 +196,7 @@ export function TimelineBody(props: {
         onWheel={handleWheel}
       >
         <div style={{ width: labelColWidth + contentWidth, minWidth: "100%" }}>
-          <div className="sticky top-0 z-10 bg-[var(--color-bg-panel)]">
+          <div className="sticky top-0 z-10 bg-[var(--studio-surface-2)]">
             <FrameRuler
               total={props.total}
               fps={props.fps}
@@ -208,11 +208,11 @@ export function TimelineBody(props: {
               onSetRenderRange={setRenderRange}
             />
           </div>
-          <div className="px-2 py-2 space-y-1">
+          <div className="space-y-px py-1">
             <TrackRow
               icon={<Camera className="w-3 h-3" />}
               label="Camera"
-              color="var(--color-accent)"
+              color="var(--studio-track-camera)"
               total={props.total}
               pxPerFrame={effectiveZoom}
               frame={props.frame}
@@ -230,7 +230,7 @@ export function TimelineBody(props: {
             <TrackRow
               icon={<MousePointer2 className="w-3 h-3" />}
               label="Cursor"
-              color="#ffd479"
+              color="var(--studio-track-cursor)"
               total={props.total}
               pxPerFrame={effectiveZoom}
               frame={props.frame}
@@ -248,7 +248,7 @@ export function TimelineBody(props: {
             <TrackRow
               icon={<SquareStack className="w-3 h-3" />}
               label="Overlays"
-              color="#9cb4ff"
+              color="var(--studio-track-overlay)"
               total={props.total}
               pxPerFrame={effectiveZoom}
               frame={props.frame}
@@ -263,11 +263,10 @@ export function TimelineBody(props: {
               }))}
               onSeek={props.onSeek}
             />
-            {(props.timeline.audio ?? []).length > 0 && (
-              <TrackRow
+            <TrackRow
                 icon={<Music className="w-3 h-3" />}
                 label="Audio"
-                color="#79e3c7"
+                color="var(--studio-track-audio)"
                 total={props.total}
                 pxPerFrame={effectiveZoom}
                 frame={props.frame}
@@ -281,8 +280,7 @@ export function TimelineBody(props: {
                   label: t.label ?? t.kind ?? "audio",
                 }))}
                 onSeek={props.onSeek}
-              />
-            )}
+            />
           </div>
         </div>
       </div>

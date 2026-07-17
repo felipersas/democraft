@@ -35,12 +35,12 @@ export function TrackRow(props: {
   return (
     <div
       className={cn(
-        "grid items-center group",
-        !props.visible && "opacity-50",
+        "grid min-h-10 items-center group border-b border-[var(--studio-border)]/70",
+        !props.visible && "bg-[var(--studio-surface-1)]",
       )}
       style={{ gridTemplateColumns: `${LABEL_COL_WIDTH}px 1fr` }}
     >
-      <div className="flex items-center gap-1.5 text-[11px] text-[var(--color-fg-muted)] group-hover:text-[var(--color-fg)] transition-colors pr-2">
+      <div className="sticky left-0 z-[2] flex h-full items-center gap-2 bg-[var(--studio-surface-2)] px-3 text-[11px] text-[var(--studio-fg-muted)] group-hover:text-[var(--studio-fg)]">
         <span style={{ color: props.color }}>{props.icon}</span>
         <span>{props.label}</span>
         <button
@@ -51,7 +51,8 @@ export function TrackRow(props: {
             else props.onToggleVisible();
           }}
           title={`Toggle ${props.label} visibility (shift-click = solo)`}
-          className="ml-auto text-[var(--color-fg-dim)] hover:text-[var(--color-fg)] transition-colors"
+          aria-label={`${props.visible ? "Hide" : "Show"} ${props.label} track. Shift-click to solo.`}
+          className="ml-auto grid h-8 w-8 place-items-center rounded-md text-[var(--studio-fg-dim)] hover:bg-[var(--studio-hover)] hover:text-[var(--studio-fg)]"
         >
           {props.visible ? (
             <Eye className="w-3 h-3" />
@@ -61,7 +62,7 @@ export function TrackRow(props: {
         </button>
       </div>
       <div
-        className="relative h-7 bg-[var(--color-bg)] rounded border border-[var(--color-border)] cursor-pointer"
+        className="relative h-10 cursor-pointer bg-[var(--studio-canvas)]"
         style={{ width: props.total * props.pxPerFrame }}
         onClick={handleSeek}
         title="Click to seek"
@@ -76,7 +77,7 @@ export function TrackRow(props: {
               <div
                 key={t.id}
                 className={cn(
-                  "absolute top-1 bottom-1 rounded-sm text-[9px] text-black/80 px-1 flex items-center overflow-hidden whitespace-nowrap transition-opacity",
+                  "absolute top-2 bottom-2 rounded-sm px-1.5 flex items-center overflow-hidden whitespace-nowrap text-[10px] font-medium text-black/85 transition-opacity",
                   isActive ? "opacity-100" : "opacity-60",
                 )}
                 style={{
@@ -91,7 +92,7 @@ export function TrackRow(props: {
           })}
         {props.total > 0 && (
           <div
-            className="absolute top-0 bottom-0 w-px bg-[var(--color-fg)] pointer-events-none"
+            className="absolute top-0 bottom-0 w-px bg-[var(--studio-accent)] pointer-events-none"
             style={{ left: props.frame * props.pxPerFrame }}
           />
         )}

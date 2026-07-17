@@ -17,6 +17,10 @@ import { studioMutationRequest } from "./studio-api";
 import { effectiveAudioTracks } from "./audio-overrides";
 
 const StudioContext = React.createContext<StudioContextValue | null>(null);
+const AudioPreviewContext = React.createContext<{
+  audioMuted: boolean;
+  setAudioMuted: (value: boolean) => void;
+} | null>(null);
 
 const DEFAULT_LAYER_STATE: LayerState = {
   camera: true,
@@ -31,6 +35,11 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
   const [renderError, setRenderError] = React.useState<string | null>(null);
   const [loop, setLoop] = React.useState(true);
   const playerRef = React.useRef<PlayerRef | null>(null);
+  const [player, setPlayer] = React.useState<PlayerRef | null>(null);
+  const bindPlayer = React.useCallback((instance: PlayerRef | null) => {
+    playerRef.current = instance;
+    setPlayer(instance);
+  }, []);
   const dataVersionRef = React.useRef(0);
 
   // Ephemeral editing state — never persisted, only affects preview + (opt-in) render.
@@ -53,7 +62,6 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     AudioTrackIR[] | undefined
   >(undefined);
   const [audioError, setAudioError] = React.useState<string | null>(null);
-  const [audioMuted, setAudioMuted] = React.useState(false);
 
   // Seed local audio state from server data whenever it changes. When no
   // override file exists, the effective tracks are derived from the timeline.
@@ -346,6 +354,8 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     () => ({
       status,
       playerRef,
+      player,
+      bindPlayer,
       loop,
       setLoop,
       reload,
@@ -380,11 +390,11 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
       removeAudioTrack,
       resetAudioTracks,
       audioError,
-      audioMuted,
-      setAudioMuted,
     }),
     [
       status,
+      player,
+      bindPlayer,
       loop,
       setLoop,
       reload,
@@ -417,18 +427,38 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
       removeAudioTrack,
       resetAudioTracks,
       audioError,
-      audioMuted,
     ],
   );
 
   return (
-    <StudioContext.Provider value={value}>{children}</StudioContext.Provider>
+    <StudioContext.Provider value={value}>
+      <AudioPreviewProvider>{children}</AudioPreviewProvider>
+    </StudioContext.Provider>
+  );
+}
+
+function AudioPreviewProvider({ children }: { children: React.ReactNode }) {
+  const [audioMuted, setAudioMuted] = React.useState(false);
+  const value = React.useMemo(
+    () => ({ audioMuted, setAudioMuted }),
+    [audioMuted],
+  );
+  return (
+    <AudioPreviewContext.Provider value={value}>
+      {children}
+    </AudioPreviewContext.Provider>
   );
 }
 
 export function useStudio(): StudioContextValue {
   const ctx = React.useContext(StudioContext);
   if (!ctx) throw new Error("useStudio must be used within StudioProvider");
+  return ctx;
+}
+
+export function useAudioPreview() {
+  const ctx = React.useContext(AudioPreviewContext);
+  if (!ctx) throw new Error("useAudioPreview must be used within StudioProvider");
   return ctx;
 }
 

@@ -11,7 +11,7 @@ export function ScaleField(props: {
   disabled?: boolean;
 }) {
   return (
-    <Field label="Resolution scale" hint={`${props.value}× (${STUDIO_WIDTH * props.value}×${STUDIO_HEIGHT * props.value})`}>
+    <Field className="space-y-2.5" label="Resolution scale" hint={`${props.value}× (${STUDIO_WIDTH * props.value}×${STUDIO_HEIGHT * props.value})`}>
       <Slider
         min={1}
         max={3}
@@ -32,7 +32,7 @@ export function QualityField(props: {
   const label =
     props.value <= 13 ? "High" : props.value <= 17 ? "Balanced" : "Light";
   return (
-    <Field label="Quality (CRF)" hint={`${label} · ${props.value}`}>
+    <Field className="space-y-2.5" label="Quality (CRF)" hint={`${label} · ${props.value}`}>
       <Slider
         min={10}
         max={28}

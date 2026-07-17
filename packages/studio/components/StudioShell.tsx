@@ -1,13 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { Clapperboard } from "lucide-react";
+import { Command, HelpCircle, Sparkles } from "lucide-react";
 import { PlayerPane } from "./PlayerPane";
 import { Transport } from "./Transport";
 import { TimelineTrack } from "./TimelineTrack";
-import { InspectorPanel } from "./InspectorPanel";
-import { AudioPanel } from "./AudioPanel";
-import { RenderPanel } from "./RenderPanel";
+import { InspectorRail } from "./InspectorRail";
 import { CommandPalette } from "./CommandPalette";
 import { ShortcutsOverlay } from "./ShortcutsOverlay";
 import { StalenessBadge } from "./StalenessBadge";
@@ -20,53 +18,53 @@ export function StudioShell() {
   const { status } = useStudio();
 
   return (
-    <div className="h-screen w-screen flex flex-col overflow-hidden">
-      <header className="flex items-center gap-3 px-4 h-11 border-b border-[var(--color-border)] bg-[var(--color-bg-elevated)]">
-        <div className="flex items-center gap-2">
-          <Clapperboard className="w-4 h-4 text-[var(--color-accent)]" />
-          <div className="text-sm font-semibold tracking-tight">
-            Democraft Studio
+    <div className="studio-shell">
+      <header className="studio-header">
+        <div className="flex items-center gap-2.5 shrink-0">
+          <div className="grid h-7 w-7 place-items-center rounded-md bg-[var(--studio-fg)] text-[var(--studio-canvas)]">
+            <Sparkles className="h-3.5 w-3.5" strokeWidth={2.2} />
+          </div>
+          <div className="leading-tight">
+            <div className="text-[13px] font-semibold tracking-[-0.015em]">Democraft</div>
+            <div className="text-[10px] text-[var(--studio-fg-dim)]">Studio</div>
           </div>
         </div>
-        <div className="text-[10px] uppercase tracking-wider text-[var(--color-fg-dim)]">
-          {status.kind === "ready" ? status.data.timeline.demoId : ""}
+        <div className="h-5 w-px bg-[var(--studio-border)]" />
+        <div className="min-w-0">
+          <div className="truncate text-xs font-medium text-[var(--studio-fg)]">
+            {status.kind === "ready" ? status.data.timeline.demoId : "Opening demo…"}
+          </div>
+          <div className="hidden text-[10px] text-[var(--studio-fg-dim)] md:block">demo.ts · local workspace</div>
         </div>
         {status.kind === "ready" && (
           <StalenessBadge staleness={status.data.staleness} />
         )}
         {status.kind === "ready" && <RecaptureButton />}
         <div className="flex-1" />
-        <span className="text-[10px] text-[var(--color-fg-dim)] tabular-nums hidden sm:inline">
-          ⌘K commands · ? shortcuts
-        </span>
-        <a
-          href="https://www.remotion.dev/docs"
-          target="_blank"
-          rel="noreferrer"
-          className="text-[11px] text-[var(--color-fg-dim)] hover:text-[var(--color-fg-muted)] transition-colors"
-        >
-          Remotion docs ↗
-        </a>
+        <button type="button" onClick={() => window.dispatchEvent(new Event("studio:open-commands"))} className="hidden h-8 items-center gap-2 rounded-md px-2.5 text-xs text-[var(--studio-fg-muted)] hover:bg-[var(--studio-hover)] hover:text-[var(--studio-fg)] sm:flex" aria-label="Open command palette">
+          <Command className="h-3.5 w-3.5" /><span>Commands</span><kbd className="rounded border border-[var(--studio-border-strong)] bg-[var(--studio-canvas)] px-1.5 py-0.5 text-[10px]">⌘K</kbd>
+        </button>
+        <button type="button" onClick={() => window.dispatchEvent(new Event("studio:open-shortcuts"))} className="grid h-8 w-8 place-items-center rounded-md text-[var(--studio-fg-muted)] hover:bg-[var(--studio-hover)] hover:text-[var(--studio-fg)]" aria-label="Open keyboard shortcuts" title="Keyboard shortcuts (?)">
+          <HelpCircle className="h-4 w-4" />
+        </button>
       </header>
 
       {/* Editor-style layout: player + inspector on top, full-width
           timeline docked at the bottom. Mirrors the arrangement in video
           editors (Premiere, DaVinci, Remotion Studio) so the timeline can
           stretch horizontally for precise frame work. */}
-      <main className="flex-1 flex min-h-0">
-        <section className="flex-1 flex flex-col min-w-0">
+      <main className="studio-workspace">
+        <section className="studio-stage-column" aria-label="Preview workspace">
           <PlayerPane />
           <Transport />
         </section>
-        <aside className="w-[320px] border-l border-[var(--color-border)] p-4 space-y-4 overflow-y-auto scrollbar-thin">
-          <InspectorPanel />
-          <AudioPanel />
-          <RenderPanel />
+        <aside className="studio-inspector scrollbar-thin" aria-label="Inspector">
+          <InspectorRail />
         </aside>
       </main>
-      <div className="h-[220px] border-t border-[var(--color-border)] flex-shrink-0">
+      <section className="studio-timeline" aria-label="Timeline">
         <TimelineTrack />
-      </div>
+      </section>
 
       <CommandPalette />
       <ShortcutsOverlay />

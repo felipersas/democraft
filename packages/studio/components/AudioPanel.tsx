@@ -8,6 +8,8 @@ import { useStudio } from "@/lib/studio-context";
 import { cn } from "@/lib/utils";
 import { Field } from "./ui/Field";
 import { Slider } from "./ui/slider";
+import { InspectorSection } from "./ui/InspectorSection";
+import { Button } from "./ui/button";
 
 /**
  * Audio track manager. Lists every track as an editable card (add / edit /
@@ -46,52 +48,39 @@ export function AudioPanel() {
   };
 
   return (
-    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-panel)] p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Music className="w-4 h-4 text-[var(--color-accent)]" />
-          <div className="text-[11px] font-medium uppercase tracking-wider text-[var(--color-fg-muted)]">
-            Audio
-          </div>
+    <InspectorSection
+      icon={<Music className="h-4 w-4" />}
+      title="Audio"
+      description={hasAudioOverrides ? "Studio override active. Changes persist for preview and render." : "Manage music, narration, and sound effects from demo.ts."}
+      action={<div className="flex items-center gap-1">
           {hasAudioOverrides && (
-            <span className="text-[9px] uppercase tracking-wider text-[var(--color-accent)]">
-              edited
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-1">
-          {hasAudioOverrides && (
-            <button
-              type="button"
+            <Button variant="ghost" size="sm"
               onClick={() => void resetAudioTracks()}
               title="Reset to demo.ts"
-              className="flex items-center gap-1 text-[10px] text-[var(--color-fg-dim)] hover:text-[var(--color-fg-muted)] transition-colors"
             >
-              <RotateCcw className="w-2.5 h-2.5" />
-              Reset
-            </button>
+              <RotateCcw className="h-3.5 w-3.5" />Reset
+            </Button>
           )}
-          <button
-            type="button"
+          <Button variant="ghost" size="icon"
             onClick={handleAdd}
             title="Add audio track"
-            className="text-[var(--color-fg-dim)] hover:text-[var(--color-fg-muted)] transition-colors"
+            aria-label="Add audio track"
           >
-            <Plus className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>}
+    >
 
       {(!audioTracks || audioTracks.length === 0) && (
-        <div className="text-[10px] text-[var(--color-fg-dim)] py-1">
-          No audio tracks. Click{" "}
-          <span className="text-[var(--color-fg-muted)]">+</span> to add
-          background music, narration, or sound effects.
+        <div className="studio-empty">
+          <span className="font-medium text-[var(--studio-fg)]">No audio tracks</span>
+          Add background music, narration, or a sound effect. Audio changes are stored as a Studio override.
+          <Button variant="outline" size="sm" onClick={handleAdd}><Plus className="h-3.5 w-3.5" />Add audio track</Button>
         </div>
       )}
 
       {audioTracks && audioTracks.length > 0 && (
-        <div className="space-y-2.5">
+        <div className="space-y-3">
           {audioTracks.map((track) => (
             <AudioTrackCard
               key={track.id}
@@ -103,11 +92,11 @@ export function AudioPanel() {
       )}
 
       {audioError && (
-        <div role="alert" className="text-[10px] text-red-400/90 leading-snug">
+        <div role="alert" className="rounded-md border border-[var(--studio-error)]/40 bg-[var(--studio-error)]/10 p-2.5 text-[11px] text-[var(--studio-error)] leading-snug">
           {audioError}
         </div>
       )}
-    </div>
+    </InspectorSection>
   );
 }
 
@@ -126,23 +115,25 @@ function AudioTrackCard(props: {
   return (
     <div
       className={cn(
-        "rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] p-2.5 space-y-2",
-        disabled && "opacity-50",
+        "studio-card p-3 space-y-3",
+        disabled && "bg-[var(--studio-surface-2)]",
       )}
     >
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-2 border-b border-[var(--studio-border)] pb-2.5">
         <input
           type="text"
           value={track.label ?? ""}
           onChange={(e) => patch({ label: e.target.value })}
           placeholder={track.id}
-          className="flex-1 min-w-0 bg-transparent text-[11px] text-[var(--color-fg)] focus:outline-none placeholder:text-[var(--color-fg-dim)]"
+          aria-label="Audio track label"
+          className="flex-1 min-w-0 border-0 bg-transparent p-0 text-xs font-semibold text-[var(--studio-fg)] outline-none placeholder:text-[var(--studio-fg-dim)]"
         />
         <button
           type="button"
           onClick={() => patch({ disabled: !disabled })}
           title={disabled ? "Enable track" : "Disable track"}
-          className="text-[var(--color-fg-dim)] hover:text-[var(--color-fg-muted)] transition-colors"
+          aria-label={disabled ? "Enable track" : "Disable track"}
+          className="grid h-8 w-8 place-items-center rounded-md text-[var(--studio-fg-dim)] hover:bg-[var(--studio-hover)] hover:text-[var(--studio-fg)]"
         >
           {disabled ? (
             <VolumeX className="w-3.5 h-3.5" />
@@ -154,12 +145,25 @@ function AudioTrackCard(props: {
           type="button"
           onClick={() => void removeAudioTrack(track.id)}
           title="Remove track"
-          className="text-[var(--color-fg-dim)] hover:text-red-400 transition-colors"
+          aria-label="Remove audio track"
+          className="grid h-8 w-8 place-items-center rounded-md text-[var(--studio-fg-dim)] hover:bg-[var(--studio-error)]/10 hover:text-[var(--studio-error)]"
         >
           <Trash2 className="w-3 h-3" />
         </button>
       </div>
 
+      <details className="group/track">
+        <summary className="flex h-8 cursor-pointer list-none items-center rounded-md px-2 text-[11px] text-[var(--studio-fg-muted)] hover:bg-[var(--studio-hover)] hover:text-[var(--studio-fg)]">
+          <span>Configure track</span>
+          <span className="ml-auto flex items-center gap-1.5 text-[10px] text-[var(--studio-fg-dim)]">
+            <span className="capitalize">{track.kind ?? "sfx"}</span>
+            <span aria-hidden>·</span>
+            <span>{Math.round(track.volume * 100)}%</span>
+            <span className="group-open/track:hidden">Show</span>
+            <span className="hidden group-open/track:inline">Hide</span>
+          </span>
+        </summary>
+        <div className="mt-3 space-y-3 border-t border-[var(--studio-border)] pt-3">
       <Field label="Source">
         <input
           type="text"
@@ -178,7 +182,7 @@ function AudioTrackCard(props: {
         )}
       </Field>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-3">
         <Field label="Kind">
           <select
             value={track.kind ?? "sfx"}
@@ -199,11 +203,15 @@ function AudioTrackCard(props: {
             step={0.01}
             value={track.volume}
             onValueChange={(v) => patch({ volume: v })}
+            trackClassName="h-8"
           />
         </Field>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <details className="group rounded-md border border-[var(--studio-border)] bg-[var(--studio-surface-2)]">
+        <summary className="flex h-9 cursor-pointer list-none items-center px-2.5 text-[11px] font-medium text-[var(--studio-fg-muted)] hover:text-[var(--studio-fg)]">Timing and fades <span className="ml-auto text-[10px] text-[var(--studio-fg-dim)] group-open:hidden">Show</span><span className="ml-auto hidden text-[10px] text-[var(--studio-fg-dim)] group-open:inline">Hide</span></summary>
+        <div className="space-y-3 border-t border-[var(--studio-border)] p-2.5">
+      <div className="grid grid-cols-2 gap-3">
         <Field label="Start (s)">
           <input
             type="number"
@@ -241,7 +249,7 @@ function AudioTrackCard(props: {
         </Field>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-3">
         <Field label="Fade in (s)">
           <input
             type="number"
@@ -271,6 +279,8 @@ function AudioTrackCard(props: {
           />
         </Field>
       </div>
+        </div>
+      </details>
 
       <div className="flex items-center gap-3">
         <label className="flex items-center gap-1 text-[10px] text-[var(--color-fg-muted)] cursor-pointer select-none">
@@ -292,6 +302,8 @@ function AudioTrackCard(props: {
           Loop
         </label>
       </div>
+        </div>
+      </details>
     </div>
   );
 }

@@ -31,8 +31,13 @@ function useOpenOnCmdK(setOpen: React.Dispatch<React.SetStateAction<boolean>>) {
         setOpen((o) => !o);
       }
     };
+    const onOpen = () => setOpen(true);
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("studio:open-commands", onOpen);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("studio:open-commands", onOpen);
+    };
   }, [setOpen]);
 }
 
