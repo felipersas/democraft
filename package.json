@@ -7,7 +7,7 @@
   "scripts": {
     "build": "turbo build",
     "typecheck": "turbo typecheck",
-    "test": "turbo test",
+    "test": "turbo test --concurrency=4",
     "lint": "eslint .",
     "format": "prettier --check ."
   },
