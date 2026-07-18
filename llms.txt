@@ -106,6 +106,19 @@ the whole composition or other advanced renderer behavior.
 6. Presentation-only changes can reuse capture; changed browser actions or
    locators require a new capture.
 7. Do not hand-author Demo IR. Author `demo.ts`; the compiler owns the IR.
+8. Before authoring a demo for an unfamiliar page, run `democraft discover
+   <url> --json` and select locators from the top `locatorCandidates`. Never
+   guess selectors when Discovery offers a stable candidate.
+
+## Discovery and diagnostics
+
+- `democraft discover <url> --json` maps a live page into a `PageDiscovery`
+  (regions, elements, locator candidates, collections). Read-only; origin
+  allowlist enforced; exit codes 0/2/64/65/66/130.
+- `democraft doctor --json` checks the environment (Node, Playwright,
+  Chromium, workspace, optional app reachability); exit 0/1.
+- Diagnostic families: `DC0xx` config, `DC1xx` authoring/targets, `DC2xx`
+  runtime, `DC3xx` audio, `DC4xx` discovery.
 
 ## More context
 

@@ -169,6 +169,8 @@ pnpm exec democraft <command> [demo.ts] [flags]
 | `preview --manifest <m> --timeline <t>`  | Generate a standalone HTML preview from artifacts |
 | `render [demo.ts] -o <video.mp4>`        | Capture, resolve, and render in one command       |
 | `studio [demo.ts]`                       | Capture or reuse data and launch the Studio       |
+| `discover <url> --json`                  | Map a live page into a semantic PageDiscovery JSON (read-only) |
+| `doctor [--url <url>] --json`            | Check the environment is ready to author/capture/discover |
 
 Run `pnpm exec democraft help` or `pnpm exec democraft <command> --help` for
 the complete option list. Artifact flags remain available for CI and debugging.

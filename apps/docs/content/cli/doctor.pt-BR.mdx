@@ -1,0 +1,59 @@
+---
+title: democraft doctor
+description: Verifique se o ambiente está pronto para autuar, capturar e descobrir demos.
+---
+
+O `democraft doctor` verifica se o seu ambiente consegue rodar o DemoCraft de
+ponta a ponta: versão do Node, o runtime Playwright, Chromium, permissão de
+escrita no workspace e (com `--url`) reachability da aplicação alvo.
+
+## Uso
+
+```bash
+democraft doctor [--url <url>] [--json]
+```
+
+```bash
+democraft doctor --json
+democraft doctor --url http://localhost:3000 --json
+```
+
+## Verificações
+
+| Verificação | O que valida |
+|-------|------------------|
+| `node-version` | Node.js atende ao mínimo (>= 20). |
+| `playwright` | O runtime `playwright` está instalado. |
+| `chromium` | Chromium está instalado para o Playwright. |
+| `workspace-writable` | A raiz do workspace (e `.democraft/`) é gravável. |
+| `app-reachable` | (Com `--url`) a aplicação alvo responde. |
+
+Cada verificação produz `{ id, status, code, message, suggestion? }` onde
+`status` é `ok`, `warning` ou `error`. O doctor executa **todas** as
+verificações antes de reportar, para você sempre ver o quadro completo.
+
+## Saída JSON
+
+Com `--json`, o doctor imprime um envelope estável:
+
+```json
+{
+  "ok": true,
+  "checks": [ { "id": "node-version", "status": "ok", "code": "DC405", "message": "..." } ],
+  "summary": { "status": "ok", "errorCount": 0, "warningCount": 0 }
+}
+```
+
+## Exit codes
+
+| Código | Significado |
+|------|---------|
+| `0` | Todas as verificações passaram (warnings permitidos). |
+| `1` | Pelo menos uma verificação falhou. |
+
+## Correções comuns
+
+- **Chromium ausente**: execute `pnpm exec playwright install chromium`.
+- **Node muito antigo**: atualize para Node 20 ou superior.
+- **Workspace não gravável**: verifique as permissões do diretório.
+- **App inacessível**: inicie a aplicação alvo antes de capturar ou descobrir.

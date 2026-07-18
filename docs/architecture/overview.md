@@ -115,6 +115,16 @@ Public API surface — barrel at `packages/playwright/src/index.ts` re-exports f
 
 Internals: `execute.ts` exports `executeStep` — the switch over `DemoStep["kind"]`. Targeted browser, assertion, camera, and callout steps resolve the target and store the resulting `TargetSnapshot`. `captureStepHoldMs` decides how long Playwright waits after each step so the screenshot matches the planned timeline duration. `diagnostics.ts` emits contextual `DC201` runtime failures.
 
+**Page Discovery** also lives in this package (the read-only counterpart to capture):
+
+- `discover.ts` — `discoverPage(options)` (the production entry) and `discoverPageWithBindings`. Mirrors `runDemo`'s shape: validate origin → create artifact → start → launch browser → `goto` → collect → persist → complete.
+- `discovery-origin.ts` — `assertDiscoveryAllowed(url, allowlist)` enforces the read-only origin allowlist; emits `DC401`/`DC402`.
+- `discovery-snapshot.ts` — `collectPageDiscovery(page)` reads a compact accessibility-oriented inventory in a single `page.evaluate()` round-trip and turns it into a `PageDiscovery`. Filtering (drop decorative/invisible) and collection aggregation happen here.
+- `discovery-scoring.ts` — pure, deterministic `scoreLocatorCandidates(input)`. Confidence is a pure function of (role, name, matchCount, visibility); same DOM → same score. No browser, no I/O — fully unit-tested.
+- `discovery-artifacts.ts` — the run lifecycle (`created`/`running`/`completed`/`failed`/`cancelled`), atomic writes, `latest.json` pointer. Mirrors `capture-artifacts.ts` and reuses `writeFileAtomic` + `redactCaptureErrorMessage`. Persisted under `.democraft/discovery/<application-id>/runs/<run-id>/`.
+
+Discovery reuses the authoring `Locator` vocabulary from `@democraft/schema`, so every `locatorCandidate.locator` converts directly into a `byRole`/`byLabel`/`byTestId`/`byText` call. See `docs/architecture/discovery.md`.
+
 Dependencies: `@democraft/schema`, `playwright` (`^1.58.2`).
 
 ### `@democraft/timeline`

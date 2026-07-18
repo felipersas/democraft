@@ -23,6 +23,42 @@ Options:
   --json                     Emit stable machine-readable JSON
 `;
   }
+  if (command === "discover") {
+    return `democraft discover <url> [options]
+
+Produce a semantic Page Discovery map of a live page (read-only snapshot).
+
+The map lists interactive elements, landmark regions, repeated collections,
+and best-first locator candidates — the input agents use to author demo.ts.
+
+Options:
+  --allow-origin <origin>   Permit an additional origin (repeatable)
+  --headless                Run the browser headless (default)
+  --headed                  Show the browser
+  --json                    Emit stable machine-readable JSON
+
+Exit codes:
+  0 ok · 2 missing URL · 64 origin blocked · 65 unsafe scheme
+  66 timeout · 130 aborted (Ctrl+C)
+
+Discovery is read-only: it never clicks, fills, or navigates beyond the URL.
+`;
+  }
+  if (command === "doctor") {
+    return `democraft doctor [options]
+
+Check that the environment is ready to author, capture, and discover demos.
+
+Checks: Node version, Playwright + Chromium, workspace writability, and
+(when --url is given) target-application reachability.
+
+Options:
+  --url <url>     Also check that the target application responds
+  --json          Emit stable machine-readable JSON
+
+Exit codes: 0 all checks ok · 1 at least one error
+`;
+  }
   if (command === "render") {
     return `democraft render [demo.ts] [options]
 
@@ -53,10 +89,12 @@ Common workflows:
   auth      Manage reusable authentication profiles
 
 Other commands:
-  inspect   Compile a demo and print readable inspection output
+  inspect   Compile a demo and print readable inspection output (--estimate for duration)
   capture   Run static validation, then execute the browser capture
   targets   List target contracts used by a demo
   timeline  Resolve a render timeline from a demo and capture manifest
+  discover  Map a live page into a semantic Page Discovery JSON (read-only)
+  doctor    Check the environment is ready to author, capture, discover
   preview   (Deprecated) Write a standalone HTML preview
 
 The demo path is optional when demo.ts or src/demo.ts is unambiguous.

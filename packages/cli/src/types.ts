@@ -45,4 +45,12 @@ export type ParsedArgs = {
    * of exposing page load transitions.
    */
   useRecording?: boolean;
+  /** Positional URL for `democraft discover <url>`. */
+  discoverUrl?: string;
+  /** Repeated `--allow-origin` origins for discovery. */
+  allowOrigins?: string[];
+  /** URL for `democraft doctor --url` reachability check. */
+  doctorUrl?: string;
+  /** `democraft inspect --estimate`: return only the duration estimate. */
+  estimate?: boolean;
 };

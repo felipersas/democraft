@@ -18,6 +18,15 @@ export const diagnosticCodes = {
   audioInvalidFade: "DC304",
   audioUnsupportedFormat: "DC305",
   audioInvalidDuration: "DC306",
+  // Discovery diagnostics (semantic page mapping for AI agents).
+  discoveryOriginBlocked: "DC401",
+  discoveryUnsafeScheme: "DC402",
+  discoveryTimeout: "DC403",
+  discoveryAborted: "DC404",
+  discoveryEnvironment: "DC405",
+  discoveryAmbiguousTarget: "DC406",
+  discoveryNoInteractiveElements: "DC407",
+  discoveryClosedOverlay: "DC408",
 } as const;
 
 export function diagnosticDocsUrl(code: string): string {

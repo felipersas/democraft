@@ -1,0 +1,10 @@
+{
+  "id": "02-dashboard-navigation",
+  "name": "Dashboard navigation",
+  "description": "A dashboard shell with primary navigation, section headings, and common read-only navigation actions.",
+  "category": "navigation",
+  "requiresAuth": false,
+  "targetApp": "target-app/app.json",
+  "rubric": "rubric.json",
+  "prompt": "prompt.md"
+}

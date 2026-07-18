@@ -1,0 +1,60 @@
+---
+title: democraft doctor
+description: Check that the environment is ready to author, capture, and discover demos.
+---
+
+`democraft doctor` verifies that your environment can run DemoCraft end to end:
+Node version, the Playwright runtime, Chromium, workspace writability, and
+(when given `--url`) target-application reachability.
+
+## Usage
+
+```bash
+democraft doctor [--url <url>] [--json]
+```
+
+```bash
+democraft doctor --json
+democraft doctor --url http://localhost:3000 --json
+```
+
+## Checks
+
+| Check | What it verifies |
+|-------|------------------|
+| `node-version` | Node.js meets the minimum (>= 20). |
+| `playwright` | The `playwright` runtime is installed. |
+| `chromium` | Chromium is installed for Playwright. |
+| `workspace-writable` | The workspace root (and `.democraft/`) is writable. |
+| `app-reachable` | (With `--url`) the target application responds. |
+
+Each check yields `{ id, status, code, message, suggestion? }` where `status`
+is `ok`, `warning`, or `error`. Doctor runs **every** check before reporting,
+so you always see the full picture.
+
+## JSON output
+
+With `--json`, doctor prints a stable envelope:
+
+```json
+{
+  "ok": true,
+  "checks": [ { "id": "node-version", "status": "ok", "code": "DC405", "message": "..." } ],
+  "summary": { "status": "ok", "errorCount": 0, "warningCount": 0 }
+}
+```
+
+## Exit codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | All checks passed (warnings allowed). |
+| `1` | At least one check errored. |
+
+## Common fixes
+
+- **Chromium missing**: run `pnpm exec playwright install chromium`.
+- **Node too old**: upgrade to Node 20 or newer.
+- **Workspace not writable**: check directory permissions.
+- **App unreachable**: start the target application before capturing or
+  discovering.

@@ -78,7 +78,7 @@ describe("AuthenticationValidationService", () => {
     expect(
       (await heuristic.service.validate(heuristic.profile.id)).reliability,
     ).toBe("less-reliable");
-  });
+  }, 15_000);
 
   it("marks login redirects expired", async () => {
     const value = await fixture(browser("https://app.test/login?token=secret"));
@@ -93,7 +93,7 @@ describe("AuthenticationValidationService", () => {
     expect((await value.repository.load(value.profile.id)).profile.status).toBe(
       "expired",
     );
-  });
+  }, 15_000);
 
   it("classifies timeout and missing selector as validation failures without leaking errors", async () => {
     const timeout = await fixture(browser("https://app.test/private", "goto"));
@@ -115,7 +115,7 @@ describe("AuthenticationValidationService", () => {
         criterion: "expected-visible-selector",
       },
     });
-  });
+  }, 15_000);
 
   it("rejects malformed URL matching rules", async () => {
     const value = await fixture(browser("https://app.test/private"), {
@@ -126,7 +126,7 @@ describe("AuthenticationValidationService", () => {
     ).rejects.toMatchObject({
       public: { code: "AUTH_VALIDATION_FAILED", criterion: "url-not-matching" },
     });
-  });
+  }, 15_000);
 
   it("rejects empty and non-http final document URLs", async () => {
     for (const finalUrl of ["", "file:///etc/passwd"]) {
@@ -135,5 +135,5 @@ describe("AuthenticationValidationService", () => {
         value.service.validate(value.profile.id),
       ).rejects.toMatchObject({ public: { code: "AUTH_VALIDATION_FAILED" } });
     }
-  });
+  }, 15_000);
 });

@@ -12,6 +12,7 @@ import {
   schemaVersion,
 } from "@democraft/schema";
 import type { ResolveTimelineOptions } from "./types";
+import { stepDurationMs } from "./estimate";
 
 export function resolveTimeline(
   ir: DemoIR,
@@ -228,57 +229,6 @@ function collectTracks(
       break;
     default:
       break;
-  }
-}
-
-/**
- * The on-screen duration of a step in the rendered video — its *presentation*
- * pacing, decoupled from how long the step took to capture.
- *
- * Capture duration (settle + network + rendering) is concerned with picking
- * the *right frame*: the runtime waits for the page to settle so the
- * screenshot reflects the fully-loaded view. That wait should not leak into
- * the video's timeline — otherwise every navigation inflates the duration with
- * dead air (a 0.7s click ballooning to 4s of frozen frame while the page was
- * loading). Presentation pacing is driven by what the viewer needs to read,
- * not by how slow the network was during capture.
- *
- * Author-paced steps (holds, captions, callouts, transitions) keep their
- * explicit durations. Action steps (click, fill, goto, camera moves, asserts)
- * use snappy fixed beats that show the change and move on.
- */
-function stepDurationMs(step: DemoStep): number {
-  switch (step.kind) {
-    case "timeline.hold":
-      return step.durationMs;
-    case "timeline.transition":
-      return step.durationMs ?? 500;
-    case "overlay.caption":
-      return Math.max(1200, step.text.length * 45);
-    case "overlay.callout":
-      return Math.max(
-        1800,
-        `${step.title} ${step.description ?? ""}`.trim().length * 45,
-      );
-    case "overlay.visual":
-      return step.durationMs ?? 1800;
-    case "camera.establish":
-      return 700;
-    case "camera.focus":
-      return 1100;
-    case "browser.click":
-      return 650;
-    case "browser.fill":
-    case "browser.select":
-      return 700;
-    case "browser.goto":
-      return 900;
-    case "assert.visible":
-    case "assert.text":
-    case "assert.url":
-      return 300;
-    case "cue":
-      return 1;
   }
 }
 

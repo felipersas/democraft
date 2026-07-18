@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "discoveryRunId": "localhost-3000-2026-07-17T18-00-00-000Z-a1b2c3d4e5f6",
+  "applicationId": "localhost-3000-a1b2c3d4e5f6a1b2c3d4e5f6",
+  "origin": "http://localhost:3000",
+  "status": "completed",
+  "createdAt": "2026-07-17T18:00:00.000Z",
+  "updatedAt": "2026-07-17T18:00:05.000Z",
+  "startedAt": "2026-07-17T18:00:00.000Z",
+  "finishedAt": "2026-07-17T18:00:05.000Z",
+  "paths": {
+    "applicationMap": "application-map.json",
+    "pages": "pages",
+    "screenshots": "screenshots"
+  },
+  "environment": {
+    "headless": true,
+    "viewport": { "width": 1920, "height": 1080 },
+    "deviceScaleFactor": 2,
+    "locale": "en-US",
+    "timezone": "UTC",
+    "timeoutMs": 8000
+  },
+  "hashes": {
+    "environmentHash": "discovery-env-v1:sha256:abc123def456abc123def456abc123def456abc123def456abc123def456abcd",
+    "contentHash": "discovery-content-v1:sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  }
+}

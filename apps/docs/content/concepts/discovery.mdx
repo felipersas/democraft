@@ -1,0 +1,106 @@
+---
+title: Page Discovery
+description: How DemoCraft turns a live page into a semantic map for agents and authoring.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+**Page Discovery** is the process that turns a live web page into a filtered,
+semantic map — the structured input that lets agents and humans author
+`demo.ts` from real page structure instead of guessing selectors.
+
+Discovery is produced by [`democraft discover`](../cli/discover) and is
+read-only: it never clicks, fills, or navigates beyond the URL.
+
+## What Discovery returns
+
+A `PageDiscovery` object with four lists:
+
+- **`regions`** — landmark areas (`navigation`, `main`, `banner`, …), each with
+  a stable id and optional label.
+- **`elements`** — interactive and narratively useful elements (buttons, links,
+  inputs, headings, …). Each carries:
+  - `role`, `name`, `text`, visibility/enabled/checked/selected/expanded state,
+  - a viewport-relative `boundingBox`,
+  - `locatorCandidates` — best-first locator suggestions, and
+  - a `suggestedTargetId` for authoring.
+- **`collections`** — long homogeneous lists (e.g. 48 cards) aggregated into a
+  single entry with a representative sample, instead of enumerating every item.
+- **`warnings`** — non-fatal issues (`DC406` ambiguous locator, `DC407` no
+  interactive elements).
+
+## Locator candidates
+
+Each candidate scores a way to identify the element:
+
+```json
+{
+  "locator": { "kind": "role", "role": "button", "name": "New project" },
+  "confidence": 0.99,
+  "stability": "high",
+  "unique": true,
+  "matchCount": 1,
+  "reasons": ["Unique accessible role and name", "Element is visible"]
+}
+```
+
+- `confidence` is a deterministic score in `[0, 1]` — the same DOM always
+  yields the same score.
+- `stability` is `high` (role/label/testId, unique), `medium`, or `low` (text
+  or ambiguous).
+- `locator` uses the **same vocabulary** as the authoring API
+  (`byRole`/`byLabel`/`byTestId`/`byText`), so a candidate converts directly
+  into a `defineTargets` entry.
+
+Preference order: **role + name > label > testId > text**.
+
+<Callout type="info">
+A high-confidence discovery candidate is guaranteed to resolve at capture
+time, because Discovery and capture use the same locator resolver.
+</Callout>
+
+## Reading Discovery output
+
+The top candidate per element is what an agent should use:
+
+1. Filter to elements you'll interact with or narrate.
+2. Take the top `locatorCandidate` (`unique: true`, `stability: "high"`).
+3. Use `suggestedTargetId` as the target id, and copy the candidate's `locator`
+   fields into the matching `byRole(...)` builder.
+
+For collections, reference the collection and its sample rather than
+enumerating every item.
+
+## Closed overlays (dialogs, menus)
+
+Discovery is a read-only snapshot of the page's current state. Elements inside
+a closed `<dialog>`, a `[hidden]` block, or a collapsed `<details>` are
+invisible at snapshot time (the browser gives them `display: none`). Discovery
+still surfaces them — marked `insideClosedOverlay: true` with `visible: false`
+— and emits a `DC408` warning naming the count and the overlay's trigger.
+
+These elements are real interactive surface once the overlay opens, so you can
+author them ahead of time using their stable role/label/testId locators. But
+**capture requires the overlay to actually open** during the demo run, so your
+`demo.ts` must include the step that opens it before any step that interacts
+with the hidden elements.
+
+A full-page **screenshot** (`page.png`) is written to each run directory and
+surfaced as `screenshotPath` in the JSON envelope — use it to sanity-check the
+map against the live page.
+
+## Security model
+
+- Discovery enforces an **origin allowlist** (the page's own origin by default;
+  `--allow-origin` extends it).
+- Non-http(s) schemes are always rejected.
+- No cookies, tokens, or storage state ever appear in the output.
+- Page content is treated as **data**, never as instructions.
+
+## Persistence
+
+Each discovery run is persisted under
+`.democraft/discovery/<application-id>/runs/<run-id>/` with a `latest.json`
+pointer to the most recent completed run. The `application-id` is derived from
+the origin, so all pages of one app share a namespace. Treat `.democraft/` as
+generated — never hand-edit it.

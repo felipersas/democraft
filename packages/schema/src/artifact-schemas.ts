@@ -7,6 +7,17 @@ import type {
   LatestCapturePointer,
   RenderArtifactMetadata,
 } from "./artifacts";
+import type {
+  DiscoveredCollection,
+  DiscoveredElement,
+  DiscoveredRegion,
+  DiscoveryEnvironment,
+  DiscoveryRunMetadata,
+  DiscoveryWarning,
+  LatestDiscoveryPointer,
+  LocatorCandidate,
+  PageDiscovery,
+} from "./discovery";
 import type { StudioMeta, StudioRenderRequest } from "./studio";
 import {
   diagnosticSchema,
@@ -22,6 +33,9 @@ export type ArtifactKind =
   | "render artifact metadata"
   | "capture artifact metadata"
   | "latest capture pointer"
+  | "page discovery"
+  | "discovery run metadata"
+  | "latest discovery pointer"
   | "studio metadata"
   | "studio render request"
   | "audio overrides";
@@ -625,6 +639,232 @@ export const studioRenderRequestSchema: z.ZodType<StudioRenderRequest> = z
   })
   .passthrough();
 
+const locatorCandidateSchema: z.ZodType<LocatorCandidate> = z
+  .object({
+    locator: locatorSchema,
+    confidence: z.number().finite().min(0).max(1),
+    stability: z.enum(["high", "medium", "low"]),
+    unique: z.boolean(),
+    matchCount: z.number().int().nonnegative(),
+    reasons: z.array(z.string()),
+    risks: z.array(z.string()).optional(),
+  })
+  .passthrough();
+
+const discoveredRegionSchema: z.ZodType<DiscoveredRegion> = z
+  .object({
+    id: z.string().min(1),
+    kind: z.enum([
+      "navigation",
+      "main",
+      "complementary",
+      "banner",
+      "contentinfo",
+      "region",
+      "search",
+      "form",
+    ]),
+    label: z.string().optional(),
+  })
+  .passthrough();
+
+const discoveredElementSchema: z.ZodType<DiscoveredElement> = z
+  .object({
+    id: z.string().min(1),
+    kind: z.enum([
+      "button",
+      "link",
+      "textbox",
+      "textarea",
+      "checkbox",
+      "radio",
+      "combobox",
+      "menuitem",
+      "tab",
+      "dialog",
+      "heading",
+      "card",
+      "listitem",
+      "other",
+    ]),
+    role: z.string().optional(),
+    name: z.string().optional(),
+    text: z.string().optional(),
+    visible: z.boolean(),
+    enabled: z.boolean(),
+    checked: z.boolean().optional(),
+    selected: z.boolean().optional(),
+    expanded: z.boolean().optional(),
+    interactive: z.boolean(),
+    regionId: z.string().optional(),
+    boundingBox: boundingBoxSchema.optional(),
+    insideClosedOverlay: z.boolean().optional(),
+    locatorCandidates: z.array(locatorCandidateSchema),
+    suggestedTargetId: z.string().optional(),
+    risk: z
+      .enum([
+        "read-only",
+        "reversible",
+        "state-changing",
+        "destructive",
+        "unknown",
+      ])
+      .optional(),
+  })
+  .passthrough();
+
+const discoveredCollectionSchema: z.ZodType<DiscoveredCollection> = z
+  .object({
+    id: z.string().min(1),
+    kind: z.literal("repeated-collection"),
+    label: z.string().optional(),
+    count: positiveInteger,
+    itemRole: z.string().optional(),
+    sampleElementIds: z.array(z.string().min(1)),
+  })
+  .passthrough();
+
+const discoveryWarningSchema: z.ZodType<DiscoveryWarning> = z
+  .object({
+    code: z.string().min(1),
+    severity: z.enum(["info", "warning", "error"]),
+    message: z.string(),
+    elementId: z.string().optional(),
+    regionId: z.string().optional(),
+  })
+  .passthrough();
+
+export const pageDiscoverySchema: z.ZodType<PageDiscovery> = z
+  .object({
+    schemaVersion: z.literal(1),
+    generatedAt: z.string().datetime(),
+    page: z
+      .object({
+        url: z.string().min(1),
+        pathname: z.string(),
+        title: z.string().optional(),
+        viewport: z
+          .object({
+            width: positiveInteger,
+            height: positiveInteger,
+            deviceScaleFactor: positiveFinite,
+          })
+          .passthrough(),
+      })
+      .passthrough(),
+    regions: z.array(discoveredRegionSchema),
+    elements: z.array(discoveredElementSchema),
+    collections: z.array(discoveredCollectionSchema),
+    warnings: z.array(discoveryWarningSchema),
+  })
+  .passthrough();
+
+const discoveryEnvironmentSchema: z.ZodType<DiscoveryEnvironment> = z
+  .object({
+    headless: z.boolean(),
+    viewport: z
+      .object({ width: positiveInteger, height: positiveInteger })
+      .passthrough(),
+    deviceScaleFactor: positiveFinite,
+    locale: z.string().min(1),
+    timezone: z.string().min(1),
+    timeoutMs: positiveFinite,
+  })
+  .passthrough();
+
+export const discoveryRunMetadataSchema: z.ZodType<DiscoveryRunMetadata> = z
+  .object({
+    schemaVersion: z.literal(1),
+    discoveryRunId: z.string().min(1),
+    applicationId: z.string().min(1),
+    origin: z.string().min(1),
+    status: z.enum([
+      "created",
+      "running",
+      "completed",
+      "failed",
+      "cancelled",
+    ]),
+    createdAt: z.string().datetime(),
+    updatedAt: z.string().datetime(),
+    startedAt: z.string().datetime().optional(),
+    finishedAt: z.string().datetime().optional(),
+    paths: z
+      .object({
+        applicationMap: z.literal("application-map.json"),
+        pages: z.literal("pages"),
+        screenshots: z.literal("screenshots"),
+      })
+      .passthrough(),
+    environment: discoveryEnvironmentSchema,
+    hashes: z
+      .object({
+        environmentHash: z.string().optional(),
+        contentHash: z.string().optional(),
+      })
+      .passthrough(),
+    error: z.object({ message: z.string() }).passthrough().optional(),
+  })
+  .passthrough()
+  .superRefine((metadata, context) => {
+    const terminal = ["completed", "failed", "cancelled"].includes(
+      metadata.status,
+    );
+    if (metadata.status === "created" && metadata.startedAt) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["startedAt"],
+        message: "Created discovery metadata cannot contain startedAt.",
+      });
+    }
+    if (metadata.status !== "created" && !metadata.startedAt) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["startedAt"],
+        message: `${metadata.status} discovery metadata requires startedAt.`,
+      });
+    }
+    if (terminal !== (metadata.finishedAt !== undefined)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["finishedAt"],
+        message: terminal
+          ? `${metadata.status} discovery metadata requires finishedAt.`
+          : `${metadata.status} discovery metadata cannot contain finishedAt.`,
+      });
+    }
+    if (metadata.status === "failed" && !metadata.error) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["error"],
+        message: "Failed discovery metadata requires an error.",
+      });
+    }
+    if (metadata.status !== "failed" && metadata.error) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["error"],
+        message: `${metadata.status} discovery metadata cannot contain an error.`,
+      });
+    }
+  });
+
+export const latestDiscoveryPointerSchema: z.ZodType<LatestDiscoveryPointer> = z
+  .object({
+    schemaVersion: z.literal(1),
+    applicationId: z.string().min(1),
+    discoveryRunId: z.string().min(1),
+    discoveryDirectory: z
+      .string()
+      .min(1)
+      .refine(
+        (value) => value !== "." && value !== ".." && !/[\\/]/.test(value),
+        "Discovery directory must be one relative path segment.",
+      ),
+    completedAt: z.string().datetime(),
+  })
+  .passthrough();
+
 export const parseDemoIR = parser("demo IR", demoIRSchema);
 export const parseRecordedDemoManifest = parser(
   "recorded demo manifest",
@@ -645,6 +885,18 @@ export const parseCaptureArtifactMetadata = parser(
 export const parseLatestCapturePointer = parser(
   "latest capture pointer",
   latestCapturePointerSchema,
+);
+export const parsePageDiscovery = parser(
+  "page discovery",
+  pageDiscoverySchema,
+);
+export const parseDiscoveryRunMetadata = parser(
+  "discovery run metadata",
+  discoveryRunMetadataSchema,
+);
+export const parseLatestDiscoveryPointer = parser(
+  "latest discovery pointer",
+  latestDiscoveryPointerSchema,
 );
 export const parseStudioMeta = parser("studio metadata", studioMetaSchema);
 export const parseStudioRenderRequest = parser(
@@ -683,6 +935,18 @@ export const parseCaptureArtifactMetadataJson = jsonParser(
 export const parseLatestCapturePointerJson = jsonParser(
   "latest capture pointer",
   parseLatestCapturePointer,
+);
+export const parsePageDiscoveryJson = jsonParser(
+  "page discovery",
+  parsePageDiscovery,
+);
+export const parseDiscoveryRunMetadataJson = jsonParser(
+  "discovery run metadata",
+  parseDiscoveryRunMetadata,
+);
+export const parseLatestDiscoveryPointerJson = jsonParser(
+  "latest discovery pointer",
+  parseLatestDiscoveryPointer,
 );
 export const parseStudioMetaJson = jsonParser(
   "studio metadata",

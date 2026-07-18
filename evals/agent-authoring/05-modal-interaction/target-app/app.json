@@ -1,0 +1,31 @@
+{
+  "title": "Acme Billing",
+  "regions": [
+    {
+      "kind": "main",
+      "label": "Billing",
+      "elements": [
+        { "kind": "heading", "name": "Billing" },
+        {
+          "kind": "button",
+          "name": "Open upgrade dialog",
+          "testId": "open-upgrade"
+        }
+      ]
+    }
+  ],
+  "dialogs": [
+    {
+      "label": "Upgrade plan",
+      "elements": [
+        { "kind": "heading", "name": "Upgrade plan" },
+        {
+          "kind": "button",
+          "name": "Confirm upgrade",
+          "testId": "confirm-upgrade"
+        },
+        { "kind": "button", "name": "Cancel" }
+      ]
+    }
+  ]
+}

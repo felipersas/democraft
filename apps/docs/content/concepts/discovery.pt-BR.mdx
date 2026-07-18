@@ -1,0 +1,90 @@
+---
+title: Page Discovery
+description: Como o DemoCraft transforma uma página ao vivo em um mapa semântico para agentes e autoria.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+O **Page Discovery** é o processo que transforma uma página web ao vivo em um
+mapa semântico filtrado — a entrada estruturada que permite a agentes e humanos
+autuarem `demo.ts` a partir da estrutura real da página, em vez de adivinhar
+seletores.
+
+Discovery é produzido pelo [`democraft discover`](../cli/discover) e é
+somente leitura: nunca clica, preenche ou navega além da URL.
+
+## O que o Discovery retorna
+
+Um objeto `PageDiscovery` com quatro listas:
+
+- **`regions`** — áreas de landmark (`navigation`, `main`, `banner`, …), cada
+  uma com um id estável e label opcional.
+- **`elements`** — elementos interativos e narrativamente úteis (buttons,
+  links, inputs, headings, …). Cada um carrega:
+  - `role`, `name`, `text`, estado de visibility/enabled/checked/selected/expanded,
+  - um `boundingBox` relativo ao viewport,
+  - `locatorCandidates` — sugestões de locator em ordem do melhor para o pior, e
+  - um `suggestedTargetId` para autoria.
+- **`collections`** — listas homogêneas longas (ex.: 48 cards) agregadas em uma
+  única entrada com uma amostra representativa, em vez de enumerar todos os
+  itens.
+- **`warnings`** — problemas não fatais (`DC406` locator ambíguo, `DC407`
+  sem elementos interativos).
+
+## Candidatos a locator
+
+Cada candidato pontua uma forma de identificar o elemento:
+
+```json
+{
+  "locator": { "kind": "role", "role": "button", "name": "New project" },
+  "confidence": 0.99,
+  "stability": "high",
+  "unique": true,
+  "matchCount": 1,
+  "reasons": ["Unique accessible role and name", "Element is visible"]
+}
+```
+
+- `confidence` é uma pontuação determinística em `[0, 1]` — o mesmo DOM sempre
+  produz a mesma pontuação.
+- `stability` é `high` (role/label/testId, único), `medium` ou `low` (texto ou
+  ambíguo).
+- `locator` usa o **mesmo vocabulário** da API autoral
+  (`byRole`/`byLabel`/`byTestId`/`byText`), então um candidato converte
+  diretamente em uma entrada de `defineTargets`.
+
+Ordem de preferência: **role + name > label > testId > text**.
+
+<Callout type="info">
+Um candidato de discovery com alta confiança é garantido de resolver no tempo
+de captura, porque Discovery e captura usam o mesmo resolvedor de locators.
+</Callout>
+
+## Lendo a saída do Discovery
+
+O candidato principal de cada elemento é o que um agente deve usar:
+
+1. Filtre para os elementos com os quais vai interagir ou narrar.
+2. Pegue o `locatorCandidate` principal (`unique: true`, `stability: "high"`).
+3. Use `suggestedTargetId` como id do target e copie os campos `locator` do
+   candidato para o builder `byRole(...)` correspondente.
+
+Para coleções, referencie a coleção e sua amostra em vez de enumerar todos os
+itens.
+
+## Modelo de segurança
+
+- Discovery impõe uma **allowlist de origem** (a própria origem da página por
+  padrão; `--allow-origin` a estende).
+- Esquemas não-http(s) são sempre rejeitados.
+- Nenhum cookie, token ou storage state aparece na saída.
+- O conteúdo da página é tratado como **dado**, nunca como instrução.
+
+## Persistência
+
+Cada execução de discovery é persistida em
+`.democraft/discovery/<application-id>/runs/<run-id>/` com um ponteiro
+`latest.json` para a execução concluída mais recente. O `application-id` é
+derivado da origem, então todas as páginas de uma aplicação compartilham um
+namespace. Trate `.democraft/` como gerado — nunca o edite manualmente.

@@ -1,0 +1,24 @@
+{
+  "title": "Acme Forms — Request",
+  "regions": [
+    {
+      "kind": "main",
+      "label": "Request form",
+      "elements": [
+        { "kind": "heading", "name": "Request access" },
+        { "kind": "textbox", "label": "Full name", "testId": "full-name" },
+        { "kind": "textbox", "label": "Work email", "testId": "work-email" },
+        {
+          "kind": "checkbox",
+          "label": "I agree to the terms",
+          "testId": "terms"
+        },
+        {
+          "kind": "button",
+          "name": "Submit request",
+          "testId": "submit-request"
+        }
+      ]
+    }
+  ]
+}

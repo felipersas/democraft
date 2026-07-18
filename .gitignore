@@ -18,6 +18,9 @@ packages/*/dist/
 .democraft/
 **/.democraft/
 
+# Eval run reports (deterministic inputs are tracked; outputs are not)
+evals/results/
+
 # TypeScript incremental build info
 *.tsbuildinfo
 
@@ -35,3 +38,4 @@ examples/talento-saas/
 
 # OS files
 .DS_Store
+live-agent-test/
