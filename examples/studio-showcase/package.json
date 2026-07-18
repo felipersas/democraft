@@ -1,0 +1,27 @@
+{
+  "name": "@democraft/example-studio-showcase",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "inspect": "democraft inspect src/demo.ts",
+    "targets": "democraft targets src/demo.ts --json",
+    "validate": "democraft validate src/demo.ts"
+  },
+  "dependencies": {
+    "@democraft/compiler": "workspace:*",
+    "@democraft/core": "workspace:*",
+    "@democraft/playwright": "workspace:*",
+    "@democraft/remotion": "workspace:*",
+    "@democraft/timeline": "workspace:*",
+    "playwright": "^1.58.2",
+    "react": "^19.2.3",
+    "remotion": "4.0.487"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.7"
+  }
+}

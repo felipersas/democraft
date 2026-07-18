@@ -53,4 +53,43 @@ export {
   type CaptureLeaseOptions,
   type CaptureLeaseRelease,
   type CreateCaptureArtifactOptions,
+  writeFileAtomic,
 } from "./capture-artifacts";
+export {
+  assertDiscoveryAllowed,
+  DiscoveryOriginError,
+  normalizeDiscoveryOrigin,
+  parseDiscoveryHttpUrl,
+} from "./discovery-origin";
+export {
+  isInteractiveKind,
+  scoreLocatorCandidates,
+  suggestTargetId,
+  type ScoringInput,
+} from "./discovery-scoring";
+export {
+  collectPageDiscovery,
+  type CollectOptions,
+  type DiscoveryPage,
+} from "./discovery-snapshot";
+export {
+  cancelDiscoveryArtifact,
+  completeDiscoveryArtifact,
+  createDiscoveryArtifact,
+  discoveryApplicationId,
+  discoveryContentHash,
+  discoveryEnvironmentHash,
+  DiscoveryAbortError,
+  failDiscoveryArtifact,
+  isDiscoveryAbort,
+  resolveLatestCompletedDiscovery,
+  startDiscoveryArtifact,
+  writeDiscoveryArtifactAtomic,
+  type CreateDiscoveryArtifactOptions,
+  type DiscoveryArtifact,
+} from "./discovery-artifacts";
+export {
+  discoverPage,
+  discoverPageWithBindings,
+  type DiscoverPageOptions,
+} from "./discover";

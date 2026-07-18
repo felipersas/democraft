@@ -14,6 +14,10 @@ export default tseslint.config(
       "**/.next/**",
       "**/.source/**",
       "**/next-env.d.ts",
+      // Standalone Node tooling scripts (not part of the typed package builds).
+      // These use Node globals (process, console) intentionally.
+      "evals/harness/**/*.mjs",
+      "skills/**/*.mjs",
     ],
   },
 );

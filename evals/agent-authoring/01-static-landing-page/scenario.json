@@ -1,0 +1,10 @@
+{
+  "id": "01-static-landing-page",
+  "name": "Static landing page",
+  "description": "Single static page with buttons, links, and headings. No auth. Validates that discovery maps interactive elements with high-confidence semantic locators.",
+  "category": "static",
+  "requiresAuth": false,
+  "targetApp": "target-app/app.json",
+  "rubric": "rubric.json",
+  "prompt": "prompt.md"
+}

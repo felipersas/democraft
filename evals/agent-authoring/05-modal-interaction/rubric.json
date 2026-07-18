@@ -1,0 +1,10 @@
+{
+  "mustRender": true,
+  "mustHaveNoErrorDiagnostics": true,
+  "maximumAttempts": 3,
+  "minimumSemanticLocatorRatio": 0.8,
+  "maximumDurationMs": 45000,
+  "mustShowFinalState": true,
+  "maximumFocusOperations": 4,
+  "mustNotUseUnsafeExploration": true
+}

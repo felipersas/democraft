@@ -847,7 +847,15 @@ async function existsOldMalformed(
     .catch(() => false);
 }
 
-async function writeFileAtomic(file: string, contents: string): Promise<void> {
+/**
+ * Atomic write (tmp + rename). Shared by capture and discovery run lifecycles
+ * so neither loses data on a partial write or crash. Writes `<file>.<rand>.tmp`
+ * with `flag: "wx"` (fails if it already exists) then renames into place.
+ */
+export async function writeFileAtomic(
+  file: string,
+  contents: string,
+): Promise<void> {
   const temporary = `${file}.${randomBytes(6).toString("hex")}.tmp`;
   try {
     await writeFile(temporary, contents, { flag: "wx" });

@@ -13,7 +13,11 @@ import {
   renderDemoVideo,
   type DemoMediaMode,
 } from "@democraft/remotion";
-import { inspectTimeline, resolveTimeline } from "@democraft/timeline";
+import {
+  estimateDemoDurationMs,
+  inspectTimeline,
+  resolveTimeline,
+} from "@democraft/timeline";
 import {
   assertCaptureCompatibility,
   parseRecordedDemoManifestJson,
@@ -34,6 +38,8 @@ import { resolveDemoPath, userResolve, workspaceRoot } from "./paths";
 import { launchStudio } from "./studio";
 import type { CliResult, ParsedArgs } from "./types";
 import { authFailure, authenticationExecution, runAuthCommand } from "./auth";
+import { jsonFail, jsonOk } from "./json";
+import { runDoctorChecks, summarizeDoctor } from "./doctor";
 
 export async function runCli(argv = process.argv.slice(2)): Promise<CliResult> {
   try {
@@ -77,6 +83,8 @@ async function executeCli(argv: string[]): Promise<CliResult> {
       "render",
       "studio",
       "targets",
+      "discover",
+      "doctor",
       "auth",
     ].includes(args.command)
   ) {
@@ -87,6 +95,14 @@ async function executeCli(argv: string[]): Promise<CliResult> {
 
   const numericError = validateNumericArgs(args);
   if (numericError) return fail(numericError);
+
+  // `discover` and `doctor` are standalone — they don't resolve a demo module.
+  if (args.command === "discover") {
+    return runDiscoverCommand(args);
+  }
+  if (args.command === "doctor") {
+    return runDoctorCommand(args);
+  }
 
   if (
     args.command === "render" &&
@@ -259,6 +275,24 @@ async function executeCli(argv: string[]): Promise<CliResult> {
   }
 
   if (args.command === "inspect") {
+    // `--estimate` returns ONLY the presentation-duration estimate (no browser
+    // or render needed). The default `inspect --json` shape (bare IR) is
+    // preserved for back-compat — the estimate is opt-in via the flag so an
+    // agent can budget a target length without a render-and-measure loop.
+    if (args.estimate) {
+      const estimatedDuration = estimateDemoDurationMs(
+        compilation.ir,
+        args.fps ?? compilation.config.fps,
+      );
+      return ok(
+        args.json
+          ? `${JSON.stringify(estimatedDuration, null, 2)}\n`
+          : `Estimated duration: ~${estimatedDuration.totalSeconds}s (${estimatedDuration.totalFrames} frames)\n` +
+            estimatedDuration.scenes
+              .map((s) => `  ${s.sceneId}: ~${Math.round(s.estimatedMs / 100) / 10}s`)
+              .join("\n") + "\n",
+      );
+    }
     return ok(
       args.json
         ? `${JSON.stringify(compilation.ir, null, 2)}\n`
@@ -500,4 +534,245 @@ async function resolveRequestedRecording(
       error: `Raw recording requested with "--recording", but the file was not found: ${file}`,
     };
   }
+}
+
+const DISCOVER_ORIGIN_BLOCKED_EXIT = 64;
+const DISCOVER_UNSAFE_SCHEME_EXIT = 65;
+const DISCOVER_TIMEOUT_EXIT = 66;
+const DISCOVER_ABORTED_EXIT = 130;
+
+/**
+ * `democraft discover <url>` — produce a semantic Page Discovery map.
+ * Read-only single-page snapshot (plan §5.8 Level 1). Wires SIGINT to an
+ * AbortController so a user Ctrl+C cancels cleanly into exit code 130.
+ */
+async function runDiscoverCommand(args: ParsedArgs): Promise<CliResult> {
+  if (!args.discoverUrl) {
+    if (args.json) {
+      // Usage error: envelope on stdout only, stderr empty (pure JSON contract).
+      return {
+        exitCode: 2,
+        stdout: `${JSON.stringify(
+          {
+            ok: false,
+            code: "DC_DISCOVER_MISSING_URL",
+            message:
+              "Missing page URL. Usage: democraft discover <url> [--allow-origin <origin>...] [--json]",
+          },
+          null,
+          2,
+        )}\n`,
+        stderr: "",
+      };
+    }
+    return fail(
+      'Missing page URL.\n\nUsage: democraft discover <url> [--allow-origin <origin>...] [--json]\n',
+    );
+  }
+
+  const controller = new AbortController();
+  const onSigint = () => controller.abort();
+  process.once("SIGINT", onSigint);
+  let runId: string | undefined;
+  let directory: string | undefined;
+  try {
+    const { discoverPage } = await import("@democraft/playwright");
+    const { pageDiscovery, artifact, screenshotPath } = await discoverPage({
+      url: args.discoverUrl,
+      allowOrigins: args.allowOrigins,
+      headless: args.headless ?? true,
+      discoveryRootDir: resolve(workspaceRoot(), ".democraft", "discovery"),
+      signal: controller.signal,
+      onArtifactCreated: (created) => {
+        runId = created.discoveryRunId;
+        directory = created.outputDir;
+      },
+    });
+    if (args.json) {
+      return jsonOk({
+        discovery: pageDiscovery,
+        runId: artifact.discoveryRunId,
+        directory: artifact.directory,
+        screenshotPath,
+      });
+    }
+    return ok(
+      formatDiscoveryHuman(
+        pageDiscovery,
+        artifact.discoveryRunId,
+        artifact.directory,
+        screenshotPath,
+      ),
+    );
+  } catch (error) {
+    return formatDiscoverError(error, args.json, runId, directory);
+  } finally {
+    process.removeListener("SIGINT", onSigint);
+  }
+}
+
+function formatDiscoverError(
+  error: unknown,
+  json: boolean,
+  runId: string | undefined,
+  directory: string | undefined,
+): CliResult {
+  // DiscoveryOriginError carries a stable DCxxxx code mapped to a granular exit.
+  if (error && typeof error === "object" && "code" in error) {
+    const code = String((error as { code: unknown }).code);
+    const message =
+      error instanceof Error ? error.message : String(error);
+    if (code === "DC401") {
+      return json
+        ? jsonFail({
+            code,
+            message,
+            exitCode: DISCOVER_ORIGIN_BLOCKED_EXIT,
+            extra: runId ? { runId, directory } : undefined,
+          })
+        : failExit(message, DISCOVER_ORIGIN_BLOCKED_EXIT);
+    }
+    if (code === "DC402") {
+      return json
+        ? jsonFail({
+            code,
+            message,
+            exitCode: DISCOVER_UNSAFE_SCHEME_EXIT,
+          })
+        : failExit(message, DISCOVER_UNSAFE_SCHEME_EXIT);
+    }
+    if (code === "DC404" || message.includes("cancelled")) {
+      return json
+        ? jsonFail({
+            code: "DC404",
+            message: "Discovery was cancelled.",
+            exitCode: DISCOVER_ABORTED_EXIT,
+          })
+        : failExit("Discovery was cancelled.\n", DISCOVER_ABORTED_EXIT);
+    }
+    if (code === "DC403" || message.toLowerCase().includes("timeout")) {
+      return json
+        ? jsonFail({
+            code: "DC403",
+            message,
+            exitCode: DISCOVER_TIMEOUT_EXIT,
+          })
+        : failExit(message, DISCOVER_TIMEOUT_EXIT);
+    }
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  return json
+    ? jsonFail({
+        code: "DC_DISCOVER_FAILED",
+        message,
+        extra: runId ? { runId, directory } : undefined,
+      })
+    : failExit(`Discovery failed: ${message}\n`, 1);
+}
+
+function failExit(stderr: string, exitCode: number): CliResult {
+  return { exitCode, stdout: "", stderr };
+}
+
+function formatDiscoveryHuman(
+  discovery: { page: { url: string; title?: string }; elements: unknown[]; regions: unknown[]; collections: unknown[]; warnings: unknown[] },
+  runId: string,
+  directory: string,
+  screenshotPath?: string,
+): string {
+  const lines = [
+    `Discovered ${discovery.page.url}`,
+    `Title: ${discovery.page.title ?? "(none)"}`,
+    `Regions: ${discovery.regions.length}`,
+    `Elements: ${discovery.elements.length}`,
+    `Collections: ${discovery.collections.length}`,
+    `Warnings: ${discovery.warnings.length}`,
+    `Run ID: ${runId}`,
+    `Directory: ${directory}`,
+  ];
+  if (screenshotPath) lines.push(`Screenshot: ${screenshotPath}`);
+  lines.push("", "Pass --json for the full PageDiscovery map.");
+  return `${lines.join("\n")}\n`;
+}
+
+/**
+ * `democraft doctor` — environment health checks. Runs every check before
+ * reporting so the agent sees the full picture (plan §10.1).
+ */
+async function runDoctorCommand(args: ParsedArgs): Promise<CliResult> {
+  const nodeVersion = process.version;
+  let playwrightInstalled = false;
+  let chromiumExecutablePath: string | undefined;
+  try {
+    // Probe Playwright + Chromium through @democraft/playwright's binding so
+    // the CLI never adds a direct `playwright` dependency. A quick headless
+    // launch+close is the most honest "can we run a browser?" check; the
+    // executablePath is surfaced purely for the human-readable success message.
+    const { defaultBindings } = await import("@democraft/playwright");
+    playwrightInstalled = true;
+    const browser = await defaultBindings.chromium.launch({ headless: true });
+    try {
+      chromiumExecutablePath = (
+        defaultBindings.chromium as unknown as {
+          executablePath?: () => string;
+        }
+      ).executablePath?.();
+    } catch {
+      chromiumExecutablePath = undefined;
+    }
+    await browser.close();
+  } catch {
+    // Either Playwright failed to import or Chromium could not launch.
+    chromiumExecutablePath = undefined;
+  }
+
+  const root = workspaceRoot();
+  let workspaceRootWritable = false;
+  try {
+    await mkdir(resolve(root, ".democraft"), { recursive: true });
+    workspaceRootWritable = true;
+  } catch {
+    workspaceRootWritable = false;
+  }
+
+  let appReachable: { url: string; ok: boolean } | undefined;
+  if (args.doctorUrl) {
+    try {
+      const response = await fetch(args.doctorUrl, {
+        method: "GET",
+        signal: AbortSignal.timeout(5000),
+      });
+      appReachable = { url: args.doctorUrl, ok: response.ok };
+    } catch {
+      appReachable = { url: args.doctorUrl, ok: false };
+    }
+  }
+
+  const checks = runDoctorChecks({
+    nodeVersion,
+    playwrightInstalled,
+    chromiumExecutablePath,
+    workspaceRootWritable,
+    workspaceRoot: root,
+    appReachable,
+  });
+  const summary = summarizeDoctor(checks);
+  const exitCode = summary.status === "error" ? 1 : 0;
+
+  if (args.json) {
+    const result = jsonOk({ checks, summary });
+    return { ...result, exitCode };
+  }
+
+  const lines = checks.map((check) => {
+    const symbol =
+      check.status === "ok" ? "✓" : check.status === "warning" ? "!" : "✗";
+    const line = `${symbol} ${check.id}: ${check.message}`;
+    return check.suggestion ? `${line}\n    → ${check.suggestion}` : line;
+  });
+  lines.push(
+    "",
+    `Summary: ${summary.status} (${summary.errorCount} errors, ${summary.warningCount} warnings)`,
+  );
+  return { exitCode, stdout: "", stderr: `${lines.join("\n")}\n` };
 }

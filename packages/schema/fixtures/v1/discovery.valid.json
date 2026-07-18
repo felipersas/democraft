@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-17T18:00:00.000Z",
+  "page": {
+    "url": "http://localhost:3000/dashboard",
+    "pathname": "/dashboard",
+    "title": "Dashboard",
+    "viewport": { "width": 1440, "height": 900, "deviceScaleFactor": 2 }
+  },
+  "regions": [
+    { "id": "banner", "kind": "banner", "label": "Top bar" },
+    { "id": "main-navigation", "kind": "navigation", "label": "Main navigation" },
+    { "id": "main", "kind": "main", "label": "Projects" }
+  ],
+  "elements": [
+    {
+      "id": "element_01",
+      "kind": "link",
+      "role": "link",
+      "name": "Projects",
+      "text": "Projects",
+      "visible": true,
+      "enabled": true,
+      "interactive": true,
+      "regionId": "main-navigation",
+      "boundingBox": { "x": 24, "y": 16, "width": 80, "height": 32 },
+      "locatorCandidates": [
+        {
+          "locator": { "kind": "role", "role": "link", "name": "Projects" },
+          "confidence": 0.99,
+          "stability": "high",
+          "unique": true,
+          "matchCount": 1,
+          "reasons": [
+            "Unique accessible role and name",
+            "Element is visible and enabled"
+          ]
+        }
+      ],
+      "suggestedTargetId": "projectsLink",
+      "risk": "read-only"
+    },
+    {
+      "id": "element_02",
+      "kind": "button",
+      "role": "button",
+      "name": "New project",
+      "text": "New project",
+      "visible": true,
+      "enabled": true,
+      "interactive": true,
+      "regionId": "main",
+      "boundingBox": { "x": 1120, "y": 120, "width": 160, "height": 40 },
+      "locatorCandidates": [
+        {
+          "locator": { "kind": "role", "role": "button", "name": "New project" },
+          "confidence": 0.99,
+          "stability": "high",
+          "unique": true,
+          "matchCount": 1,
+          "reasons": [
+            "Unique accessible role and name",
+            "Element is visible and enabled"
+          ]
+        }
+      ],
+      "suggestedTargetId": "newProject",
+      "risk": "state-changing"
+    },
+    {
+      "id": "element_03",
+      "kind": "textbox",
+      "role": "textbox",
+      "name": "Search projects",
+      "visible": true,
+      "enabled": true,
+      "interactive": true,
+      "regionId": "main",
+      "boundingBox": { "x": 24, "y": 120, "width": 320, "height": 40 },
+      "locatorCandidates": [
+        {
+          "locator": { "kind": "label", "text": "Search projects" },
+          "confidence": 0.92,
+          "stability": "high",
+          "unique": true,
+          "matchCount": 1,
+          "reasons": ["Unique associated label"]
+        },
+        {
+          "locator": { "kind": "testId", "id": "search-projects" },
+          "confidence": 0.85,
+          "stability": "medium",
+          "unique": true,
+          "matchCount": 1,
+          "reasons": ["Unique test id"]
+        }
+      ],
+      "suggestedTargetId": "searchProjects"
+    }
+  ],
+  "collections": [
+    {
+      "id": "project-list",
+      "kind": "repeated-collection",
+      "label": "Projects",
+      "count": 48,
+      "itemRole": "article",
+      "sampleElementIds": ["element_10", "element_11", "element_12"]
+    }
+  ],
+  "warnings": [
+    {
+      "code": "DC406",
+      "severity": "warning",
+      "message": "Locator matched multiple visible elements.",
+      "elementId": "element_03"
+    }
+  ]
+}

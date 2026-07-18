@@ -1,0 +1,10 @@
+{
+  "id": "04-repeated-cards",
+  "name": "Repeated cards (collection aggregation)",
+  "description": "A projects list with 48 homogeneous cards. Validates that discovery aggregates long repeated lists into a collection with a small sample rather than enumerating every item.",
+  "category": "collection",
+  "requiresAuth": false,
+  "targetApp": "target-app/app.json",
+  "rubric": "rubric.json",
+  "prompt": "prompt.md"
+}

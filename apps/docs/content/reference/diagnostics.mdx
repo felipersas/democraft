@@ -21,6 +21,7 @@ Democraft emits stable `DCxxxx` diagnostics during static validation and live ca
 | `DC100`–`DC199` | Targets, scenes, steps, durations, and renderers. |
 | `DC200`–`DC299` | Browser execution and capture failures. |
 | `DC300`–`DC399` | Audio definition and timing failures. |
+| `DC400`–`DC499` | Page Discovery (origin allowlist, timeouts, ambiguous targets). |
 
 ## Reading a diagnostic
 
@@ -51,6 +52,17 @@ A diagnostic has:
 - `DC300`–`DC306`: duplicate audio IDs, missing sources, invalid volume,
   invalid spans or fades, unsupported extensions, and malformed durations. See
   the [audio guide](../guides/audio).
+- `DC401`: discovery origin blocked by the allowlist (pass `--allow-origin`).
+- `DC402`: discovery URL used an unsafe scheme (use `http`/`https`).
+- `DC403`: discovery timed out waiting for the page to settle.
+- `DC404`: discovery was aborted (Ctrl+C).
+- `DC405`: environment problem — run `democraft doctor --json`.
+- `DC406`: a discovery locator matched multiple elements (scope to a region or
+  pick a different candidate).
+- `DC407`: no interactive elements discovered (page may need login).
+- `DC408`: elements are inside a closed overlay (`<dialog>`, `[hidden]`, or
+  collapsed `<details>`). They're surfaced marked `insideClosedOverlay: true`;
+  author the open-overlay step before capturing them.
 
 Authentication preflight failures use semantic `AUTH_*` error codes rather
 than `DCxxxx`, because they describe a reusable session prerequisite rather

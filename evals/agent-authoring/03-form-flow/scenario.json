@@ -1,0 +1,10 @@
+{
+  "id": "03-form-flow",
+  "name": "Form flow",
+  "description": "A simple labelled form with semantic inputs and a submit action. Validates label-based discovery and target suggestions.",
+  "category": "form",
+  "requiresAuth": false,
+  "targetApp": "target-app/app.json",
+  "rubric": "rubric.json",
+  "prompt": "prompt.md"
+}

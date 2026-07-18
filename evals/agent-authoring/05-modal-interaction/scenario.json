@@ -1,0 +1,10 @@
+{
+  "id": "05-modal-interaction",
+  "name": "Modal interaction",
+  "description": "A page with a visible semantic dialog and dialog controls. Validates dialog discovery without requiring autonomous mutation.",
+  "category": "modal",
+  "requiresAuth": false,
+  "targetApp": "target-app/app.json",
+  "rubric": "rubric.json",
+  "prompt": "prompt.md"
+}

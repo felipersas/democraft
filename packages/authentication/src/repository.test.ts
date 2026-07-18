@@ -563,8 +563,8 @@ describe("LocalAuthenticationRepository", () => {
       first.rename(profile.id, "one"),
       second.rename(profile.id, "two"),
     ];
-    await winnerEntered;
     const resultsPromise = Promise.allSettled(operations);
+    await winnerEntered;
     await new Promise((resolveWait) => setTimeout(resolveWait, 40));
     release();
     const results = await resultsPromise;

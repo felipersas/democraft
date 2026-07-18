@@ -24,6 +24,14 @@ export function parseArgs(argv: string[]): ParsedArgs {
       }
       parsed.parseError = `Unexpected argument "${flag}".`;
       break;
+    } else if (!flag.startsWith("-") && command === "discover") {
+      // `discover` takes a positional URL, not a demo path.
+      if (!parsed.discoverUrl) {
+        parsed.discoverUrl = flag;
+        continue;
+      }
+      parsed.parseError = `Unexpected argument "${flag}".`;
+      break;
     } else if (!flag.startsWith("-")) {
       if (!parsed.demoPath) {
         parsed.demoPath = flag;
@@ -46,9 +54,18 @@ export function parseArgs(argv: string[]): ParsedArgs {
     if (flag === "--json") parsed.json = true;
     else if (flag === "--help" || flag === "-h") parsed.helpRequested = true;
     else if (flag === "--static") parsed.staticOnly = true;
+    else if (flag === "--estimate") parsed.estimate = true;
     else if (flag === "--headed") parsed.headless = false;
     else if (flag === "--headless") parsed.headless = true;
-    else if (flag === "--manifest") {
+    else if (flag === "--allow-origin") {
+      // Repeatable: each occurrence extends the discovery allowlist.
+      const value = readValue();
+      if (value !== undefined) {
+        parsed.allowOrigins = [...(parsed.allowOrigins ?? []), value];
+      }
+    } else if (flag === "--url") {
+      parsed.doctorUrl = readValue();
+    } else if (flag === "--manifest") {
       parsed.manifestPath = readValue();
     } else if (flag === "--timeline") {
       parsed.timelinePath = readValue();
