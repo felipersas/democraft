@@ -15,7 +15,8 @@
     "metrics",
     "artifacts",
     "rubric",
-    "failures"
+    "failures",
+    "repairs"
   ],
   "properties": {
     "schemaVersion": { "const": 1 },
@@ -63,7 +64,8 @@
         "validationErrorCount",
         "captureSucceeded",
         "renderSucceeded",
-        "commandsExecuted"
+        "commandsExecuted",
+        "repairEffective"
       ]
     },
     "artifacts": { "type": "object" },
@@ -76,6 +78,28 @@
       "items": {
         "type": "object",
         "required": ["classification", "stage", "message"]
+      }
+    },
+    "repairs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "round",
+          "category",
+          "priorFailures",
+          "finalStatus",
+          "finalClassification",
+          "effective"
+        ],
+        "properties": {
+          "round": { "type": "integer", "minimum": 1, "maximum": 1 },
+          "category": { "type": "string", "minLength": 1 },
+          "priorFailures": { "type": "array" },
+          "finalStatus": { "enum": ["passed", "failed", "skipped"] },
+          "finalClassification": { "type": "string", "minLength": 1 },
+          "effective": { "type": "boolean" }
+        }
       }
     }
   }

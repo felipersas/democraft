@@ -14,7 +14,13 @@
  * DemoCraft authoring API.
  */
 import { createServer } from "node:http";
-import { mkdir, readFile, writeFile, copyFile } from "node:fs/promises";
+import {
+  mkdir,
+  readFile,
+  writeFile,
+  copyFile,
+  symlink,
+} from "node:fs/promises";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -317,6 +323,7 @@ function createInitialResult({ runId, scenario, rubric, runDirectory, mode }) {
       renderSucceeded: false,
       unnecessaryRecaptures: 0,
       commandsExecuted: 0,
+      repairEffective: null,
     },
     artifacts: {
       runDirectory,
@@ -667,11 +674,20 @@ async function runFullFlowStage(
 
   result.metrics.attempts += 1;
   if (options.planPath) {
-    await validatePlanArtifact(result, options.planPath);
+    await validatePlanArtifact(result, runDirectory, options.planPath);
   }
   if (result.failures.length > 0) return;
 
-  const firstDemo = resolve(process.cwd(), options.demoPath);
+  await ensureDemoModuleResolution(runDirectory);
+  const firstDemo = await preserveInputArtifact(
+    result,
+    runDirectory,
+    options.demoPath,
+    "draftDemoSource",
+    "draft-demo.ts",
+  );
+  result.artifacts.demoSource = result.artifacts.draftDemoSource;
+  const preAttemptRuleCount = result.rubric.rules.length;
   await runValidateRenderAttempt({
     result,
     runDirectory,
@@ -689,34 +705,49 @@ async function runFullFlowStage(
   if (!options.repairDemoPath || result.metrics.repairRounds >= 1) return;
   const priorClassification = result.classification;
   const priorFailures = [...result.failures];
+  const priorRubricRules = result.rubric.rules.slice(preAttemptRuleCount);
+  const repairDemo = await preserveInputArtifact(
+    result,
+    runDirectory,
+    options.repairDemoPath,
+    "repairDemoSource",
+    "repair-demo.ts",
+  );
   result.metrics.repairRounds = 1;
-  result.repairs.push({
+  result.metrics.attempts += 1;
+  const repairRecord = {
     round: 1,
     category: priorClassification,
     priorFailures,
+    priorRubricRules,
     message: "Running one bounded repair artifact supplied to the harness.",
-  });
+  };
+  result.repairs.push(repairRecord);
   result.failures = [];
+  result.rubric.rules = result.rubric.rules.slice(0, preAttemptRuleCount);
   result.status = "failed";
   result.classification = "success";
   await runValidateRenderAttempt({
     result,
     runDirectory,
-    demoPath: resolve(process.cwd(), options.repairDemoPath),
+    demoPath: repairDemo,
     baseUrl,
     attemptName: "final",
     skipRender: options.skipRender,
   });
-  if (result.status === "failed") {
-    result.classification = "REPAIR_INEFFECTIVE";
-  }
+  recordRepairAttemptOutcome(result, repairRecord);
 }
 
-async function validatePlanArtifact(result, planPath) {
-  const absolutePlanPath = resolve(process.cwd(), planPath);
-  result.artifacts.demoPlan = absolutePlanPath;
-  const content = await readFile(absolutePlanPath, "utf8");
-  if (!absolutePlanPath.endsWith(".json")) return;
+async function validatePlanArtifact(result, runDirectory, planPath) {
+  const preservedPlanPath = await preserveInputArtifact(
+    result,
+    runDirectory,
+    planPath,
+    "demoPlan",
+    "DemoPlan.json",
+  );
+  const content = await readFile(preservedPlanPath, "utf8");
+  if (!planPath.endsWith(".json")) return;
   const plan = JSON.parse(content);
   const required = [
     "objective",
@@ -736,6 +767,35 @@ async function validatePlanArtifact(result, planPath) {
       "plan-validation",
       `DemoPlan is missing: ${missing.join(", ")}.`,
     );
+  }
+}
+
+async function preserveInputArtifact(
+  result,
+  runDirectory,
+  sourcePath,
+  artifactKey,
+  fileName,
+) {
+  const absolutePath = resolve(process.cwd(), sourcePath);
+  const preservedPath = join(runDirectory, fileName);
+  await copyFile(absolutePath, preservedPath);
+  result.artifacts[artifactKey] = preservedPath;
+  result.artifacts[`${artifactKey}Input`] = absolutePath;
+  return preservedPath;
+}
+
+async function ensureDemoModuleResolution(runDirectory) {
+  const packageScope = join(runDirectory, "node_modules", "@democraft");
+  await mkdir(packageScope, { recursive: true });
+  for (const packageName of ["core", "schema"]) {
+    const target = join(repoRoot, "packages", packageName);
+    const link = join(packageScope, packageName);
+    try {
+      await symlink(target, link, "dir");
+    } catch (error) {
+      if (error?.code !== "EEXIST") throw error;
+    }
   }
 }
 
@@ -776,6 +836,8 @@ async function runValidateRenderAttempt({
 
   const outputFile = join(runDirectory, `${attemptName}.mp4`);
   const captureDir = join(runDirectory, `${attemptName}-capture`);
+  result.artifacts[`${attemptName}Render`] = outputFile;
+  result.artifacts[`${attemptName}Capture`] = captureDir;
   const render = await runCliCommand({
     name: `${attemptName}-render`,
     args: [
@@ -793,6 +855,7 @@ async function runValidateRenderAttempt({
   });
   recordCommand(result, render);
   if (render.exitCode !== 0) {
+    await collectVisualEvidence(result, runDirectory, attemptName, captureDir);
     failResult(
       result,
       classifyCommandFailure("render", render),
@@ -803,10 +866,22 @@ async function runValidateRenderAttempt({
   }
   result.metrics.captureSucceeded = true;
   result.metrics.renderSucceeded = true;
-  result.artifacts[`${attemptName}Render`] = outputFile;
-  result.artifacts[`${attemptName}Capture`] = captureDir;
   await collectVisualEvidence(result, runDirectory, attemptName, captureDir);
   if (result.failures.length === 0) result.status = "passed";
+}
+
+export function recordRepairAttemptOutcome(result, repair) {
+  const effective =
+    result.status === "passed" && result.classification === "success";
+  if (!effective && result.status === "failed") {
+    result.classification = "REPAIR_INEFFECTIVE";
+  }
+  repair.finalStatus = result.status;
+  repair.finalClassification = result.classification;
+  repair.effective = effective;
+  if (result.metrics) {
+    result.metrics.repairEffective = effective;
+  }
 }
 
 async function collectVisualEvidence(

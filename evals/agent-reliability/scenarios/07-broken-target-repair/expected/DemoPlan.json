@@ -1,0 +1,40 @@
+{
+  "objective": "Repair the renamed primary CTA target in the Acme workspace launch demo.",
+  "audience": "Product evaluators checking whether one bounded repair round fixes locator drift.",
+  "scenes": [
+    {
+      "id": "hero",
+      "title": "Workspace launch CTA",
+      "steps": [
+        "Open the current landing page.",
+        "Show the hero heading.",
+        "Resolve and click the primary CTA."
+      ]
+    }
+  ],
+  "selectedTargets": [
+    {
+      "id": "heroHeading",
+      "locator": {
+        "kind": "role",
+        "role": "heading",
+        "name": "Launch a workspace in minutes"
+      }
+    },
+    {
+      "id": "primaryCta",
+      "locator": {
+        "kind": "role",
+        "role": "button",
+        "name": "Start workspace"
+      }
+    }
+  ],
+  "expectedAssertions": [
+    "The hero heading is visible.",
+    "The repaired primary CTA resolves using its current accessible name."
+  ],
+  "duration": "short",
+  "aspectRatio": "16:9",
+  "recaptureRequired": true
+}

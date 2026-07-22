@@ -5,6 +5,7 @@ import {
   computeSentinelFrames,
   evaluateCaptureTargetResolution,
   parseHarnessArgs,
+  recordRepairAttemptOutcome,
   validateRubric,
   validateScenario,
 } from "./agent-reliability.mjs";
@@ -158,4 +159,31 @@ test("evaluateCaptureTargetResolution fails unresolved target evidence", () => {
     result.failures[0].message,
     /Unresolved targets: completionState/,
   );
+});
+
+test("recordRepairAttemptOutcome records effective repaired runs", () => {
+  const repair = {
+    round: 1,
+    category: "CAPTURE_FAILURE",
+    priorFailures: [
+      {
+        classification: "CAPTURE_FAILURE",
+        stage: "capture-evaluation",
+        message: "Could not resolve target primaryCta.",
+      },
+    ],
+    message: "Running one bounded repair artifact supplied to the harness.",
+  };
+  const result = {
+    status: "passed",
+    classification: "success",
+    metrics: { repairEffective: null },
+  };
+
+  recordRepairAttemptOutcome(result, repair);
+
+  assert.equal(repair.finalStatus, "passed");
+  assert.equal(repair.finalClassification, "success");
+  assert.equal(repair.effective, true);
+  assert.equal(result.metrics.repairEffective, true);
 });
