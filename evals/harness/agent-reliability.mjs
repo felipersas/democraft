@@ -406,6 +406,9 @@ function renderSpecHtml(page, spec) {
   const dialogs = (page.dialogs ?? [])
     .map((dialog) => renderDialog(dialog))
     .join("\n");
+  const successState = page.successState
+    ? renderSuccessState(page.successState)
+    : "";
   const slowScript = page.slowLoading
     ? `<script>
 setTimeout(() => {
@@ -413,6 +416,17 @@ setTimeout(() => {
     node.hidden = false;
   });
 }, ${Number(page.slowLoading.delayMs ?? 800)});
+</script>`
+    : "";
+  const actionScript = page.successState
+    ? `<script>
+document.querySelectorAll("[data-action='show-success']").forEach((node) => {
+  node.addEventListener("click", () => {
+    document.querySelectorAll("[data-success-state]").forEach((success) => {
+      success.hidden = false;
+    });
+  });
+});
 </script>`
     : "";
   return `<!doctype html>
@@ -435,7 +449,9 @@ dialog[open]{position:static;margin:24px 0;padding:18px;border:1px solid #aab2bd
 ${regions}
 ${collection}
 ${dialogs}
+${successState}
 ${slowScript}
+${actionScript}
 </body>
 </html>`;
 }
@@ -467,11 +483,14 @@ function renderElement(element) {
   const className = element.className
     ? ` class="${escapeAttr(element.className)}"`
     : "";
+  const action = element.action
+    ? ` data-action="${escapeAction(element.action)}"`
+    : "";
   switch (element.kind) {
     case "heading":
       return `<h1${testId}${className}${delayed}>${escapeText(element.name)}</h1>`;
     case "button":
-      return `<button type="button"${testId}${className}${delayed}>${escapeText(element.name)}</button>`;
+      return `<button type="button"${testId}${className}${action}${delayed}>${escapeText(element.name)}</button>`;
     case "link":
       return `<a href="${escapeAttr(element.href ?? "#")}"${testId}${className}${delayed}>${escapeText(element.name)}</a>`;
     case "textbox":
@@ -483,6 +502,16 @@ function renderElement(element) {
     default:
       return `<span${testId}${className}${delayed}>${escapeText(element.name ?? "")}</span>`;
   }
+}
+
+function renderSuccessState(successState) {
+  const label = successState.label
+    ? ` aria-label="${escapeAttr(successState.label)}"`
+    : "";
+  const inner = (successState.elements ?? [])
+    .map((element) => renderElement(element))
+    .join("\n");
+  return `<section${label} data-success-state hidden>\n${inner}\n</section>`;
 }
 
 function renderDialog(dialog) {
@@ -514,6 +543,10 @@ function escapeText(value) {
 
 function escapeAttr(value) {
   return escapeText(value).replace(/"/g, "&quot;");
+}
+
+function escapeAction(value) {
+  return escapeAttr(value === "showSuccess" ? "show-success" : value);
 }
 
 async function runDoctorStage(result, runDirectory, baseUrl, scenario) {
@@ -803,6 +836,7 @@ async function collectVisualEvidence(
   );
   result.artifacts[`${attemptName}SentinelFrames`] = sentinelPath;
   result.artifacts[`${attemptName}ContactSheet`] = contactSheetPath;
+  evaluateCaptureTargetResolution(result, manifest);
   evaluateTimelineBounds(result, manifest, timeline);
 }
 
@@ -833,6 +867,69 @@ function renderContactSheetHtml(manifest, captureDir, sentinels) {
     })
     .join("\n");
   return `<!doctype html><html><head><meta charset="utf-8"><title>DemoCraft Contact Sheet</title><style>body{font-family:system-ui;margin:24px}main{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}img{max-width:100%;border:1px solid #ccc}</style></head><body><h1>Contact sheet</h1><main>${screenshots}</main></body></html>\n`;
+}
+
+export function evaluateCaptureTargetResolution(result, manifest) {
+  const targetSteps = (manifest.steps ?? []).filter((step) =>
+    targetSnapshotForStep(step),
+  );
+  const resolvedSteps = targetSteps.filter((step) => {
+    const targetSnapshot = targetSnapshotForStep(step);
+    if (targetSnapshot.successfulLocator) return true;
+    const attempts = targetSnapshot.attemptedLocators ?? [];
+    return attempts.some((attempt) => attempt.success);
+  });
+  result.metrics.targetResolutionRate =
+    targetSteps.length > 0
+      ? Number((resolvedSteps.length / targetSteps.length).toFixed(3))
+      : 1;
+
+  const diagnostics = (manifest.diagnostics ?? []).filter(
+    (diagnostic) => diagnostic.severity === "error",
+  );
+  const unresolvedSteps = targetSteps.filter((step) => {
+    const targetSnapshot = targetSnapshotForStep(step);
+    return (
+      !targetSnapshot.successfulLocator &&
+      !(targetSnapshot.attemptedLocators ?? []).some(
+        (attempt) => attempt.success,
+      )
+    );
+  });
+  addRule(result, {
+    id: "captureTargetsResolve",
+    passed: diagnostics.length === 0 && unresolvedSteps.length === 0,
+    score: resolvedSteps.length,
+    detail: `${resolvedSteps.length}/${targetSteps.length} target-bearing capture steps resolved.`,
+  });
+  if (diagnostics.length > 0 || unresolvedSteps.length > 0) {
+    const unresolvedIds = unresolvedSteps
+      .map((step) => targetSnapshotForStep(step)?.targetId)
+      .filter(Boolean);
+    const diagnosticCodes = diagnostics
+      .map((diagnostic) => diagnostic.code)
+      .filter(Boolean);
+    failResult(
+      result,
+      "CAPTURE_FAILURE",
+      "capture-evaluation",
+      [
+        "Capture manifest contains unresolved target evidence.",
+        unresolvedIds.length > 0
+          ? `Unresolved targets: ${[...new Set(unresolvedIds)].join(", ")}.`
+          : undefined,
+        diagnosticCodes.length > 0
+          ? `Diagnostics: ${[...new Set(diagnosticCodes)].join(", ")}.`
+          : undefined,
+      ]
+        .filter(Boolean)
+        .join(" "),
+    );
+  }
+}
+
+function targetSnapshotForStep(step) {
+  return step.targetSnapshot ?? step.target;
 }
 
 function evaluateTimelineBounds(result, manifest, timeline) {

@@ -22,9 +22,21 @@
         {
           "kind": "button",
           "name": "Submit request",
-          "testId": "submit-request"
+          "testId": "submit-request",
+          "action": "showSuccess"
         }
       ]
     }
-  ]
+  ],
+  "successState": {
+    "label": "Request completion",
+    "elements": [
+      { "kind": "heading", "name": "Request submitted" },
+      {
+        "kind": "button",
+        "name": "Done",
+        "testId": "request-done"
+      }
+    ]
+  }
 }

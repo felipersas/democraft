@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   classifyCommandFailure,
   computeSentinelFrames,
+  evaluateCaptureTargetResolution,
   parseHarnessArgs,
   validateRubric,
   validateScenario,
@@ -89,4 +90,72 @@ test("computeSentinelFrames returns stable quarter points", () => {
     durationInFrames: 120,
     frames: [0, 30, 60, 90, 119],
   });
+});
+
+test("evaluateCaptureTargetResolution fails unresolved target evidence", () => {
+  const result = {
+    status: "passed",
+    classification: "success",
+    metrics: { targetResolutionRate: 0 },
+    rubric: { rules: [] },
+    failures: [],
+  };
+
+  evaluateCaptureTargetResolution(result, {
+    steps: [
+      {
+        id: "intro.assert-visible-heading.1",
+        targetSnapshot: {
+          targetId: "heading",
+          successfulLocator: { kind: "role", role: "heading", name: "Billing" },
+          attemptedLocators: [
+            {
+              locator: { kind: "role", role: "heading", name: "Billing" },
+              success: true,
+            },
+          ],
+        },
+      },
+      {
+        id: "done.assert-visible-completion.1",
+        targetSnapshot: {
+          targetId: "completionState",
+          attemptedLocators: [
+            {
+              locator: {
+                kind: "role",
+                role: "heading",
+                name: "Request submitted",
+              },
+              success: false,
+              error: "Timeout 8000ms exceeded.",
+            },
+          ],
+        },
+      },
+    ],
+    diagnostics: [
+      {
+        severity: "error",
+        code: "DC2001",
+        message: "Could not resolve target completionState.",
+      },
+    ],
+  });
+
+  assert.equal(result.status, "failed");
+  assert.equal(result.classification, "CAPTURE_FAILURE");
+  assert.equal(result.metrics.targetResolutionRate, 0.5);
+  assert.deepEqual(result.rubric.rules, [
+    {
+      id: "captureTargetsResolve",
+      passed: false,
+      score: 1,
+      detail: "1/2 target-bearing capture steps resolved.",
+    },
+  ]);
+  assert.match(
+    result.failures[0].message,
+    /Unresolved targets: completionState/,
+  );
 });

@@ -54,10 +54,11 @@ done
 - Discovery scenario pass rate: 10/10.
 - Discovery unsafe-action failures: 0/10.
 - Structured result preservation: 10/10.
-- Full-mode basic scenario pass rate: 3/3 measured.
+- Full-mode basic scenario pass rate: 4/4 measured after the form-flow fixture
+  fidelity fix.
 - Full autonomous demo success rate across the whole suite: not measured.
-- Capture success rate for measured full-mode scenarios: 3/3.
-- Render success rate for measured full-mode scenarios: 3/3.
+- Capture success rate for measured full-mode scenarios: 4/4.
+- Render success rate for measured full-mode scenarios: 4/4.
 - Repair effectiveness: not measured; no repair was needed in the passing
   full-mode runs.
 
@@ -68,6 +69,7 @@ done
 | 01 Static landing page | passed | success | 1 | 0 | 1.000 | 0 | passed | 100 | 112758 ms |
 | 02 Dashboard navigation | passed | success | 1 | 0 | 1.000 | 0 | passed | 100 | 57897 ms |
 | 03 Modal interaction | passed | success | 1 | 0 | 1.000 | 0 | passed | 100 | 59979 ms |
+| 04 Form flow | passed | success | 1 | 0 | 1.000 | 0 | passed | 100 | 89653 ms |
 
 ### 01 Static Landing Page
 
@@ -155,6 +157,35 @@ node evals/harness/agent-reliability.mjs \
 | Commands executed | 4 |
 | Total harness command duration | 59979 ms |
 
+### 04 Form Flow
+
+Scenario: `04-form-flow`
+
+Command:
+
+```bash
+node evals/harness/agent-reliability.mjs \
+  evals/agent-reliability/scenarios/04-form-flow \
+  --plan live-agent-test/agent-reliability-inputs/04-form-flow/DemoPlan.json \
+  --demo live-agent-test/agent-reliability-inputs/04-form-flow/demo.ts
+```
+
+| Metric | Value |
+| --- | ---: |
+| Status | passed |
+| Classification | success |
+| Attempts | 1 |
+| Repair rounds | 0 |
+| Semantic locator ratio | 1.000 |
+| Target resolution rate | 1.000 |
+| Validation errors | 0 |
+| Capture succeeded | true |
+| Render succeeded | true |
+| Evaluation score | 100 |
+| Human interventions during harness run | 0 |
+| Commands executed | 4 |
+| Total harness command duration | 89653 ms |
+
 Preserved artifacts:
 
 - `result.json`
@@ -171,25 +202,41 @@ Preserved artifacts:
   preserve command evidence.
 - The current baseline proves Discovery readiness across the ten frozen
   scenario shapes.
-- The first three full-mode basic baselines validate that externally produced
+- The first four full-mode basic baselines validate that externally produced
   `DemoPlan` and `demo.ts` artifacts can pass validation, capture, render, and
   evidence preservation across landing-page, navigation, and modal-interaction
   workflows.
+- The form-flow baseline exposed a false-pass risk: the renderer could produce
+  an MP4 even when the capture manifest contained unresolved targets. The
+  harness now fails those runs as `CAPTURE_FAILURE` and records
+  `targetResolutionRate`.
+- The same form-flow baseline exposed a fixture fidelity gap: the prompt asked
+  for a successful completion state, but the fixture had no post-submit state.
+  The declarative fixture renderer now supports an opt-in `showSuccess` action
+  and hidden `successState`, allowing this workflow to pass without
+  scenario-specific selectors or rubric weakening.
 - Before the passing run, the harness surfaced two useful frictions:
   `ENVIRONMENT_SETUP` when Playwright Chromium was missing and
   `AUTHORING_API_MISUSE` when generated artifacts used stale authoring shapes or
   lived outside a workspace able to resolve `@democraft/core`.
 
+Before/after evidence for the form-flow hardening:
+
+| Run | Status | Classification | Target Resolution Rate | Score | Evidence |
+| --- | --- | --- | ---: | ---: | --- |
+| Before harness/fixture fix | failed | CAPTURE_FAILURE | 0.818 | 80 | `evals/results/agent-reliability/04-form-flow/2026-07-22T13-41-50-310Z-f38ee436/result.json` |
+| After harness/fixture fix | passed | success | 1.000 | 100 | `evals/results/agent-reliability/04-form-flow/2026-07-22T13-45-14-132Z-afa80d2c/result.json` |
+
 ## Next Baseline Step
 
-Run the form-flow scenario in full mode:
+Run the repeated-cards scenario in full mode:
 
 ```bash
 node evals/harness/agent-reliability.mjs \
-  evals/agent-reliability/scenarios/04-form-flow \
+  evals/agent-reliability/scenarios/05-repeated-cards \
   --plan /path/to/DemoPlan.json \
   --demo /path/to/demo.ts
 ```
 
 Then compare validation, render, visual evidence, and repair metrics across the
-first four basic scenarios.
+first five scenarios.
