@@ -17,6 +17,8 @@
   },
   "devDependencies": {
     "@democraft/cli": "workspace:^",
+    "@democraft/authentication": "workspace:^",
+    "@democraft/core": "workspace:^",
     "@eslint/js": "^9.18.0",
     "@types/node": "^22.10.7",
     "eslint": "^9.18.0",

@@ -1,28 +1,85 @@
 {
-  "title": "Acme Private — Dashboard",
-  "regions": [
+  "title": "Acme Private - Dashboard",
+  "auth": {
+    "loginPath": "/private/login",
+    "validationPath": "/private/dashboard",
+    "validationSelector": "[data-testid=\"user-menu\"]"
+  },
+  "pages": [
     {
-      "kind": "banner",
-      "label": "Private top bar",
-      "elements": [
-        { "kind": "heading", "name": "Private dashboard" },
-        { "kind": "button", "name": "User menu", "testId": "user-menu" }
+      "path": "/",
+      "title": "Acme Private - Dashboard Discovery",
+      "regions": [
+        {
+          "kind": "banner",
+          "label": "Private top bar",
+          "elements": [
+            { "kind": "heading", "name": "Private dashboard" },
+            { "kind": "button", "name": "User menu", "testId": "user-menu" }
+          ]
+        },
+        {
+          "kind": "main",
+          "label": "Private metrics",
+          "elements": [
+            { "kind": "heading", "name": "Revenue intelligence" },
+            {
+              "kind": "button",
+              "name": "Export report",
+              "testId": "export-report"
+            },
+            {
+              "kind": "button",
+              "name": "Invite teammate",
+              "testId": "invite-teammate"
+            }
+          ]
+        }
       ]
     },
     {
-      "kind": "main",
-      "label": "Private metrics",
-      "elements": [
-        { "kind": "heading", "name": "Revenue intelligence" },
+      "path": "/private/login",
+      "title": "Acme Private - Sign in",
+      "regions": [
         {
-          "kind": "button",
-          "name": "Export report",
-          "testId": "export-report"
+          "kind": "main",
+          "label": "Authentication required",
+          "elements": [
+            { "kind": "heading", "name": "Sign in required" },
+            { "kind": "button", "name": "Sign in" }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "/private/dashboard",
+      "title": "Acme Private - Dashboard",
+      "requiresAuth": true,
+      "regions": [
+        {
+          "kind": "banner",
+          "label": "Private top bar",
+          "elements": [
+            { "kind": "heading", "name": "Private dashboard" },
+            { "kind": "button", "name": "User menu", "testId": "user-menu" }
+          ]
         },
         {
-          "kind": "button",
-          "name": "Invite teammate",
-          "testId": "invite-teammate"
+          "kind": "main",
+          "label": "Private metrics",
+          "elements": [
+            { "kind": "heading", "name": "Revenue intelligence" },
+            {
+              "kind": "button",
+              "name": "Export report",
+              "testId": "export-report"
+            },
+            {
+              "kind": "button",
+              "name": "Invite teammate",
+              "testId": "invite-teammate"
+            }
+          ]
         }
       ]
     }
