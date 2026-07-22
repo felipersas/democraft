@@ -4,7 +4,7 @@ Date: 2026-07-22
 
 This is the first baseline produced after adding the `evals/agent-reliability`
 harness. It measures both the deterministic Discovery portion of the agent
-workflow and the first three full-mode basic scenario runs:
+workflow and the currently reviewed full-mode scenario runs:
 
 ```text
 doctor -> discover -> rubric scoring -> structured result
@@ -54,13 +54,12 @@ done
 - Discovery scenario pass rate: 10/10.
 - Discovery unsafe-action failures: 0/10.
 - Structured result preservation: 10/10.
-- Full-mode basic scenario pass rate: 4/4 measured after hardening.
+- Full-mode basic scenario pass rate: 5/5 measured after hardening.
 - Full-mode intermediate scenario pass rate: 1/1 measured after hardening.
 - Full autonomous demo success rate across the whole suite: not measured.
-- Capture success rate for measured full-mode scenarios: 5/5.
-- Render success rate for measured full-mode scenarios: 5/5.
-- Repair effectiveness: not measured; no repair was needed in the passing
-  full-mode runs.
+- Capture success rate for measured full-mode scenarios: 6/6.
+- Render success rate for measured full-mode scenarios: 6/6.
+- Repair effectiveness: 1/1 measured repaired scenarios effective.
 
 ## Full-Mode Baselines
 
@@ -71,6 +70,7 @@ done
 | 03 Modal interaction | passed | success | 1 | 0 | 1.000 | 0 | passed | 100 | 59979 ms |
 | 04 Form flow | passed | success | 1 | 0 | 1.000 | 0 | passed | 100 | 89653 ms |
 | 05 Repeated cards | passed | success | 1 | 0 | 1.000 | 0 | passed | 100 | 42906 ms |
+| 07 Broken target repair | passed | success | 2 | 1 | 1.000 | 0 | passed | 100 | 92154 ms |
 
 ### 01 Static Landing Page
 
@@ -216,13 +216,65 @@ node evals/harness/agent-reliability.mjs \
 | Commands executed | 4 |
 | Total harness command duration | 42906 ms |
 
+### 07 Broken Target Repair
+
+Scenario: `07-broken-target-repair`
+
+Command:
+
+```bash
+node evals/harness/agent-reliability.mjs \
+  evals/agent-reliability/scenarios/07-broken-target-repair \
+  --plan evals/agent-reliability/scenarios/07-broken-target-repair/expected/DemoPlan.json \
+  --demo evals/agent-reliability/scenarios/07-broken-target-repair/expected/demo.broken.ts \
+  --repair-demo evals/agent-reliability/scenarios/07-broken-target-repair/expected/demo.repair.ts
+```
+
+| Metric | Value |
+| --- | ---: |
+| Status | passed |
+| Classification | success |
+| Attempts | 2 |
+| Repair rounds | 1 |
+| Repair category | CAPTURE_FAILURE |
+| Repair effective | true |
+| Semantic locator ratio | 1.000 |
+| Target resolution rate | 1.000 |
+| Validation errors | 0 |
+| Capture succeeded | true |
+| Render succeeded | true |
+| Evaluation score | 100 |
+| Human interventions during harness run | 0 |
+| Commands executed | 6 |
+| Total harness command duration | 92154 ms |
+
+Before/after repair evidence:
+
+| Run | Status | Classification | Target Resolution Rate | Evidence |
+| --- | --- | --- | ---: | --- |
+| Draft attempt | failed | CAPTURE_FAILURE | 0.500 | `evals/results/agent-reliability/07-broken-target-repair/2026-07-22T18-47-56-313Z-5679cd3f/result.json` (`repairs[0].priorFailures`, `draft-capture/`) |
+| Final repaired attempt | passed | success | 1.000 | `evals/results/agent-reliability/07-broken-target-repair/2026-07-22T18-47-56-313Z-5679cd3f/result.json` (`final-capture/`, `final.mp4`) |
+
+The draft artifact failed for the intended renamed-target reason:
+`primaryCta` still pointed at the old `Start free trial` accessible name, while
+the fixture now exposes `Start workspace`. The harness recorded the prior
+`DC201` target-resolution diagnostic, one repair round, the supplied repair
+artifact, final status, and `repairEffective: true`.
+
 Preserved artifacts:
 
 - `result.json`
+- `DemoPlan.json`
+- `draft-demo.ts`
 - `draft.mp4`
 - `draft-capture/`
 - `draft-sentinel-frames.json`
 - `draft-contact-sheet.html`
+- `repair-demo.ts`
+- `final.mp4`
+- `final-capture/`
+- `final-sentinel-frames.json`
+- `final-contact-sheet.html`
 - command stdout/stderr JSON evidence
 
 ## Findings
@@ -251,6 +303,10 @@ Preserved artifacts:
   now avoids invented role-name locators for unlabeled articles, generated
   collection cards have real `aria-label`s, and capture resolves string
   role-name locators exactly.
+- The broken-target-repair baseline proves the harness can measure one supplied
+  repair artifact end to end. It does not yet prove autonomous repair: the
+  corrected `demo.repair.ts` is provided to the harness, and no product repair
+  command generates it.
 - Before the passing run, the harness surfaced two useful frictions:
   `ENVIRONMENT_SETUP` when Playwright Chromium was missing and
   `AUTHORING_API_MISUSE` when generated artifacts used stale authoring shapes or
