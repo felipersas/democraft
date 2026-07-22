@@ -1,0 +1,65 @@
+{
+  "objective": "Prove an authenticated dashboard demo can validate, capture, render, and produce deterministic evidence when a local authentication profile is ready.",
+  "audience": "DemoCraft maintainers evaluating local agent reliability on protected dashboard workflows.",
+  "scenes": [
+    {
+      "id": "open-private-dashboard",
+      "purpose": "Open the protected dashboard route using a prevalidated local auth profile and establish the private top bar.",
+      "steps": [
+        "Navigate to /private/dashboard.",
+        "Assert the Private dashboard heading is visible.",
+        "Establish the User menu target to prove authenticated readiness."
+      ]
+    },
+    {
+      "id": "review-private-metrics",
+      "purpose": "Show dashboard actions that should only be visible after authenticated readiness succeeds.",
+      "steps": [
+        "Focus Revenue intelligence.",
+        "Call out Export report.",
+        "Assert Invite teammate is available."
+      ]
+    }
+  ],
+  "selectedTargets": {
+    "privateDashboardHeading": {
+      "kind": "role",
+      "role": "heading",
+      "name": "Private dashboard"
+    },
+    "userMenu": {
+      "kind": "testId",
+      "id": "user-menu"
+    },
+    "revenueIntelligence": {
+      "kind": "role",
+      "role": "heading",
+      "name": "Revenue intelligence"
+    },
+    "exportReport": {
+      "kind": "role",
+      "role": "button",
+      "name": "Export report"
+    },
+    "inviteTeammate": {
+      "kind": "role",
+      "role": "button",
+      "name": "Invite teammate"
+    }
+  },
+  "expectedAssertions": [
+    "Private dashboard heading resolves after auth preflight.",
+    "User menu resolves from the authenticated dashboard.",
+    "Export report and Invite teammate controls resolve with semantic locators."
+  ],
+  "duration": {
+    "targetSeconds": 7,
+    "maximumSeconds": 15
+  },
+  "aspectRatio": "16:9",
+  "recaptureRequired": true,
+  "authReadiness": {
+    "profileIdEnvironmentVariable": "EVAL_AUTH_PROFILE_ID",
+    "expectedMissingClassification": "AUTH_READINESS_FAILURE"
+  }
+}

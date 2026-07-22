@@ -26,6 +26,7 @@ evals/results/
 
 # Local tooling
 .codegraph/
+.worktrees/
 .zcode/
 
 # Excluded examples (not published to origin)

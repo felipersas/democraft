@@ -20,6 +20,10 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { randomBytes } from "node:crypto";
 import { spawn } from "node:child_process";
+import {
+  AuthenticationPaths,
+  LocalAuthenticationRepository,
+} from "@democraft/authentication";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "..", "..");
@@ -27,6 +31,7 @@ const repoRoot = resolve(here, "..", "..");
 export const classifications = [
   "success",
   "ENVIRONMENT_SETUP",
+  "AUTH_READINESS_FAILURE",
   "FIXTURE_FAILURE",
   "DISCOVERY_MISSING_ELEMENT",
   "DISCOVERY_NOISY_OUTPUT",
@@ -54,7 +59,7 @@ async function main() {
   const options = parseHarnessArgs(process.argv.slice(2));
   if (!options.scenarioDir) {
     console.error(
-      "Usage: agent-reliability.mjs <scenario-dir> [--demo <demo.ts>] [--plan <DemoPlan.json>] [--repair-demo <demo.ts>] [--port <n>] [--mode discovery|full]",
+      "Usage: agent-reliability.mjs <scenario-dir> [--demo <demo.ts>] [--plan <DemoPlan.json>] [--repair-demo <demo.ts>] [--port <n>] [--mode discovery|full] [--auth-profile <profile-id>] [--no-harness-auth]",
     );
     process.exit(2);
   }
@@ -73,6 +78,8 @@ export function parseHarnessArgs(argv) {
     mode: undefined,
     port: 0,
     skipRender: false,
+    authProfileId: undefined,
+    noHarnessAuth: false,
   };
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
@@ -91,6 +98,8 @@ export function parseHarnessArgs(argv) {
     else if (token === "--mode") options.mode = readValue();
     else if (token === "--port") options.port = Number(readValue());
     else if (token === "--skip-render") options.skipRender = true;
+    else if (token === "--auth-profile") options.authProfileId = readValue();
+    else if (token === "--no-harness-auth") options.noHarnessAuth = true;
     else if (!token.startsWith("-") && !options.scenarioDir) {
       options.scenarioDir = token;
     } else {
@@ -153,6 +162,7 @@ export async function runReliabilityScenario(options) {
   }
 
   let server;
+  let auth;
   try {
     const booted = await bootTargetApp(targetApp, {
       port: options.port,
@@ -166,6 +176,17 @@ export async function runReliabilityScenario(options) {
       healthPath: scenario.fixture.healthPath,
       resetPath: scenario.fixture.resetPath,
     };
+    auth = await prepareHarnessAuthentication({
+      scenario,
+      targetApp,
+      baseUrl: booted.baseUrl,
+      profileId: options.authProfileId,
+      disabled: options.noHarnessAuth,
+    });
+    if (auth) {
+      result.environment.authentication = auth.summary;
+      result.artifacts.authProfile = auth.profileId;
+    }
 
     await runDoctorStage(result, runDirectory, booted.baseUrl, scenario);
     if (result.failures.length > 0) {
@@ -192,6 +213,7 @@ export async function runReliabilityScenario(options) {
       runDirectory,
       options,
       booted.baseUrl,
+      auth?.profileId,
       rubric,
     );
     finishResult(result);
@@ -210,6 +232,7 @@ export async function runReliabilityScenario(options) {
     return result;
   } finally {
     await new Promise((resolveClose) => server?.close(resolveClose));
+    await auth?.cleanup?.();
   }
 }
 
@@ -267,6 +290,9 @@ export function classifyCommandFailure(stage, command) {
   }
   if (stage === "validate") return "AUTHORING_API_MISUSE";
   if (stage === "render") {
+    if (isAuthenticationCommandOutput(output)) {
+      return "AUTH_READINESS_FAILURE";
+    }
     if (output.toLowerCase().includes("target")) return "LOCATOR_UNSTABLE";
     if (output.toLowerCase().includes("timeline")) return "TIMELINE_FAILURE";
     if (output.toLowerCase().includes("capture")) return "CAPTURE_FAILURE";
@@ -320,6 +346,7 @@ function createInitialResult({ runId, scenario, rubric, runDirectory, mode }) {
     },
     artifacts: {
       runDirectory,
+      commandEvidence: join(runDirectory, "commands"),
     },
     rubric: {
       id: rubric.id,
@@ -362,6 +389,11 @@ async function bootTargetApp(spec, options) {
     }
     const page = resolveTargetPage(spec, url.pathname);
     if (page) {
+      if (page.requiresAuth && !hasHarnessSession(req)) {
+        res.writeHead(302, { location: spec.auth?.loginPath ?? "/login" });
+        res.end();
+        return;
+      }
       res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
       res.end(renderSpecHtml(page, spec));
       return;
@@ -379,6 +411,14 @@ async function bootTargetApp(spec, options) {
       });
     });
   });
+}
+
+function hasHarnessSession(req) {
+  return Boolean(
+    req.headers.cookie
+      ?.split(";")
+      .some((cookie) => cookie.trim() === harnessSessionCookie()),
+  );
 }
 
 function resolveTargetPage(spec, pathname) {
@@ -561,6 +601,7 @@ async function runDoctorStage(result, runDirectory, baseUrl, scenario) {
     runDirectory,
   });
   recordCommand(result, doctor);
+  result.artifacts.doctor = doctor.evidence.command;
   if (doctor.exitCode !== 0) {
     failResult(
       result,
@@ -578,6 +619,7 @@ async function runDiscoveryStage(result, runDirectory, baseUrl, scenario) {
     runDirectory,
   });
   recordCommand(result, discovery);
+  result.artifacts.discoveryCommand = discovery.evidence.command;
   if (discovery.exitCode !== 0) {
     failResult(
       result,
@@ -653,6 +695,7 @@ async function runFullFlowStage(
   runDirectory,
   options,
   baseUrl,
+  authProfileId,
   rubric,
 ) {
   if (!options.demoPath) {
@@ -672,11 +715,17 @@ async function runFullFlowStage(
   if (result.failures.length > 0) return;
 
   const firstDemo = resolve(process.cwd(), options.demoPath);
+  result.artifacts.demoSource = await copyArtifactToRunDirectory(
+    firstDemo,
+    runDirectory,
+    "demo.ts",
+  );
   await runValidateRenderAttempt({
     result,
     runDirectory,
     demoPath: firstDemo,
     baseUrl,
+    authProfileId,
     attemptName: "draft",
     skipRender: options.skipRender,
   });
@@ -704,6 +753,7 @@ async function runFullFlowStage(
     runDirectory,
     demoPath: resolve(process.cwd(), options.repairDemoPath),
     baseUrl,
+    authProfileId,
     attemptName: "final",
     skipRender: options.skipRender,
   });
@@ -714,7 +764,11 @@ async function runFullFlowStage(
 
 async function validatePlanArtifact(result, planPath) {
   const absolutePlanPath = resolve(process.cwd(), planPath);
-  result.artifacts.demoPlan = absolutePlanPath;
+  result.artifacts.demoPlan = await copyArtifactToRunDirectory(
+    absolutePlanPath,
+    result.artifacts.runDirectory,
+    "DemoPlan.json",
+  );
   const content = await readFile(absolutePlanPath, "utf8");
   if (!absolutePlanPath.endsWith(".json")) return;
   const plan = JSON.parse(content);
@@ -744,16 +798,22 @@ async function runValidateRenderAttempt({
   runDirectory,
   demoPath,
   baseUrl,
+  authProfileId,
   attemptName,
   skipRender,
 }) {
+  const evalEnv = {
+    EVAL_BASE_URL: baseUrl,
+    ...(authProfileId ? { EVAL_AUTH_PROFILE_ID: authProfileId } : {}),
+  };
   const validate = await runCliCommand({
     name: `${attemptName}-validate`,
     args: ["validate", demoPath, "--json"],
     runDirectory,
-    env: { EVAL_BASE_URL: baseUrl },
+    env: evalEnv,
   });
   recordCommand(result, validate);
+  result.artifacts[`${attemptName}Validation`] = validate.evidence.command;
   const diagnostics = parseJsonOrUndefined(validate.stdout) ?? [];
   result.metrics.validationErrorCount += diagnostics.filter(
     (diagnostic) => diagnostic.severity === "error",
@@ -782,16 +842,18 @@ async function runValidateRenderAttempt({
       "render",
       demoPath,
       "--headless",
+      "--json",
       "--output-dir",
       captureDir,
       "-o",
       outputFile,
     ],
     runDirectory,
-    env: { EVAL_BASE_URL: baseUrl },
+    env: evalEnv,
     timeoutMs: commandTimeoutMs * 5,
   });
   recordCommand(result, render);
+  result.artifacts[`${attemptName}RenderCommand`] = render.evidence.command;
   if (render.exitCode !== 0) {
     failResult(
       result,
@@ -1052,13 +1114,20 @@ async function runCliCommand({
         stderr,
         durationMs: Date.now() - startedAt,
       };
-      await writeFile(join(commandsDir, `${name}.stdout.txt`), stdout);
-      await writeFile(join(commandsDir, `${name}.stderr.txt`), stderr);
-      await writeFile(
-        join(commandsDir, `${name}.json`),
-        `${JSON.stringify(command, null, 2)}\n`,
-      );
-      resolveCommand(command);
+      const stdoutPath = join(commandsDir, `${name}.stdout.txt`);
+      const stderrPath = join(commandsDir, `${name}.stderr.txt`);
+      const commandPath = join(commandsDir, `${name}.json`);
+      await writeFile(stdoutPath, stdout);
+      await writeFile(stderrPath, stderr);
+      await writeFile(commandPath, `${JSON.stringify(command, null, 2)}\n`);
+      resolveCommand({
+        ...command,
+        evidence: {
+          stdout: stdoutPath,
+          stderr: stderrPath,
+          command: commandPath,
+        },
+      });
     });
   });
 }
@@ -1069,9 +1138,90 @@ function recordCommand(result, command) {
     args: command.args,
     exitCode: command.exitCode,
     durationMs: command.durationMs,
+    evidence: command.evidence,
   });
   result.metrics.commandsExecuted = result.commands.length;
   result.metrics.durationMs += command.durationMs;
+}
+
+const harnessSession = {
+  cookieName: "democraft-eval-session",
+  cookieValue: "valid",
+};
+
+function harnessSessionCookie() {
+  return `${harnessSession.cookieName}=${harnessSession.cookieValue}`;
+}
+
+async function prepareHarnessAuthentication({
+  scenario,
+  targetApp,
+  baseUrl,
+  profileId,
+  disabled,
+}) {
+  if (!scenario.fixture?.requiresAuth) return undefined;
+  const validationPath = targetApp.auth?.validationPath ?? "/";
+  if (profileId) {
+    return {
+      profileId,
+      summary: {
+        mode: "external-profile",
+        profileId,
+        origin: baseUrl,
+        validationPath,
+      },
+    };
+  }
+  if (disabled) return undefined;
+
+  const paths = await AuthenticationPaths.fromWorkspace(repoRoot);
+  const repository = new LocalAuthenticationRepository(paths);
+  const profile = await repository.create({
+    name: `${scenario.id} harness session`,
+    origin: baseUrl,
+    validation: {
+      url: `${baseUrl}${validationPath}`,
+      expect: {
+        selector:
+          targetApp.auth?.validationSelector ?? '[data-testid="user-menu"]',
+      },
+    },
+  });
+  await repository.authenticate(profile.id, async () => ({
+    cookies: [
+      {
+        name: harnessSession.cookieName,
+        value: harnessSession.cookieValue,
+        url: baseUrl,
+        httpOnly: true,
+        sameSite: "Lax",
+      },
+    ],
+    origins: [],
+  }));
+  return {
+    profileId: profile.id,
+    summary: {
+      mode: "ephemeral-harness-profile",
+      profileId: profile.id,
+      origin: baseUrl,
+      validationPath,
+    },
+    cleanup: () => repository.remove(profile.id, { force: true }),
+  };
+}
+
+function isAuthenticationCommandOutput(output) {
+  const parsed = parseJsonOrUndefined(output.trim());
+  if (parsed?.code && String(parsed.code).startsWith("AUTH_")) return true;
+  return /\bAUTH_[A-Z_]+\b/.test(output) || /Action required:/.test(output);
+}
+
+async function copyArtifactToRunDirectory(source, runDirectory, filename) {
+  const destination = join(runDirectory, filename);
+  await copyFile(source, destination);
+  return destination;
 }
 
 function parseJsonOrUndefined(value) {

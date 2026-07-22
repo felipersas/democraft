@@ -28,6 +28,7 @@
       "enum": [
         "success",
         "ENVIRONMENT_SETUP",
+        "AUTH_READINESS_FAILURE",
         "FIXTURE_FAILURE",
         "DISCOVERY_MISSING_ELEMENT",
         "DISCOVERY_NOISY_OUTPUT",
@@ -61,6 +62,7 @@
         "evaluationScore",
         "humanInterventions",
         "validationErrorCount",
+        "targetResolutionRate",
         "captureSucceeded",
         "renderSucceeded",
         "commandsExecuted"

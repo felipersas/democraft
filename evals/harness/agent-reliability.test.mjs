@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   classifyCommandFailure,
+  classifications,
   computeSentinelFrames,
   evaluateCaptureTargetResolution,
   parseHarnessArgs,
+  runReliabilityScenario,
   validateRubric,
   validateScenario,
 } from "./agent-reliability.mjs";
@@ -23,6 +25,9 @@ test("parseHarnessArgs accepts discovery and full-flow options", () => {
       "full",
       "--port",
       "4567",
+      "--auth-profile",
+      "auth_01arz3ndektsv4rrffq69g5fav",
+      "--no-harness-auth",
       "--skip-render",
     ]),
     {
@@ -33,6 +38,8 @@ test("parseHarnessArgs accepts discovery and full-flow options", () => {
       mode: "full",
       port: 4567,
       skipRender: true,
+      authProfileId: "auth_01arz3ndektsv4rrffq69g5fav",
+      noHarnessAuth: true,
     },
   );
 });
@@ -82,6 +89,82 @@ test("classifyCommandFailure maps common stages to taxonomy", () => {
     }),
     "LOCATOR_UNSTABLE",
   );
+});
+
+test("classifyCommandFailure keeps auth readiness distinct from render failures", () => {
+  assert.ok(classifications.includes("AUTH_READINESS_FAILURE"));
+  assert.equal(
+    classifyCommandFailure("render", {
+      stdout: JSON.stringify({
+        ok: false,
+        code: "AUTH_PROFILE_NOT_FOUND",
+        profileId: "auth_01arz3ndektsv4rrffq69g5fav",
+        actionRequired: "choose-profile",
+        message: "Authentication profile was not found.",
+        stage: "capture-preflight",
+      }),
+      stderr: "",
+    }),
+    "AUTH_READINESS_FAILURE",
+  );
+});
+
+test("authenticated-dashboard full mode preserves frozen artifacts and auth readiness metadata", async () => {
+  const scenarioDir =
+    "evals/agent-reliability/scenarios/06-authenticated-dashboard";
+  const result = await runReliabilityScenario({
+    scenarioDir,
+    planPath: `${scenarioDir}/expected/DemoPlan.json`,
+    demoPath: `${scenarioDir}/expected/demo.ts`,
+    mode: "full",
+  });
+
+  assert.equal(result.status, "passed");
+  assert.equal(result.workflowMode, "full");
+  assert.equal(
+    result.environment.authentication.mode,
+    "ephemeral-harness-profile",
+  );
+  assert.match(result.artifacts.authProfile, /^auth_[0-9a-hjkmnp-tv-z]{26}$/);
+  assert.match(result.artifacts.demoPlan, /DemoPlan\.json$/);
+  assert.match(result.artifacts.demoSource, /demo\.ts$/);
+  assert.ok(result.artifacts.doctor);
+  assert.ok(result.artifacts.discoveryCommand);
+  assert.ok(result.artifacts.draftValidation);
+  assert.ok(result.artifacts.draftRenderCommand);
+  assert.ok(result.artifacts.draftCapture);
+  assert.ok(result.artifacts.draftRender);
+  assert.ok(result.artifacts.draftSentinelFrames);
+  assert.ok(result.artifacts.draftContactSheet);
+  assert.ok(result.artifacts.finalRender);
+  assert.equal(result.metrics.attempts, 1);
+  assert.equal(result.metrics.validationErrorCount, 0);
+  assert.equal(result.metrics.captureSucceeded, true);
+  assert.equal(result.metrics.renderSucceeded, true);
+  assert.equal(result.metrics.targetResolutionRate, 1);
+  assert.equal(result.metrics.commandsExecuted, 4);
+});
+
+test("authenticated-dashboard full mode classifies missing auth readiness distinctly", async () => {
+  const scenarioDir =
+    "evals/agent-reliability/scenarios/06-authenticated-dashboard";
+  const result = await runReliabilityScenario({
+    scenarioDir,
+    planPath: `${scenarioDir}/expected/DemoPlan.json`,
+    demoPath: `${scenarioDir}/expected/demo.ts`,
+    mode: "full",
+    noHarnessAuth: true,
+  });
+
+  assert.equal(result.status, "failed");
+  assert.equal(result.workflowMode, "full");
+  assert.equal(result.classification, "AUTH_READINESS_FAILURE");
+  assert.equal(result.failures[0].stage, "render");
+  assert.match(result.failures[0].message, /AUTH_PROFILE_NOT_FOUND/);
+  assert.equal(result.metrics.validationErrorCount, 0);
+  assert.equal(result.metrics.captureSucceeded, false);
+  assert.equal(result.metrics.renderSucceeded, false);
+  assert.equal(result.metrics.commandsExecuted, 4);
 });
 
 test("computeSentinelFrames returns stable quarter points", () => {
