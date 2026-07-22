@@ -223,6 +223,47 @@ describe("collectPageDiscovery", () => {
     expect(discovery.collections[0]!.sampleElementIds).toHaveLength(3);
   });
 
+  it("does not invent role-name locators for unlabeled articles", async () => {
+    const page = fakePage({
+      url: "http://localhost:3000/projects",
+      pathname: "/projects",
+      title: "Projects",
+      viewport: { width: 1920, height: 1080, deviceScaleFactor: 2 },
+      regions: [],
+      nodes: [
+        {
+          role: "article",
+          name: "",
+          tag: "article",
+          testId: null,
+          label: null,
+          text: "Project 1 Details Open project",
+          visible: true,
+          enabled: true,
+          checked: null,
+          selected: null,
+          expanded: null,
+          region: null,
+          box: { x: 0, y: 0, width: 200, height: 100 },
+        },
+      ],
+    });
+
+    const discovery = await collectPageDiscovery(page);
+    const card = discovery.elements[0]!;
+
+    expect(card.kind).toBe("card");
+    expect(card.name).toBeUndefined();
+    expect(card.locatorCandidates[0]).toMatchObject({
+      locator: { kind: "text", text: "Project 1 Details Open project" },
+    });
+    expect(
+      card.locatorCandidates.some(
+        (candidate) => candidate.locator.kind === "role",
+      ),
+    ).toBe(false);
+  });
+
   it("warns when no interactive elements are discovered", async () => {
     const page = fakePage({
       url: "http://localhost:3000/empty",
@@ -264,7 +305,9 @@ describe("collectPageDiscovery", () => {
         { ...shared, box: { x: 0, y: 40, width: 60, height: 30 } },
       ],
     });
-    const discovery = await collectPageDiscovery(page, { collectionThreshold: 99 });
+    const discovery = await collectPageDiscovery(page, {
+      collectionThreshold: 99,
+    });
     expect(
       discovery.elements.find((e) => e.name === "Delete")?.locatorCandidates[0]
         ?.unique,
@@ -351,9 +394,7 @@ describe("collectPageDiscovery", () => {
     expect(trigger?.visible).toBe(true);
 
     // Exactly one DC408 warning naming the count + trigger.
-    const overlayWarning = discovery.warnings.find(
-      (w) => w.code === "DC408",
-    );
+    const overlayWarning = discovery.warnings.find((w) => w.code === "DC408");
     expect(overlayWarning).toBeDefined();
     expect(overlayWarning?.message).toContain("2 element(s)");
     expect(overlayWarning?.message).toContain("Create project");

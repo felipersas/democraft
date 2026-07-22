@@ -57,6 +57,20 @@ describe("playwright runtime", () => {
     });
   });
 
+  it("uses exact role-name matching for string role locators", async () => {
+    const page = createMockPage({
+      role: { visible: true, box: { x: 1, y: 2, width: 3, height: 4 } },
+    });
+
+    await resolveTarget(
+      createIR([{ kind: "role", role: "article", name: "Project 1" }]),
+      page,
+      "button",
+    );
+
+    expect(page.calls[0]).toBe("getByRole:article:Project 1:exact");
+  });
+
   it("executes browser steps and writes a manifest", async () => {
     const outputDir = await mkdtemp(join(tmpdir(), "democraft-"));
     tempDirs.push(outputDir);
@@ -734,7 +748,12 @@ function createMockPage(
     },
     url: () => "http://localhost:3000/dashboard",
     locator: () => locatorFor("text"),
-    getByRole: () => locatorFor("role"),
+    getByRole: (role: string, options?: { name?: string; exact?: boolean }) => {
+      calls.push(
+        `getByRole:${role}:${options?.name ?? ""}:${options?.exact ? "exact" : "substring"}`,
+      );
+      return locatorFor("role");
+    },
     getByLabel: () => locatorFor("label"),
     getByTestId: () => locatorFor("testId"),
     getByText: () => locatorFor("text"),

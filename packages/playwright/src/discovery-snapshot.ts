@@ -207,10 +207,16 @@ export async function collectPageDiscovery(
   const testIdCount = new Map<string, number>();
   const textCount = new Map<string, number>();
   for (const node of raw.nodes) {
-    roleCount.set(roleKey(node.role, node.name), (roleCount.get(roleKey(node.role, node.name)) ?? 0) + 1);
-    if (node.label) labelCount.set(node.label, (labelCount.get(node.label) ?? 0) + 1);
-    if (node.testId) testIdCount.set(node.testId, (testIdCount.get(node.testId) ?? 0) + 1);
-    if (node.text) textCount.set(node.text, (textCount.get(node.text) ?? 0) + 1);
+    roleCount.set(
+      roleKey(node.role, node.name),
+      (roleCount.get(roleKey(node.role, node.name)) ?? 0) + 1,
+    );
+    if (node.label)
+      labelCount.set(node.label, (labelCount.get(node.label) ?? 0) + 1);
+    if (node.testId)
+      testIdCount.set(node.testId, (testIdCount.get(node.testId) ?? 0) + 1);
+    if (node.text)
+      textCount.set(node.text, (textCount.get(node.text) ?? 0) + 1);
   }
 
   const warnings: DiscoveryWarning[] = [];
@@ -232,13 +238,16 @@ export async function collectPageDiscovery(
       visible: node.visible,
       enabled: node.enabled,
       roleMatchCount: roleCount.get(roleKey(node.role, node.name)) ?? 1,
-      labelMatchCount: node.label ? labelCount.get(node.label) ?? 1 : 0,
-      testIdMatchCount: node.testId ? testIdCount.get(node.testId) ?? 1 : 0,
-      textMatchCount: node.text ? textCount.get(node.text) ?? 1 : 0,
+      labelMatchCount: node.label ? (labelCount.get(node.label) ?? 1) : 0,
+      testIdMatchCount: node.testId ? (testIdCount.get(node.testId) ?? 1) : 0,
+      textMatchCount: node.text ? (textCount.get(node.text) ?? 1) : 0,
     });
 
     const interactive = isInteractiveKind(kind);
-    const provisional: Pick<DiscoveredElement, "visible" | "interactive" | "boundingBox"> = {
+    const provisional: Pick<
+      DiscoveredElement,
+      "visible" | "interactive" | "boundingBox"
+    > = {
       visible: node.visible,
       interactive,
       boundingBox: node.box ?? undefined,
@@ -247,7 +256,8 @@ export async function collectPageDiscovery(
     // real interactive surface once the overlay opens, and an agent needs to
     // author them ahead of capture. They surface with visible:false +
     // insideClosedOverlay:true, plus a DC408 warning (emitted below).
-    if (!node.insideClosedOverlay && !shouldRetainElement(provisional)) continue;
+    if (!node.insideClosedOverlay && !shouldRetainElement(provisional))
+      continue;
 
     const element: DiscoveredElement = {
       id: fallbackId,
@@ -457,7 +467,7 @@ async function readRawPage(page: DiscoveryPage): Promise<RawPage> {
       return "textbox";
     }
 
-    const accessibleName = (el: Element): string => {
+    const accessibleName = (el: Element, role: string): string => {
       const aria = el.getAttribute("aria-label");
       if (aria) return aria.trim();
       const labelledBy = el.getAttribute("aria-labelledby");
@@ -476,10 +486,28 @@ async function readRawPage(page: DiscoveryPage): Promise<RawPage> {
       // <label> wrapping the control
       const parent = el.closest("label");
       if (parent) return (parent.textContent || "").trim();
+      if (!allowsNameFromContent(role)) return "";
       return (el.textContent || "").trim().replace(/\s+/g, " ").slice(0, 160);
     };
 
-    const boxOf = (rect: DOMRect): {
+    function allowsNameFromContent(role: string): boolean {
+      return [
+        "button",
+        "link",
+        "heading",
+        "checkbox",
+        "radio",
+        "menuitem",
+        "menuitemcheckbox",
+        "menuitemradio",
+        "tab",
+        "summary",
+      ].includes(role);
+    }
+
+    const boxOf = (
+      rect: DOMRect,
+    ): {
       x: number;
       y: number;
       width: number;
@@ -538,10 +566,8 @@ async function readRawPage(page: DiscoveryPage): Promise<RawPage> {
       let node = el.parentElement;
       while (node) {
         const tag = node.tagName.toLowerCase();
-        const isClosedDialog =
-          tag === "dialog" && !node.hasAttribute("open");
-        const isClosedDetails =
-          tag === "details" && !node.hasAttribute("open");
+        const isClosedDialog = tag === "dialog" && !node.hasAttribute("open");
+        const isClosedDetails = tag === "details" && !node.hasAttribute("open");
         const isHidden =
           node.hasAttribute("hidden") ||
           node.getAttribute("aria-hidden") === "true";
@@ -557,7 +583,9 @@ async function readRawPage(page: DiscoveryPage): Promise<RawPage> {
       // Honor an explicit popover target, then a labelled dialog, then role.
       const id = overlay.id;
       if (id) {
-        const targeted = document.querySelector(`[popovertarget="${CSS.escape(id)}"], [data-target="${CSS.escape(id)}"]`);
+        const targeted = document.querySelector(
+          `[popovertarget="${CSS.escape(id)}"], [data-target="${CSS.escape(id)}"]`,
+        );
         if (targeted) {
           const name =
             (targeted.getAttribute("aria-label") || "").trim() ||
@@ -597,9 +625,7 @@ async function readRawPage(page: DiscoveryPage): Promise<RawPage> {
           (tag === "form" && "form") ||
           null;
         if (landmark) {
-          return (
-            (node.getAttribute("aria-label") || "").trim() || landmark
-          );
+          return (node.getAttribute("aria-label") || "").trim() || landmark;
         }
         node = node.parentElement;
       }
@@ -618,17 +644,14 @@ async function readRawPage(page: DiscoveryPage): Promise<RawPage> {
       const overlay = closedOverlayInfo(el);
       nodes.push({
         role,
-        name: accessibleName(el),
+        name: accessibleName(el, role),
         tag: el.tagName.toLowerCase(),
         testId:
           el.getAttribute("data-testid") ||
           el.getAttribute("data-test-id") ||
           null,
         label: labelFor(el),
-        text: (el.textContent || "")
-          .replace(/\s+/g, " ")
-          .trim()
-          .slice(0, 160),
+        text: (el.textContent || "").replace(/\s+/g, " ").trim().slice(0, 160),
         visible,
         enabled: isEnabledElement(el),
         checked:

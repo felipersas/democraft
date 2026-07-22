@@ -131,7 +131,10 @@ export type PageLike = {
   goto(url: string, options?: { timeout?: number }): Promise<unknown>;
   url(): string;
   locator(selector: string): LocatorLike;
-  getByRole(role: string, options?: { name?: string }): LocatorLike;
+  getByRole(
+    role: string,
+    options?: { name?: string; exact?: boolean },
+  ): LocatorLike;
   getByLabel(text: string): LocatorLike;
   getByTestId(id: string): LocatorLike;
   getByText(text: string): LocatorLike;

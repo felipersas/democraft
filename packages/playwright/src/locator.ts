@@ -81,7 +81,10 @@ export async function resolveTarget(
 export function createLocator(page: PageLike, locator: Locator): LocatorLike {
   switch (locator.kind) {
     case "role":
-      return page.getByRole(locator.role, { name: locator.name });
+      return page.getByRole(locator.role, {
+        name: locator.name,
+        exact: locator.name ? true : undefined,
+      });
     case "label":
       return page.getByLabel(locator.text);
     case "testId":

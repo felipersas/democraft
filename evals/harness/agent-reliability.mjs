@@ -529,7 +529,7 @@ function renderCollection(collection) {
     const title = collection.itemName
       ? collection.itemName.replace("{n}", String(index + 1))
       : `Item ${index + 1}`;
-    return `<article><h2>${escapeText(title)}</h2><p>${escapeText(collection.detail ?? `Details for ${title}.`)}</p><button type="button">${escapeText(collection.actionName ?? "Open")}</button></article>`;
+    return `<article aria-label="${escapeAttr(title)}"><h2>${escapeText(title)}</h2><p>${escapeText(collection.detail ?? `Details for ${title}.`)}</p><button type="button">${escapeText(collection.actionName ?? "Open")}</button></article>`;
   }).join("\n");
   return `<main aria-label="${escapeAttr(collection.label ?? "Items")}">\n${items}\n</main>`;
 }
