@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "07-broken-target-repair",
+  "title": "Broken target repair",
+  "difficulty": "intermediate",
+  "category": "repair",
+  "fixture": {
+    "kind": "declarative-html",
+    "appFile": "target-app/app.json",
+    "healthPath": "/health",
+    "resetPath": "/reset",
+    "baseUrlEnvironmentVariable": "EVAL_BASE_URL",
+    "requiresAuth": false
+  },
+  "promptFile": "prompt.md",
+  "rubricFile": "rubric.json",
+  "budgets": {
+    "maximumAttempts": 2,
+    "maximumRepairRounds": 1,
+    "maximumDurationMs": 600000,
+    "commandTimeoutMs": 120000
+  },
+  "expectedArtifacts": [
+    "doctor",
+    "discovery",
+    "demoPlan",
+    "demoSource",
+    "validation",
+    "draftRender",
+    "sentinelFrames",
+    "contactSheet",
+    "finalRender",
+    "result"
+  ]
+}

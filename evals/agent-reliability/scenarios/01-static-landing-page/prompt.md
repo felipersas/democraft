@@ -1,0 +1,1 @@
+Create a 45-second product demo for this landing page. Show the value proposition, focus the primary call to action, and end on a clear next step for a trial signup. Use the discovered semantic locators instead of guessing selectors.

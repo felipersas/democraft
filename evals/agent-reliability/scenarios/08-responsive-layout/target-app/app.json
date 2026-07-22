@@ -1,0 +1,36 @@
+{
+  "title": "Acme Responsive",
+  "regions": [
+    {
+      "kind": "banner",
+      "label": "Responsive top bar",
+      "elements": [
+        { "kind": "heading", "name": "Responsive workspace" },
+        {
+          "kind": "button",
+          "name": "Open menu",
+          "testId": "mobile-menu",
+          "className": "responsive-mobile"
+        },
+        {
+          "kind": "link",
+          "name": "Dashboard",
+          "testId": "desktop-dashboard",
+          "className": "responsive-desktop"
+        }
+      ]
+    },
+    {
+      "kind": "main",
+      "label": "Workspace summary",
+      "elements": [
+        { "kind": "heading", "name": "Team workspace" },
+        {
+          "kind": "button",
+          "name": "Create workspace",
+          "testId": "create-workspace"
+        }
+      ]
+    }
+  ]
+}

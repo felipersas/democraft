@@ -1,0 +1,30 @@
+{
+  "title": "Acme Private — Dashboard",
+  "regions": [
+    {
+      "kind": "banner",
+      "label": "Private top bar",
+      "elements": [
+        { "kind": "heading", "name": "Private dashboard" },
+        { "kind": "button", "name": "User menu", "testId": "user-menu" }
+      ]
+    },
+    {
+      "kind": "main",
+      "label": "Private metrics",
+      "elements": [
+        { "kind": "heading", "name": "Revenue intelligence" },
+        {
+          "kind": "button",
+          "name": "Export report",
+          "testId": "export-report"
+        },
+        {
+          "kind": "button",
+          "name": "Invite teammate",
+          "testId": "invite-teammate"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "05-repeated-cards-rubric",
+  "thresholds": {
+    "minimumSemanticLocatorRatio": 0.8,
+    "minimumEvaluationScore": 80,
+    "maximumValidationErrors": 0,
+    "maximumRepairRounds": 1,
+    "mustRender": true,
+    "mustNotUseUnsafeExploration": true,
+    "mustUseCollectionSampling": true
+  },
+  "rules": [
+    {
+      "id": "minimumSemanticLocatorRatio",
+      "level": "must",
+      "description": "Top locator candidates should be semantic.",
+      "weight": 2
+    },
+    {
+      "id": "mustHaveNoEmptyElements",
+      "level": "must",
+      "description": "Every retained Discovery element should have locator candidates.",
+      "weight": 2
+    },
+    {
+      "id": "mustUseCollectionSampling",
+      "level": "must",
+      "description": "Long repeated card lists should be aggregated with samples.",
+      "weight": 2
+    },
+    {
+      "id": "mustNotUseUnsafeExploration",
+      "level": "must",
+      "description": "Discovery must not hit unsafe origin or scheme diagnostics.",
+      "weight": 2
+    }
+  ]
+}

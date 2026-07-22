@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://democraft.dev/schemas/agent-reliability/result.schema.json",
+  "title": "DemoCraft Agent Reliability Result",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schemaVersion",
+    "runId",
+    "scenarioId",
+    "status",
+    "classification",
+    "workflowMode",
+    "environment",
+    "metrics",
+    "artifacts",
+    "rubric",
+    "failures"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "runId": { "type": "string", "minLength": 1 },
+    "scenarioId": { "type": "string", "minLength": 1 },
+    "status": {
+      "enum": ["passed", "failed", "skipped"]
+    },
+    "classification": {
+      "enum": [
+        "success",
+        "ENVIRONMENT_SETUP",
+        "FIXTURE_FAILURE",
+        "DISCOVERY_MISSING_ELEMENT",
+        "DISCOVERY_NOISY_OUTPUT",
+        "LOCATOR_AMBIGUOUS",
+        "LOCATOR_UNSTABLE",
+        "PLAN_INVALID",
+        "PLAN_POOR_NARRATIVE",
+        "AUTHORING_API_MISUSE",
+        "VALIDATION_GAP",
+        "CAPTURE_FAILURE",
+        "TIMELINE_FAILURE",
+        "RENDER_FAILURE",
+        "VISUAL_QUALITY_FAILURE",
+        "REPAIR_INEFFECTIVE",
+        "REPAIR_REGRESSION",
+        "SKILL_INSTRUCTION_FAILURE",
+        "DOCUMENTATION_GAP",
+        "PACKAGE_INSTALLATION_FAILURE",
+        "UNKNOWN"
+      ]
+    },
+    "workflowMode": { "enum": ["discovery", "full"] },
+    "environment": { "type": "object" },
+    "metrics": {
+      "type": "object",
+      "required": [
+        "attempts",
+        "repairRounds",
+        "semanticLocatorRatio",
+        "durationMs",
+        "evaluationScore",
+        "humanInterventions",
+        "validationErrorCount",
+        "captureSucceeded",
+        "renderSucceeded",
+        "commandsExecuted"
+      ]
+    },
+    "artifacts": { "type": "object" },
+    "rubric": {
+      "type": "object",
+      "required": ["score", "rules"]
+    },
+    "failures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["classification", "stage", "message"]
+      }
+    }
+  }
+}

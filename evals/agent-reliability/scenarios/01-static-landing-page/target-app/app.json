@@ -1,0 +1,36 @@
+{
+  "title": "Acme — Landing page",
+  "regions": [
+    {
+      "kind": "banner",
+      "label": "Site header",
+      "elements": [
+        { "kind": "heading", "name": "Acme" },
+        { "kind": "link", "name": "Sign in", "testId": "sign-in-link" }
+      ]
+    },
+    {
+      "kind": "navigation",
+      "label": "Primary navigation",
+      "elements": [
+        { "kind": "link", "name": "Product" },
+        { "kind": "link", "name": "Pricing" },
+        { "kind": "link", "name": "Docs" }
+      ]
+    },
+    {
+      "kind": "main",
+      "label": "Hero",
+      "elements": [
+        { "kind": "heading", "name": "Ship product demos in minutes" },
+        {
+          "kind": "button",
+          "name": "Start free trial",
+          "testId": "start-trial"
+        },
+        { "kind": "button", "name": "Book a demo" },
+        { "kind": "textbox", "label": "Work email", "testId": "work-email" }
+      ]
+    }
+  ]
+}

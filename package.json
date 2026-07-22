@@ -9,7 +9,11 @@
     "typecheck": "turbo typecheck",
     "test": "turbo test --concurrency=4",
     "lint": "eslint .",
-    "format": "prettier --check ."
+    "format": "prettier --check .",
+    "eval:agent-reliability": "node evals/harness/agent-reliability.mjs",
+    "eval:agent-reliability:validate": "node evals/harness/validate-agent-reliability.mjs",
+    "skill:democraft-product-demo:validate": "node evals/harness/validate-skill.mjs",
+    "test:agent-reliability": "node --test evals/harness/agent-reliability.test.mjs"
   },
   "devDependencies": {
     "@democraft/cli": "workspace:^",

@@ -1,0 +1,19 @@
+{
+  "title": "Projects — Acme",
+  "regions": [
+    {
+      "kind": "banner",
+      "label": "Top bar",
+      "elements": [
+        { "kind": "heading", "name": "Projects" },
+        { "kind": "button", "name": "New project", "testId": "new-project" }
+      ]
+    }
+  ],
+  "collection": {
+    "label": "Projects",
+    "count": 48,
+    "itemName": "Project {n}",
+    "actionName": "Open project"
+  }
+}

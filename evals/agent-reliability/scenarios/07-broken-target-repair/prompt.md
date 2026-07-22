@@ -1,0 +1,1 @@
+Repair an existing demo whose old primary CTA target was named "Start free trial". The page now says "Start workspace". Use Discovery to choose the replacement target and perform at most one repair round.

@@ -1,0 +1,31 @@
+{
+  "title": "Acme Ops — Dashboard",
+  "regions": [
+    {
+      "kind": "banner",
+      "label": "Top bar",
+      "elements": [
+        { "kind": "heading", "name": "Acme Ops" },
+        { "kind": "button", "name": "New project", "testId": "new-project" }
+      ]
+    },
+    {
+      "kind": "navigation",
+      "label": "Primary navigation",
+      "elements": [
+        { "kind": "link", "name": "Dashboard", "href": "/" },
+        { "kind": "link", "name": "Projects", "href": "/projects" },
+        { "kind": "link", "name": "Reports", "href": "/reports" },
+        { "kind": "link", "name": "Settings", "href": "/settings" }
+      ]
+    },
+    {
+      "kind": "main",
+      "label": "Dashboard overview",
+      "elements": [
+        { "kind": "heading", "name": "Dashboard overview" },
+        { "kind": "button", "name": "Refresh metrics" }
+      ]
+    }
+  ]
+}

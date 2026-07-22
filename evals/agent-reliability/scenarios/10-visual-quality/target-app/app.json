@@ -1,0 +1,42 @@
+{
+  "title": "Acme Launch",
+  "regions": [
+    {
+      "kind": "banner",
+      "label": "Launch header",
+      "elements": [
+        { "kind": "heading", "name": "New automation cockpit" },
+        {
+          "kind": "button",
+          "name": "Try automation",
+          "testId": "try-automation"
+        }
+      ]
+    },
+    {
+      "kind": "main",
+      "label": "Feature launch",
+      "elements": [
+        {
+          "kind": "heading",
+          "name": "Coordinate every workflow from one place"
+        },
+        {
+          "kind": "button",
+          "name": "Review active automations",
+          "testId": "review-automations"
+        },
+        {
+          "kind": "button",
+          "name": "Open run history",
+          "testId": "run-history"
+        },
+        {
+          "kind": "button",
+          "name": "Share launch report",
+          "testId": "share-report"
+        }
+      ]
+    }
+  ]
+}

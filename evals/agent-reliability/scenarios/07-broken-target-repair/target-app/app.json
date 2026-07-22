@@ -1,0 +1,18 @@
+{
+  "title": "Acme — CTA renamed",
+  "regions": [
+    {
+      "kind": "main",
+      "label": "Hero",
+      "elements": [
+        { "kind": "heading", "name": "Launch a workspace in minutes" },
+        {
+          "kind": "button",
+          "name": "Start workspace",
+          "testId": "start-workspace"
+        },
+        { "kind": "button", "name": "Contact sales", "testId": "contact-sales" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "title": "Acme Analytics",
+  "slowLoading": { "delayMs": 900 },
+  "regions": [
+    {
+      "kind": "main",
+      "label": "Analytics",
+      "elements": [
+        { "kind": "heading", "name": "Analytics loading" },
+        {
+          "kind": "button",
+          "name": "Refresh analytics",
+          "testId": "refresh-analytics"
+        },
+        {
+          "kind": "heading",
+          "name": "Conversion insights ready",
+          "testId": "insights-ready",
+          "delayed": true
+        }
+      ]
+    }
+  ]
+}

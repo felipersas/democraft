@@ -1,0 +1,1 @@
+Create a private dashboard demo using an existing DemoCraft authentication profile if one is available. Do not invent credentials or inspect stored browser state. If the profile is unavailable or expired, return a structured prerequisite failure.
